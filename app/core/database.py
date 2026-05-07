@@ -97,7 +97,6 @@ async def init_db() -> None:
                         )
                     """)
                 )
-                # SQLAlchemy returns a Result; scalar_one() is safest but depends on driver.
                 try:
                     users_exists = bool(exists.scalar_one())
                 except Exception:
