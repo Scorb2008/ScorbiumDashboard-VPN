@@ -12,13 +12,29 @@ from app.core.config import config
 
 
 async def _get_db_conn():
-    return await asyncpg.connect(
-        host=config.database.db_host,
-        port=config.database.db_port,
-        user=config.database.db_user,
-        password=config.database.db_password.get_secret_value(),
-        database=config.database.db_name,
-    )
+    try:
+        return await asyncpg.connect(
+            host=config.database.db_host,
+            port=config.database.db_port,
+            user=config.database.db_user,
+            password=config.database.db_password.get_secret_value(),
+            database=config.database.db_name,
+        )
+    except asyncpg.InvalidPasswordError:
+        print()
+        print("=" * 60)
+        print("ERROR: password authentication failed for user")
+        print()
+        print("  Пароль БД в .env не совпадает с паролем PostgreSQL.")
+        print("  Это бывает если .env создан вручную или изменён")
+        print("  после первого запуска контейнера.")
+        print()
+        print("  Решение:")
+        print("    bash setup.sh          # создаст .env заново")
+        print("    # или сбросить volume:")
+        print("    docker compose down -v && bash setup.sh")
+        print("=" * 60)
+        sys.exit(1)
 
 
 async def _table_exists(conn, table_name: str) -> bool:

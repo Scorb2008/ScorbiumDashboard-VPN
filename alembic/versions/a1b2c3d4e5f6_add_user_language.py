@@ -17,6 +17,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     conn = op.get_bind()
+    table_exists = conn.execute(sa.text("""
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'users'
+    """)).fetchone()
+    if not table_exists:
+        return
     result = conn.execute(sa.text("""
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'users' AND column_name = 'language'
@@ -27,6 +33,12 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     conn = op.get_bind()
+    table_exists = conn.execute(sa.text("""
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'users'
+    """)).fetchone()
+    if not table_exists:
+        return
     result = conn.execute(sa.text("""
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'users' AND column_name = 'language'

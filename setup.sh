@@ -164,7 +164,8 @@ echo ""
 echo -e "${BOLD}── База данных ─────────────────────────────────────${RESET}"
 read -rp "Имя БД [vpnbot]: " DB_NAME; DB_NAME=${DB_NAME:-vpnbot}
 read -rp "Пользователь БД [postgres]: " DB_USER; DB_USER=${DB_USER:-postgres}
-read -rsp "Пароль БД [postgres]: " DB_PASS; echo ""; DB_PASS=${DB_PASS:-postgres}
+DEFAULT_DB_PASS=$(openssl rand -hex 16 2>/dev/null || python3 -c "import secrets; print(secrets.token_hex(16))")
+read -rsp "Пароль БД [случайный]: " DB_PASS; echo ""; DB_PASS=${DB_PASS:-$DEFAULT_DB_PASS}
 
 # Validate DB password
 if [[ ${#DB_PASS} -lt 8 ]]; then
