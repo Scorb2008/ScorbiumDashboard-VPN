@@ -32,6 +32,7 @@ class _WebConfig(BaseSettings):
     allowed_origins: List[AnyHttpUrl] = Field(default_factory=list, validation_alias="ALLOWED_ORIGINS")
     web_superadmin_username: str = Field(default="admin", validation_alias="WEB_SUPERADMIN_USERNAME")
     web_superadmin_password: SecretStr = Field(default_factory=lambda: SecretStr("SUPERADMIN"), validation_alias="WEB_SUPERADMIN_PASSWORD")
+    metrics_api_key: SecretStr = Field(default_factory=lambda: SecretStr(""), validation_alias="METRICS_API_KEY")
     
     @field_validator("allowed_origins")
     @classmethod

@@ -64,21 +64,41 @@ class ReferralService:
         )
         return list(result.scalars().all())
 
+    MAX_REFERRALS_PER_USER = 500
+    MAX_BONUS_VALUE = Decimal("999999")
+
     async def create(
         self,
         referrer_id: int,
         referred_id: int,
         bonus_type: str = "days",
         bonus_value: Decimal = Decimal("3"),
-        # bonus_days kept for compat but ignored
         bonus_days: int = 0,
     ) -> Optional[Referral]:
+        if referrer_id == referred_id:
+            log.warning(f"Referral fraud: user {referrer_id} referred themselves")
+            return None
+
+        # Validate bonus
+        if bonus_value <= 0:
+            log.warning(f"Referral: non-positive bonus {bonus_value} for referrer {referrer_id}")
+            return None
+        if bonus_value > self.MAX_BONUS_VALUE:
+            bonus_value = self.MAX_BONUS_VALUE
+
         result = await self.session.execute(
             select(Referral).where(Referral.referred_id == referred_id).limit(1)
         )
         existing = result.scalar_one_or_none()
         if existing:
             return None
+
+        # Enforce max referrals per user
+        count = await self.count_referrals(referrer_id)
+        if count >= self.MAX_REFERRALS_PER_USER:
+            log.warning(f"Referral limit reached for user {referrer_id}: {count}")
+            return None
+
         ref = Referral(
             referrer_id=referrer_id,
             referred_id=referred_id,

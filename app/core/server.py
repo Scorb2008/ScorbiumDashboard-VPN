@@ -156,6 +156,22 @@ async def _lifespan(app: FastAPI):
     from app.services.slow_query import register_slow_query_logger
     register_slow_query_logger()
 
+    # Token blacklist cleanup every hour
+    async def _token_cleanup_loop():
+        while True:
+            await asyncio.sleep(3600)
+            try:
+                from app.core.database import AsyncSessionFactory
+                from app.services.token_blacklist import TokenBlacklistService
+                async with AsyncSessionFactory() as _s:
+                    removed = await TokenBlacklistService(_s).cleanup_expired()
+                    await _s.commit()
+                    if removed:
+                        log.info(f"Cleaned up {removed} expired blacklisted tokens")
+            except Exception:
+                pass
+    _start_bg_task(_token_cleanup_loop(), name="token_cleanup")
+
     import os as _os
     _env_cryptobot = _os.environ.get("CRYPTOBOT_TOKEN", "").strip()
     if _env_cryptobot:
@@ -231,6 +247,7 @@ def create_app() -> FastAPI:
         lifespan=_lifespan,
         docs_url="/docs",
         redoc_url="/redoc",
+        redirect_slashes=False,
     )
 
     origins = [str(o) for o in config.web.allowed_origins] or ["*"]
@@ -288,6 +305,19 @@ def create_app() -> FastAPI:
             },
             status_code=403,
         )
+
+    class _TrailingSlashNormalizer(_BHM):
+        """Strip trailing slashes from all paths except root to prevent 307 redirects."""
+        async def dispatch(self, request: Request, call_next):
+            path = request.url.path
+            if len(path) > 1 and path.endswith("/"):
+                from starlette.datastructures import URL
+                new_path = path.rstrip("/")
+                request.scope["path"] = new_path
+                request.scope["root_path"] = request.scope.get("root_path", "").rstrip("/")
+                request._url = URL(scope=request.scope)
+            return await call_next(request)
+    app.add_middleware(_TrailingSlashNormalizer)
 
     class _SecurityHeaders(_BHM):
         async def dispatch(self, request: Request, call_next):
@@ -472,7 +502,13 @@ def create_app() -> FastAPI:
             return JSONResponse({"status": "error", "db": "unavailable"}, status_code=503)
 
     @app.get("/metrics", include_in_schema=False)
-    async def prometheus_metrics():
+    async def prometheus_metrics(request: Request):
+        key = config.web.metrics_api_key.get_secret_value()
+        if key:
+            auth = request.headers.get("Authorization", "")
+            if auth != f"Bearer {key}":
+                from fastapi.responses import JSONResponse
+                return JSONResponse(status_code=403, content={"detail": "Forbidden"})
         from app.services.metrics import metrics_response
         return metrics_response()
 

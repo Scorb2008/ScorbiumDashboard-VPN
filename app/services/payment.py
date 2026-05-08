@@ -157,9 +157,38 @@ class PaymentService:
         return count
 
     async def confirm(self, payment_id: int, external_id: str) -> Optional[Payment]:
-        payment = await self.get_by_id(payment_id)
+        """Atomic confirm with double-spending protection.
+
+        Uses SELECT ... FOR UPDATE to prevent race conditions where
+        two webhooks could both confirm the same payment.
+        """
+        from sqlalchemy import select as _select
+        result = await self.session.execute(
+            _select(Payment)
+            .where(Payment.id == payment_id)
+            .with_for_update()
+        )
+        payment = result.scalar_one_or_none()
         if not payment:
             return None
+        if payment.status == PaymentStatus.SUCCEEDED.value:
+            return payment
+        payment.status = PaymentStatus.SUCCEEDED.value
+        payment.external_id = external_id
+        await self.session.flush()
+        return payment
+
+    async def confirm_topup(self, payment_id: int, external_id: str) -> Optional[Payment]:
+        """Atomic topup confirmation with FOR UPDATE lock."""
+        from sqlalchemy import select as _select
+        result = await self.session.execute(
+            _select(Payment)
+            .where(Payment.id == payment_id)
+            .with_for_update()
+        )
+        payment = result.scalar_one_or_none()
+        if not payment or payment.status == PaymentStatus.SUCCEEDED.value:
+            return payment
         payment.status = PaymentStatus.SUCCEEDED.value
         payment.external_id = external_id
         await self.session.flush()
@@ -178,3 +207,7 @@ class PaymentService:
             payment.status = PaymentStatus.REFUNDED.value
             await self.session.flush()
         return payment
+
+    async def is_already_processed(self, payment_id: int) -> bool:
+        payment = await self.get_by_id(payment_id)
+        return payment is not None and payment.status == PaymentStatus.SUCCEEDED.value

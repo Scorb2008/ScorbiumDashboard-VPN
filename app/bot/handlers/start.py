@@ -492,7 +492,7 @@ async def process_promo(message: Message, state: FSMContext) -> None:
     code = message.text.strip().upper()
     async with AsyncSessionFactory() as session:
         lang = await _get_lang_from_session(message.from_user.id, session)
-        promo = await PromoService(session).apply(code)
+        promo = await PromoService(session).apply(code, user_id=message.from_user.id)
         if promo:
             pt = str(promo.promo_type)
             if pt == "balance":

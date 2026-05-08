@@ -106,17 +106,19 @@ async def freekassa_webhook(request: Request, db: AsyncSession = Depends(get_db)
         parts = order_id.split("_")
         if parts[0] == "fk" and len(parts) >= 3:
             if parts[1] == "topup":
-                # Пополнение баланса
                 payment_id = int(parts[2])
-                payment = await PaymentService(db).get_by_id(payment_id)
-                if payment and payment.status != PaymentStatus.SUCCEEDED.value:
-                    payment.status = PaymentStatus.SUCCEEDED.value
-                    payment.external_id = str(form.get("intid", ""))
-                    await db.commit()
+                payment = await PaymentService(db).confirm_topup(payment_id, str(form.get("intid", "")))
+                await db.flush()
+                if payment and payment.status == PaymentStatus.SUCCEEDED.value:
                     from app.services.user import UserService
-                    await UserService(db).add_balance(payment.user_id, payment.amount)
+                    result = await UserService(db).add_balance(payment.user_id, payment.amount)
                     await db.commit()
-                    log.info(f"FreeKassa: topup {payment_id} confirmed via webhook")
+                    if result:
+                        log.info(f"FreeKassa: topup {payment_id} confirmed + balance credited")
+                    else:
+                        log.error(f"FreeKassa: topup {payment_id} confirmed but add_balance failed")
+                else:
+                    await db.commit()
                 return "YES"
             elif parts[1] == "ext" and len(parts) >= 5:
                 # Продление подписки
@@ -185,7 +187,7 @@ async def freekassa_webhook(request: Request, db: AsyncSession = Depends(get_db)
 
 @router.post("/webhook/yookassa", summary="Yookassa webhook", include_in_schema=False)
 async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
-    """Atomic Yookassa webhook: confirm payment + provision key with retry."""
+    """Atomic Yookassa webhook: verify signature, confirm payment + provision."""
     import asyncio
     import json
 
@@ -195,6 +197,25 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
     except Exception as e:
         log.error(f"Yookassa webhook: invalid JSON body: {e}")
         return {"status": "error", "message": "invalid body"}
+
+    # Signature verification — fetch secret from DB first, then .env fallback
+    sig_header = request.headers.get("Authorization", "")
+    if sig_header:
+        from app.services.webhook_security import verify_yookassa_signature
+        from app.services.bot_settings import BotSettingsService
+        secret = ""
+        try:
+            secret = await BotSettingsService(db).get("yookassa_secret_key_override") or ""
+        except Exception:
+            pass
+        if not secret:
+            from app.core.config import config as _yk_cfg
+            secret = _yk_cfg.yookassa.yookassa_secret_key.get_secret_value() if _yk_cfg.yookassa else ""
+        if secret and not await verify_yookassa_signature(raw_body, sig_header, secret):
+            log.warning(f"Yookassa webhook: invalid signature")
+            return {"status": "error", "message": "invalid signature"}
+    else:
+        log.warning("Yookassa webhook: missing Authorization header")
 
     event = data.get("event")
     obj = data.get("object", {})
@@ -224,6 +245,7 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
             log.warning(f"Yookassa: plan {plan_id} not found")
             return {"status": "ok"}
 
+        # Atomic confirm with FOR UPDATE — prevents double-spending
         payment = await PaymentService(db).confirm(int(payment_id), external_id)
         await db.commit()
 
@@ -303,13 +325,26 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
 @router.post("/webhook/cryptobot", summary="CryptoBot webhook", include_in_schema=False)
 async def cryptobot_webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
-    """Handle CryptoBot invoice paid webhook."""
+    """Handle CryptoBot invoice paid webhook with signature verification."""
     import json
     try:
         data = await request.json()
     except Exception as e:
         log.error(f"CryptoBot webhook: invalid JSON: {e}")
         return {"ok": False}
+
+    # Signature verification
+    sig_header = request.headers.get("X-Crypto-Pay-API-Signature", "")
+    if sig_header:
+        from app.services.webhook_security import verify_cryptobot_signature
+        from app.services.bot_settings import BotSettingsService
+        settings = await BotSettingsService(db).get_all()
+        cb_token = settings.get("cryptobot_token", "")
+        if cb_token and not verify_cryptobot_signature(data, sig_header, cb_token):
+            log.warning("CryptoBot webhook: invalid signature")
+            return {"ok": False}
+    else:
+        log.warning("CryptoBot webhook: missing signature header")
 
     invoice = data.get("payload", {})
     invoice_id = invoice.get("invoice_id")
@@ -333,18 +368,15 @@ async def cryptobot_webhook(request: Request, db: AsyncSession = Depends(get_db)
             log.error(f"CryptoBot webhook: unknown payload format: {payload_raw}")
             return {"ok": True}
 
-        payment = await PaymentService(db).get_by_id(payment_id)
-        if not payment or payment.status == PaymentStatus.SUCCEEDED.value:
+        payment = await PaymentService(db).confirm(int(payment_id), str(invoice_id))
+        if not payment:
+            log.error(f"CryptoBot webhook: payment {payment_id} not found")
             return {"ok": True}
 
         plan = await PlanService(db).get_by_id(plan_id)
         if not plan:
             log.error(f"CryptoBot webhook: plan {plan_id} not found")
             return {"ok": True}
-
-        payment.status = PaymentStatus.SUCCEEDED.value
-        payment.external_id = str(invoice_id)
-        await db.flush()
 
         key = None
         if extend_key_id:
@@ -409,18 +441,15 @@ async def platega_webhook(request: Request, db: AsyncSession = Depends(get_db)) 
             log.error(f"Platega webhook: unknown payload format: {payload_raw}")
             return "OK"
 
-        payment = await PaymentService(db).get_by_id(payment_id)
-        if not payment or payment.status == PaymentStatus.SUCCEEDED.value:
+        payment = await PaymentService(db).confirm(int(payment_id), transaction_id)
+        if not payment:
+            log.error(f"Platega webhook: payment {payment_id} not found")
             return "OK"
 
         plan = await PlanService(db).get_by_id(plan_id)
         if not plan:
             log.error(f"Platega webhook: plan {plan_id} not found")
             return "OK"
-
-        payment.status = PaymentStatus.SUCCEEDED.value
-        payment.external_id = transaction_id
-        await db.flush()
 
         key = None
         if extend_key_id:
@@ -485,18 +514,15 @@ async def paypalych_webhook(request: Request, db: AsyncSession = Depends(get_db)
             log.error(f"PayPalych webhook: unknown custom format: {custom_raw}")
             return "OK"
 
-        payment = await PaymentService(db).get_by_id(payment_id)
-        if not payment or payment.status == PaymentStatus.SUCCEEDED.value:
+        payment = await PaymentService(db).confirm(int(payment_id), bill_id)
+        if not payment:
+            log.error(f"PayPalych webhook: payment {payment_id} not found")
             return "OK"
 
         plan = await PlanService(db).get_by_id(plan_id)
         if not plan:
             log.error(f"PayPalych webhook: plan {plan_id} not found")
             return "OK"
-
-        payment.status = PaymentStatus.SUCCEEDED.value
-        payment.external_id = bill_id
-        await db.flush()
 
         key = None
         if extend_key_id:
@@ -555,18 +581,15 @@ async def aikassa_webhook(request: Request, db: AsyncSession = Depends(get_db)) 
             log.error(f"AiKassa webhook: unknown orderId format: {payload_raw}")
             return "OK"
 
-        payment = await PaymentService(db).get_by_id(payment_id)
-        if not payment or payment.status == PaymentStatus.SUCCEEDED.value:
+        payment = await PaymentService(db).confirm(int(payment_id), invoice_id)
+        if not payment:
+            log.error(f"AiKassa webhook: payment {payment_id} not found")
             return "OK"
 
         plan = await PlanService(db).get_by_id(plan_id)
         if not plan:
             log.error(f"AiKassa webhook: plan {plan_id} not found")
             return "OK"
-
-        payment.status = PaymentStatus.SUCCEEDED.value
-        payment.external_id = invoice_id
-        await db.flush()
 
         key = None
         if extend_key_id:

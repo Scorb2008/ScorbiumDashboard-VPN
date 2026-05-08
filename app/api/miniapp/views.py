@@ -29,6 +29,19 @@ _tpl_path = Path(__file__).resolve().parent.parent.parent / "templates" / "minia
 _tpl_path.mkdir(exist_ok=True)
 templates = Jinja2Templates(directory=str(_tpl_path))
 
+# Per-user rate limiting for payment endpoints
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
+_payment_cooldowns: dict[int, datetime] = defaultdict(lambda: datetime.min.replace(tzinfo=timezone.utc))
+
+async def _check_payment_rate(user_id: int, cooldown_seconds: int = 5) -> bool:
+    now = datetime.now(timezone.utc)
+    last = _payment_cooldowns.get(user_id)
+    if last and (now - last).total_seconds() < cooldown_seconds:
+        return False
+    _payment_cooldowns[user_id] = now
+    return True
+
 
 def _compute_hmac(token: str, data_check: str) -> str:
     """Compute HMAC per Telegram docs: secret = HMAC_SHA256(b'WebAppData', token)."""
@@ -327,22 +340,21 @@ async def pay_balance(request: Request, db: AsyncSession = Depends(get_db)):
     if not tg_user:
         return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
 
+    user_id = tg_user["id"]
+    if not await _check_payment_rate(user_id):
+        return JSONResponse({"ok": False, "error": "Please wait before next payment"}, status_code=429)
+
     body = await request.json()
     plan_id = body.get("plan_id")
-    user_id = tg_user["id"]
 
     plan = await PlanService(db).get_by_id(plan_id)
     if not plan or not plan.is_active:
         return JSONResponse({"ok": False, "error": "Plan not found"}, status_code=404)
 
-    user = await UserService(db).get_by_id(user_id)
-    if not user or float(user.balance or 0) < float(plan.price):
-        return JSONResponse({"ok": False, "error": "Insufficient balance"}, status_code=400)
-
     try:
         updated = await UserService(db).deduct_balance(user_id, plan.price)
         if not updated:
-            return JSONResponse({"ok": False, "error": "Balance error"}, status_code=400)
+            return JSONResponse({"ok": False, "error": "Insufficient balance"}, status_code=400)
 
         payment = await PaymentService(db).create_pending(
             user_id=user_id, plan=plan, provider=PaymentProvider.BALANCE
@@ -390,9 +402,12 @@ async def pay_yookassa(request: Request, db: AsyncSession = Depends(get_db)):
     if not tg_user:
         return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
 
+    user_id = tg_user["id"]
+    if not await _check_payment_rate(user_id):
+        return JSONResponse({"ok": False, "error": "Please wait before next payment"}, status_code=429)
+
     body = await request.json()
     plan_id = body.get("plan_id")
-    user_id = tg_user["id"]
 
     plan = await PlanService(db).get_by_id(plan_id)
     if not plan or not plan.is_active:
@@ -431,9 +446,12 @@ async def pay_freekassa(request: Request, db: AsyncSession = Depends(get_db)):
     if not tg_user:
         return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
 
+    user_id = tg_user["id"]
+    if not await _check_payment_rate(user_id):
+        return JSONResponse({"ok": False, "error": "Please wait before next payment"}, status_code=429)
+
     body = await request.json()
     plan_id = body.get("plan_id")
-    user_id = tg_user["id"]
 
     plan = await PlanService(db).get_by_id(plan_id)
     if not plan or not plan.is_active:
@@ -545,9 +563,9 @@ async def apply_promo(request: Request, db: AsyncSession = Depends(get_db)):
     if not code:
         return JSONResponse({"ok": False, "error": "Code required"}, status_code=400)
 
-    promo = await PromoService(db).apply(code)
+    promo = await PromoService(db).apply(code, user_id=user_id)
     if not promo:
-        return JSONResponse({"ok": False, "error": "Invalid or expired promo code"}, status_code=400)
+        return JSONResponse({"ok": False, "error": "Invalid, expired, or already used promo code"}, status_code=400)
 
     pt = str(promo.promo_type)
     result = {"type": pt, "value": float(promo.value)}

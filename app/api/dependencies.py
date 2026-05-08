@@ -26,6 +26,19 @@ async def get_current_admin(token: str = Depends(oauth2_scheme)) -> dict:
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    jti = info.get("jti")
+    sub = info.get("sub", "")
+    if jti:
+        from app.core.database import get_session
+        from app.services.token_blacklist import TokenBlacklistService
+        async with get_session() as session:
+            blacklisted = await TokenBlacklistService(session).is_blacklisted(jti, sub)
+            if blacklisted:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Token has been revoked",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
     return info
 
 

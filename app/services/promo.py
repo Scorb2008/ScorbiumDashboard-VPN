@@ -4,6 +4,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.promo import PromoCode, PromoType
+from app.models.promo_usage import PromoUsage
+from app.utils.log import log
 
 
 class PromoService:
@@ -59,7 +61,7 @@ class PromoService:
             await self.session.flush()
         return promo
 
-    async def apply(self, code: str) -> Optional[PromoCode]:
+    async def apply(self, code: str, user_id: Optional[int] = None) -> Optional[PromoCode]:
         promo = await self.get_by_code(code)
         if not promo or not promo.is_active:
             return None
@@ -67,6 +69,20 @@ class PromoService:
             promo.current_uses = 0
         if promo.max_uses > 0 and promo.current_uses >= promo.max_uses:
             return None
+        # Per-user usage check
+        if user_id:
+            result = await self.session.execute(
+                select(PromoUsage).where(
+                    PromoUsage.promo_id == promo.id,
+                    PromoUsage.user_id == user_id,
+                )
+            )
+            if result.scalar_one_or_none():
+                log.warning(f"Promo {promo.code} already used by user {user_id}")
+                return None
         promo.current_uses += 1
         await self.session.flush()
+        if user_id:
+            self.session.add(PromoUsage(promo_id=promo.id, user_id=user_id))
+            await self.session.flush()
         return promo

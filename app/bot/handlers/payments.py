@@ -546,6 +546,8 @@ async def successful_payment(message: Message, bot: Bot) -> None:
         except (ValueError, AttributeError):
             log.error(f"Invalid extend_stars payload: {payload}")
             return
+        extended_key = None
+        plan_days = 0
         async with AsyncSessionFactory() as session:
             payment = await PaymentService(session).get_by_id(payment_id)
             if payment:
@@ -555,14 +557,15 @@ async def successful_payment(message: Message, bot: Bot) -> None:
                 await session.commit()
                 plan = await PlanService(session).get_by_id(plan_id)
                 if plan:
-                    extended = await VpnKeyService(session).extend(key_id, plan.duration_days)
+                    plan_days = plan.duration_days
+                    extended_key = await VpnKeyService(session).extend(key_id, plan_days)
                     await session.commit()
-        if extended:
-            exp = extended.expires_at.strftime("%d.%m.%Y") if extended.expires_at else "—"
+        if extended_key:
+            exp = extended_key.expires_at.strftime("%d.%m.%Y") if extended_key.expires_at else "—"
             try:
                 await bot.send_message(
                     message.from_user.id,
-                    f"✅ <b>Подписка продлена!</b>\n\nДо: <b>{exp}</b>\n+{plan.duration_days} дней",
+                    f"✅ <b>Подписка продлена!</b>\n\nДо: <b>{exp}</b>\n+{plan_days} дней",
                     parse_mode="HTML",
                 )
             except Exception as e:

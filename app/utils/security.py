@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
@@ -44,7 +45,7 @@ def create_access_token(
     expire = datetime.now(timezone.utc) + (
         expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
-    payload = {"sub": str(subject), "role": role, "exp": expire}
+    payload = {"sub": str(subject), "role": role, "exp": expire, "jti": str(uuid.uuid4())}
     if extra:
         payload.update(extra)
     return jwt.encode(payload, _secret_key(), algorithm=ALGORITHM)
@@ -56,17 +57,6 @@ def decode_access_token(token: str) -> Optional[str]:
         return payload.get("sub")
     except JWTError:
         return None
-
-def decode_access_token_full(token: str) -> Optional[dict]:
-    """Returns full payload or None if token is invalid/expired."""
-    try:
-        payload = jwt.decode(token, _secret_key(), algorithms=[ALGORITHM])
-        if payload.get("sub") is None:
-            return None
-        return payload
-    except JWTError:
-        return None
-
 
 def decode_access_token_full(token: str) -> Optional[dict]:
     """Returns full payload or None if token is invalid/expired."""

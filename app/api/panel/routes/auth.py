@@ -189,7 +189,7 @@ async def twofa_login_submit(
     admins_with_2fa = result.scalars().all()
 
     for admin in admins_with_2fa:
-        totp = pyotp.TOTP(admin.totp_secret)
+        totp = pyotp.TOTP(admin.totp_secret, interval=30, digits=6)
         if totp.verify(code):
             token = create_access_token(subject=admin.username, role=admin.role)
             resp = RedirectResponse(url="/panel/", status_code=302)
@@ -218,7 +218,7 @@ async def twofa_login_submit(
 async def twofa_setup(request: Request, db: AsyncSession = Depends(get_db)):
     admin_info = _require_permission(request, "system")
     secret = pyotp.random_base32()
-    totp = pyotp.TOTP(secret)
+    totp = pyotp.TOTP(secret, interval=30, digits=6)
     uri = totp.provisioning_uri(name=admin_info["sub"], issuer_name=config.web.app_name or "Scorbium")
     qr = qrcode.QRCode(version=1, box_size=10, border=2)
     qr.add_data(uri)
@@ -240,7 +240,7 @@ async def twofa_activate(request: Request, db: AsyncSession = Depends(get_db)):
     code = body.get("code", "")
     if len(code) != 6:
         return JSONResponse({"ok": False, "message": "Код должен быть 6 знаков"}, status_code=400)
-    totp = pyotp.TOTP(secret)
+    totp = pyotp.TOTP(secret, interval=30, digits=6)
     if not totp.verify(code):
         return JSONResponse({"ok": False, "message": "Неверный код"}, status_code=400)
     admin = await AdminService(db).get_by_username(admin_info["sub"])
@@ -275,7 +275,7 @@ async def twofa_verify(request: Request, db: AsyncSession = Depends(get_db)):
         return JSONResponse({"ok": False, "message": "2FA не настроена"}, status_code=400)
 
     used_backup = False
-    totp = pyotp.TOTP(admin.totp_secret)
+    totp = pyotp.TOTP(admin.totp_secret, interval=30, digits=6)
     if not totp.verify(code):
         if admin.backup_codes:
             try:
@@ -310,7 +310,7 @@ async def twofa_disable(request: Request, db: AsyncSession = Depends(get_db)):
     admin = await AdminService(db).get_by_username(admin_info["sub"])
     if not admin or not admin.totp_secret:
         return JSONResponse({"ok": False, "message": "2FA не включена"}, status_code=400)
-    totp = pyotp.TOTP(admin.totp_secret)
+    totp = pyotp.TOTP(admin.totp_secret, interval=30, digits=6)
     if not totp.verify(code):
         return JSONResponse({"ok": False, "message": "Неверный код"}, status_code=400)
     admin.totp_secret = None
@@ -325,6 +325,42 @@ async def twofa_check(request: Request, db: AsyncSession = Depends(get_db)):
     admin_info = _require_permission(request, "system")
     admin = await AdminService(db).get_by_username(admin_info["sub"])
     return JSONResponse({"enabled": bool(admin and admin.totp_secret)})
+
+
+@router.get("/2fa/export-backup-codes")
+async def export_backup_codes(request: Request, db: AsyncSession = Depends(get_db)):
+    """Generate fresh backup codes and export them as a downloadable text file."""
+    from fastapi.responses import PlainTextResponse
+    from app.services.audit import AuditService
+    admin_info = _require_permission(request, "system")
+    admin = await AdminService(db).get_by_username(admin_info["sub"])
+    if not admin or not admin.totp_secret:
+        return JSONResponse({"ok": False, "message": "2FA не настроена"}, status_code=400)
+    raw_codes = [_secrets.token_hex(4).upper() for _ in range(8)]
+    hashed_codes = [hashlib.sha256(c.encode()).hexdigest() for c in raw_codes]
+    admin.backup_codes = json.dumps(hashed_codes)
+    await db.commit()
+    await AuditService(db).log(admin.id, "2fa_backup_exported", "admin", admin.id)
+    await db.commit()
+    lines = [
+        "Scorbium Dashboard — Резервные коды 2FA",
+        f"Администратор: {admin.username}",
+        f"Дата: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}",
+        "",
+        "Каждый код можно использовать только один раз.",
+        "Храните их в надёжном месте.",
+        "",
+    ]
+    for i, code in enumerate(raw_codes, 1):
+        formatted = "-".join([code[j:j+4] for j in range(0, len(code), 4)])
+        lines.append(f"{i}. {formatted}")
+    lines.append("")
+    lines.append("⚠️ Эти коды больше не отображаются в панели.")
+    return PlainTextResponse(
+        "\n".join(lines),
+        media_type="text/plain",
+        headers={"Content-Disposition": f'attachment; filename="backup_codes_{admin.username}.txt"'},
+    )
 
 
 @router.post("/2fa/regenerate-backup")

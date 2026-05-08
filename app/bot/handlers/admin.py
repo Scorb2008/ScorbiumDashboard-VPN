@@ -1059,11 +1059,11 @@ async def admin_deductbal_confirm(message: Message, state: FSMContext) -> None:
     user_id = data["target_user_id"]
     await state.clear()
     async with AsyncSessionFactory() as session:
-        user = await UserService(session).add_balance(user_id, amount)
+        user = await UserService(session).deduct_balance(user_id, amount)
         from app.services.audit import AuditService
         await AuditService(session).log(
             admin_id=message.from_user.id,
-            action="add_balance",
+            action="deduct_balance",
             target_type="user",
             target_id=user_id,
             details=f"amount={amount}",
