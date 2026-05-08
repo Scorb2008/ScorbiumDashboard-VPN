@@ -68,32 +68,38 @@ async def main():
     print(f"   - admins table     : {has_admins}")
 
     # 3. Determine target version
-    target = '4d5f8377eff0'  # initial
-    if has_admins:
-        target = 'd5e6f7a8b9c0'
-    elif has_payment_type:
-        target = 'c4d5e6f7a8b9'
-    elif has_autorenew:
-        target = 'b3c4d5e6f7a8'
-    elif has_language:
-        target = 'a1b2c3d4e5f6'
+    has_any_tables = await _table_exists(conn, 'users') or await _table_exists(conn, 'plans')
+    target = None
+    if not has_any_tables:
+        print("\n4. DB is empty — no tables exist. Will run all migrations from scratch.")
+        print("   Skipping alembic_version stamp.")
+    else:
+        target = '4d5f8377eff0'  # initial
+        if has_admins:
+            target = 'd5e6f7a8b9c0'
+        elif has_payment_type:
+            target = 'c4d5e6f7a8b9'
+        elif has_autorenew:
+            target = 'b3c4d5e6f7a8'
+        elif has_language:
+            target = 'a1b2c3d4e5f6'
 
-    print(f"\n4. Detected target version: {target}")
+        print(f"\n4. Detected target version: {target}")
 
-    # 4. Fix alembic_version
-    print("\n" + "=" * 60)
-    if not has_av:
-        print("Creating alembic_version table...")
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS alembic_version (
-                version_num VARCHAR(32) NOT NULL PRIMARY KEY
-            );
-        """)
+        # 4. Fix alembic_version
+        print("\n" + "=" * 60)
+        if not has_av:
+            print("Creating alembic_version table...")
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS alembic_version (
+                    version_num VARCHAR(32) NOT NULL PRIMARY KEY
+                );
+            """)
 
-    await conn.execute("DELETE FROM alembic_version;")
-    await conn.execute("INSERT INTO alembic_version (version_num) VALUES ($1);", target)
-    print(f"Stamped alembic_version → {target}")
-    print("=" * 60)
+        await conn.execute("DELETE FROM alembic_version;")
+        await conn.execute("INSERT INTO alembic_version (version_num) VALUES ($1);", target)
+        print(f"Stamped alembic_version → {target}")
+        print("=" * 60)
 
     await conn.close()
     print("\n[OK] Now run: docker exec vpn_app uv run alembic upgrade head")
