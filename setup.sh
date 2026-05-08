@@ -542,11 +542,69 @@ CRONEOF
         fi
     fi
 
-    # Запуск
-    info "Запускаю db и app..."
-    docker compose -f docker-compose.prod.yml up -d db app
+    # DB password sync check (runs for any compose file)
+    _DC="docker-compose.prod.yml"
+    _DB_VOLUME="scorbiumdashboard_vpn_db_data"
+    if docker volume ls --format '{{.Name}}' 2>/dev/null | grep -qF "$_DB_VOLUME"; then
+        info "БД уже существует — проверяю пароль..."
+        docker compose -f "$_DC" up -d db
+        sleep 3
+        if ! docker exec vpn_db psql -U "${DB_USER:-postgres}" -d "${DB_NAME:-vpnbot}" -c "SELECT 1" &>/dev/null 2>&1; then
+            warn "Пароль БД в .env не совпадает с тем, с которым создана БД!"
+            warn "Причина: DB_PASSWORD был изменён после первого запуска."
+            echo ""
+            echo "  Варианты:"
+            echo "  1) Сбросить БД (все данные будут удалены):"
+            echo "     docker compose -f $_DC down -v && bash setup.sh"
+            echo "  2) Вернуть старый пароль в .env"
+            echo ""
+            read -rp "Сбросить БД и пересоздать? [y/N]: " RESET_DB; RESET_DB=${RESET_DB:-N}
+            if [[ "$RESET_DB" =~ ^[Yy]$ ]]; then
+                docker compose -f "$_DC" down -v
+                success "Volume БД удалён — будет создан заново"
+            else
+                rm -f setup.lock
+                exit 1
+            fi
+        else
+            success "Пароль БД совпадает"
+        fi
+    fi
 
-    info "Жду готовности (макс 90 сек)..."
+    # Запускаем только БД
+    info "Запускаю БД..."
+    docker compose -f "$_DC" up -d db
+
+    info "Жду готовности БД (макс 60 сек)..."
+    DB_READY=false
+    for i in $(seq 1 12); do
+        STATUS=$(docker inspect --format='{{.State.Health.Status}}' vpn_db 2>/dev/null || echo "starting")
+        if [[ "$STATUS" == "healthy" ]]; then
+            DB_READY=true
+            success "БД готова"
+            break
+        fi
+        sleep 5
+    done
+
+    if [[ "$DB_READY" != "true" ]]; then
+        warn "БД не стала healthy за 60 сек"
+        docker compose -f "$_DC" logs db --tail=20
+        rm -f setup.lock
+        exit 1
+    fi
+
+    # Миграции (с возможностью исправить БД до старта app)
+    info "Применяю миграции БД..."
+    docker compose -f "$_DC" run --rm app uv run python fix_alembic.py || true
+    docker compose -f "$_DC" run --rm app uv run alembic upgrade head
+    success "Миграции применены"
+
+    # Теперь запускаем app
+    info "Запускаю app..."
+    docker compose -f "$_DC" up -d app
+
+    info "Жду готовности app (макс 90 сек)..."
     APP_READY=false
     for i in $(seq 1 18); do
         STATUS=$(docker inspect --format='{{.State.Health.Status}}' vpn_app 2>/dev/null || echo "starting")
@@ -560,16 +618,10 @@ CRONEOF
 
     if [[ "$APP_READY" != "true" ]]; then
         warn "App не стал healthy за 90 сек"
-        docker compose -f docker-compose.prod.yml logs app --tail=30
-        read -rp "Продолжить с миграциями? [Y/n]: " CONFIRM; CONFIRM=${CONFIRM:-Y}
+        docker compose -f "$_DC" logs app --tail=30
+        read -rp "Продолжить? [Y/n]: " CONFIRM; CONFIRM=${CONFIRM:-Y}
         [[ ! "$CONFIRM" =~ ^[Yy]$ ]] && { rm -f setup.lock; exit 1; }
     fi
-
-    # Миграции
-    info "Применяю миграции БД..."
-    docker compose -f docker-compose.prod.yml exec app uv run python fix_alembic.py
-    docker compose -f docker-compose.prod.yml exec app uv run alembic upgrade head
-    success "Миграции применены"
 
     # Nginx
     info "Запускаю nginx..."

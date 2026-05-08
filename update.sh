@@ -352,7 +352,30 @@ docker compose -f "$COMPOSE_FILE" build app || {
     error "Сборка app failed. Откат не требуется — старый образ остался."
 }
 
+# ── [5/6] Migrations FIRST (before app starts, to avoid schema mismatch) ──────
+info "[5/6] Применяю миграции БД перед запуском app..."
+
+MIGRATION_OUTPUT=$(docker compose -f "$COMPOSE_FILE" run --rm app uv run python fix_alembic.py 2>&1) || {
+    warn "fix_alembic.py вернул ошибку:\n${MIGRATION_OUTPUT}"
+}
+
+MIGRATION_OUTPUT=$(docker compose -f "$COMPOSE_FILE" run --rm app uv run alembic upgrade head 2>&1)
+MIGRATION_EXIT=$?
+if [[ $MIGRATION_EXIT -ne 0 ]]; then
+    if echo "$MIGRATION_OUTPUT" | grep -qi "already up to date\|no migration"; then
+        info "База уже актуальна"
+    else
+        warn "Миграция вернула ошибку (exit code: ${MIGRATION_EXIT}):"
+        echo "$MIGRATION_OUTPUT"
+        echo ""
+        warn "Проверьте: docker compose exec app uv run alembic current"
+    fi
+else
+    success "Миграции применены"
+fi
+
 # Deploy app (rolling restart — DB stays running)
+info "[4/6] Запускаю app..."
 docker compose -f "$COMPOSE_FILE" up -d --no-deps app
 
 # Wait for healthy
@@ -374,16 +397,6 @@ if [[ "$APP_READY" != "true" ]]; then
     echo ""
     error "Обновление прервано. App не запустился. Для отката восстановите бэкап: ${BACKUP_FILE:-N/A}"
 fi
-
-# ── [5/6] Migrations ─────────────────────────────────────────────────────────
-info "[5/6] Применяю миграции БД..."
-
-MIGRATION_OUTPUT=$(docker compose -f "$COMPOSE_FILE" exec app uv run python fix_alembic.py 2>&1) || {
-    warn "fix_alembic.py вернул ошибку:\n${MIGRATION_OUTPUT}"
-}
-
-MIGRATION_OUTPUT=$(docker compose -f "$COMPOSE_FILE" exec app uv run alembic upgrade head 2>&1)
-MIGRATION_EXIT=$?
 if [[ $MIGRATION_EXIT -ne 0 ]]; then
     if echo "$MIGRATION_OUTPUT" | grep -qi "already up to date\|no migration"; then
         info "База уже актуальна"
