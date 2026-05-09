@@ -1,0 +1,14 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="8" fill="#0A0A0A"/>
+
+  <!-- Stylized shield + S mark -->
+  <path d="M16 5L24 8V14C24 20 20.5 24.5 16 27C11.5 24.5 8 20 8 14V8L16 5Z" 
+        stroke="#FFFFFF" 
+        stroke-width="2" 
+        stroke-linejoin="round"/>
+
+  <path d="M20 11C19 9.8 17.8 9 16 9C13.8 9 12.5 10.2 12.5 11.7C12.5 13.3 13.8 14 16 14.5C18.2 15 19.5 15.7 19.5 17.3C19.5 18.8 18.2 20 16 20C14.2 20 12.8 19.2 11.7 17.8" 
+        stroke="#FFFFFF" 
+        stroke-width="2" 
+        stroke-linecap="round"/>
+</svg>

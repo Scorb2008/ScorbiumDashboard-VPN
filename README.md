@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="icon/dash_logo.png" alt="Logo" width="80" height="80" style="border-radius:16px"/>
+<img src="icon/logo.svg" alt="Logo" width="80" height="80" style="border-radius:16px"/>
 
 # ScorbDevVPN Dashboard
 **<a href='https://t.me/scorbdev_vpn_bot'>🔥Проетстировать🖥️</a>**
