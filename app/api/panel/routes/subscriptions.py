@@ -102,7 +102,6 @@ async def extend_subscription(
         resp = Response(status_code=404)
         _toast(resp, 'Ключ не найден', 'error')
         return resp
-    # Extend by plan duration or default 30 days
     days = 30
     if key.plan:
         days = key.plan.duration_days

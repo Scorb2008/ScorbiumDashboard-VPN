@@ -55,7 +55,6 @@ async def _verify_telegram_data(init_data: str, db=None) -> Optional[dict]:
         if not init_data or len(init_data) < 10:
             return None
 
-        # Parse URL-encoded query string
         parsed = list(urllib.parse.parse_qsl(init_data, keep_blank_values=True))
         
         # Extract hash and build data_check (all fields except hash, sorted by key)
@@ -74,7 +73,6 @@ async def _verify_telegram_data(init_data: str, db=None) -> Optional[dict]:
         
         data_check = "\n".join(data_check_parts)
         
-        # Parse user JSON
         user_raw = dict(parsed).get("user", "{}")
         user_data = json.loads(urllib.parse.unquote(user_raw))
         if not user_data or "id" not in user_data:
@@ -93,7 +91,6 @@ async def _verify_telegram_data(init_data: str, db=None) -> Optional[dict]:
             except Exception:
                 pass
 
-        # Verify HMAC
         for token in tokens:
             if hmac.compare_digest(_compute_hmac(token, data_check), hash_val):
                 return user_data
@@ -128,8 +125,6 @@ async def _get_tg_user(request: Request, db=None) -> Optional[dict]:
 
     return None
 
-
-# ==================== ROUTES ====================
 
 @router.get("/debug")
 async def miniapp_debug(request: Request, db: AsyncSession = Depends(get_db)):

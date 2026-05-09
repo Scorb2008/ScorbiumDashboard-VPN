@@ -70,7 +70,6 @@ async def freekassa_webhook(request: Request, db: AsyncSession = Depends(get_db)
     from app.services.freekassa import FreeKassaService
     from app.services.bot_settings import BotSettingsService
 
-    # Проверка IP
     client_ip = request.headers.get("X-Real-IP") or request.client.host
     try:
         if ipaddress.ip_address(client_ip) not in {ipaddress.ip_address(ip) for ip in FreeKassaService.ALLOWED_IPS}:
@@ -93,7 +92,6 @@ async def freekassa_webhook(request: Request, db: AsyncSession = Depends(get_db)
         log.error("FreeKassa webhook: service not configured")
         return "ERROR"
 
-    # Проверяем подпись
     if not fk.verify_notification(merchant_id, amount, order_id, sign):
         log.warning(f"FreeKassa webhook: invalid sign for order {order_id}")
         return "WRONG SIGN"
@@ -121,12 +119,10 @@ async def freekassa_webhook(request: Request, db: AsyncSession = Depends(get_db)
                     await db.commit()
                 return "YES"
             elif parts[1] == "ext" and len(parts) >= 5:
-                # Продление подписки
                 payment_id = int(parts[2])
                 plan_id = int(parts[3])
                 key_id = int(parts[4])
             else:
-                # Обычная подписка
                 payment_id = int(parts[1])
                 plan_id = int(parts[2])
         else:
@@ -155,7 +151,6 @@ async def freekassa_webhook(request: Request, db: AsyncSession = Depends(get_db)
     payment.external_id = str(form.get("intid", ""))
     await db.flush()
 
-    # Продление подписки
     if 'key_id' in locals():
         key = await VpnKeyService(db).extend(key_id, plan.duration_days)
         await db.commit()
@@ -165,7 +160,6 @@ async def freekassa_webhook(request: Request, db: AsyncSession = Depends(get_db)
         else:
             text = "✅ Оплата прошла, но возникла ошибка продления. Обратитесь в поддержку."
     else:
-        # Новая подписка
         if not plan:
             log.error(f"FreeKassa webhook: plan {plan_id} not found")
             return "YES"
@@ -333,7 +327,6 @@ async def cryptobot_webhook(request: Request, db: AsyncSession = Depends(get_db)
         log.error(f"CryptoBot webhook: invalid JSON: {e}")
         return {"ok": False}
 
-    # Signature verification
     sig_header = request.headers.get("X-Crypto-Pay-API-Signature", "")
     if sig_header:
         from app.services.webhook_security import verify_cryptobot_signature

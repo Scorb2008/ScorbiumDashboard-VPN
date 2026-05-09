@@ -42,7 +42,6 @@ async def telegram_page(request: Request, db: AsyncSession = Depends(get_db)):
     except Exception:
         ctx["layout"] = _DEFAULT_LAYOUT
 
-    # Payment systems status
     svc = BotSettingsService(db)
     yk_shop = await svc.get("yookassa_shop_id_override") or ""
     yk_key_set = bool(await svc.get("yookassa_secret_key_override"))

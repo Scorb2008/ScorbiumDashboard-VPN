@@ -46,8 +46,6 @@ async def ws_token(request: Request):
     return {"token": token}
 
 
-# ── Mini App auto-login ───────────────────────────────────────────────────────
-
 @router.get("/miniapp-token")
 async def get_miniapp_token(request: Request):
     _check_session(request) or _redirect("/panel/login")
@@ -75,8 +73,6 @@ async def miniapp_login(request: Request, token: str = ""):
     )
     return resp
 
-
-# ── Auth ──────────────────────────────────────────────────────────────────────
 
 @router.get("/login", response_class=HTMLResponse)
 @router.get("/login/", response_class=HTMLResponse)
@@ -156,8 +152,6 @@ async def logout():
     resp.delete_cookie("vpn_preauth")
     return resp
 
-
-# ── 2FA ─────────────────────────────────────────────────────────────────────
 
 @router.get("/2fa", response_class=HTMLResponse)
 async def twofa_page(request: Request, db: AsyncSession = Depends(get_db)):

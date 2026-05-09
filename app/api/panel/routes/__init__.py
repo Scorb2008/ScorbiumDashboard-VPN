@@ -1,4 +1,3 @@
-"""Panel route modules — split from monolithic views.py for maintainability."""
 from fastapi import APIRouter
 
 from . import auth, dashboard, users, plans, payments

@@ -49,7 +49,6 @@ SESSION_COOKIE = "vpn_session"
 import time as _time
 _mini_app_tokens: dict[str, float] = {}
 
-# All available buttons definition
 _ALL_BUTTONS = [
     {"id": "my_keys", "label": "🔑 Мои подписки", "callback": "my_keys"},
     {"id": "buy", "label": "💳 Купить", "callback": "buy"},
@@ -86,7 +85,6 @@ _DEFAULT_LAYOUT = [
     [{"id": "support", "label": "💬 Поддержка", "callback": "support"}],
 ]
 
-# Uptime tracking
 _startup_time = datetime.now(timezone.utc)
 
 
@@ -103,7 +101,6 @@ def _get_uptime() -> str:
         return f"{minutes}m"
 
 
-# Notification services list
 _NOTIFY_SERVICES = [
     {"key": "database", "label": "PostgreSQL", "icon": "🗄️"},
     {"key": "telegram_bot", "label": "Telegram Bot", "icon": "🤖"},

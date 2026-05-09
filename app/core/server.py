@@ -268,7 +268,6 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(RateLimitMiddleware)
 
-    # Sentry integration
     import os as _os
     _sentry_dsn = _os.environ.get("SENTRY_DSN", "").strip()
     if _sentry_dsn:
@@ -317,7 +316,6 @@ def create_app() -> FastAPI:
     class _SecurityHeaders(_BHM):
         async def dispatch(self, request: Request, call_next):
             resp = await call_next(request)
-            # Standard headers
             resp.headers["X-Content-Type-Options"] = "nosniff"
             resp.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
@@ -326,7 +324,6 @@ def create_app() -> FastAPI:
             is_miniapp = path.startswith("/app")
             is_docs = path in ("/docs", "/redoc", "/openapi.json")
 
-            # X-Frame-Options
             if is_miniapp:
                 # MiniApp runs in Telegram WebView iframe — must allow framing
                 resp.headers["X-Frame-Options"] = "ALLOWALL"
@@ -335,17 +332,14 @@ def create_app() -> FastAPI:
             else:
                 resp.headers["X-Frame-Options"] = "DENY"
 
-            # HSTS — only for HTTPS
             if request.url.scheme == "https":
                 resp.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
 
-            # Permissions-Policy
             resp.headers["Permissions-Policy"] = (
                 "accelerometer=(), camera=(), geolocation=(), gyroscope=(), "
                 "magnetometer=(), microphone=(), payment=(), usb=()"
             )
 
-            # Content-Security-Policy
             if is_docs:
                 # Swagger/Redoc need inline scripts/styles
                 resp.headers["Content-Security-Policy"] = (
@@ -389,11 +383,9 @@ def create_app() -> FastAPI:
                     "form-action 'self'"
                 )
 
-            # Remove server header
             if "server" in resp.headers:
                 del resp.headers["server"]
 
-            # Cache control for API
             if path.startswith("/api/") or path == "/metrics":
                 resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
                 resp.headers["Pragma"] = "no-cache"
@@ -401,7 +393,6 @@ def create_app() -> FastAPI:
             return resp
     app.add_middleware(_SecurityHeaders)
 
-    # Prometheus outermost — captures ALL requests including rate-limited/CSRF-blocked
     from app.api.middleware_prometheus import PrometheusMiddleware
     app.add_middleware(PrometheusMiddleware)
 
@@ -532,11 +523,9 @@ def _start_monitoring():
                 await health_service.check_all()
                 await health_service.send_alerts()
 
-                # Check system metrics and alert
                 metrics = await SystemMetrics.collect()
                 await alert_manager.check_metrics_and_alert(metrics)
 
-                # Check database health
                 from app.core.database import AsyncSessionFactory
                 from sqlalchemy import text
                 try:
