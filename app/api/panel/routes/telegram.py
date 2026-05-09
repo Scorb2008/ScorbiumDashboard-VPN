@@ -480,7 +480,7 @@ async def ps_save_stars_rate(request: Request, db: AsyncSession = Depends(get_db
     return JSONResponse({"ok": True, "message": "Курс Stars сохранён"})
 
 
-@router.post("/telegram/test-marzban", response_class=HTMLResponse)
+@router.post("/test-marzban", response_class=HTMLResponse)
 async def test_marzban(request: Request, db: AsyncSession = Depends(get_db)):
     _require_permission(request, "system")
     try:
@@ -495,7 +495,7 @@ async def test_marzban(request: Request, db: AsyncSession = Depends(get_db)):
     return HTMLResponse("")
 
 
-@router.get("/telegram/groups", response_class=HTMLResponse)
+@router.get("/groups", response_class=HTMLResponse)
 async def telegram_groups_page(request: Request, db: AsyncSession = Depends(get_db)):
     _require_permission(request, "system")
     ctx = await _base_ctx(request, db, "telegram")
@@ -508,7 +508,7 @@ async def telegram_groups_page(request: Request, db: AsyncSession = Depends(get_
     return templates.TemplateResponse("telegram_groups.html", ctx)
 
 
-@router.post("/telegram/groups", response_class=HTMLResponse)
+@router.post("/groups", response_class=HTMLResponse)
 async def save_telegram_groups(
     request: Request,
     group_ids: str = Form(""),
@@ -525,7 +525,7 @@ async def save_telegram_groups(
     return resp
 
 
-@router.post("/telegram/photo/upload")
+@router.post("/photo/upload")
 async def upload_photo(
     request: Request,
     photo_type: str = Form(...),
@@ -549,7 +549,7 @@ async def upload_photo(
     return JSONResponse({"ok": True, "message": "Photo uploaded"})
 
 
-@router.post("/telegram/miniapp", response_class=HTMLResponse)
+@router.post("/miniapp", response_class=HTMLResponse)
 async def save_miniapp_settings(
     request: Request,
     miniapp_url: str = Form(""),
@@ -563,7 +563,7 @@ async def save_miniapp_settings(
     return resp
 
 
-@router.post("/telegram/photo/clear")
+@router.post("/photo/clear")
 async def clear_photo(
     request: Request,
     photo_type: str = Form(...),
@@ -573,3 +573,67 @@ async def clear_photo(
     await BotSettingsService(db).set(f"photo_{photo_type}", "")
     await db.commit()
     return JSONResponse({"ok": True})
+
+
+@router.post("/bot-toggle", response_class=HTMLResponse)
+async def bot_toggle(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    _require_permission(request, "system")
+    svc = BotSettingsService(db)
+    current = await svc.get("bot_enabled")
+    new_val = "0" if current == "1" else "1"
+    await svc.set("bot_enabled", new_val)
+    await db.commit()
+    return HTMLResponse("")
+
+
+@router.post("/bot-settings", response_class=HTMLResponse)
+async def save_bot_settings(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    _require_permission(request, "system")
+    svc = BotSettingsService(db)
+    form = await request.form()
+    for key, value in form.multi_items():
+        if key == "trial_enabled_hidden":
+            continue
+        await svc.set(key, str(value))
+    await db.commit()
+    return HTMLResponse("")
+
+
+@router.post("/send", response_class=HTMLResponse)
+async def send_direct_message(
+    request: Request,
+    chat_id: int = Form(...),
+    text: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+):
+    _require_permission(request, "system")
+    notify = TelegramNotifyService()
+    ok = await notify.send_message(chat_id, text)
+    if ok:
+        _toast(Response(), "Сообщение отправлено")
+    else:
+        _toast(Response(), "Ошибка отправки", "error")
+    return HTMLResponse("")
+
+
+@router.post("/lang-strings", response_class=HTMLResponse)
+async def save_lang_strings(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    _require_permission(request, "system")
+    svc = BotSettingsService(db)
+    form = await request.form()
+    lang = str(form.get("lang", ""))
+    for key, value in form.multi_items():
+        if key == "lang":
+            continue
+        await svc.set(f"i18n_{lang}_{key}", str(value))
+    await db.commit()
+    return HTMLResponse("")
