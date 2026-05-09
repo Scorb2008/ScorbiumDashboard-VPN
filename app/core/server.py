@@ -475,6 +475,11 @@ def create_app() -> FastAPI:
         from fastapi.responses import RedirectResponse
         return RedirectResponse(url="/panel/")
 
+    @app.get("/app", include_in_schema=False)
+    async def app_redirect():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/app/")
+
     @app.get("/panel-root", include_in_schema=False)
     async def panel_root():
         from fastapi.responses import RedirectResponse
