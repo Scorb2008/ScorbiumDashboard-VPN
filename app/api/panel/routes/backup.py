@@ -24,6 +24,7 @@ router = APIRouter()
 _MAX_BACKUP = 100 * 1024 * 1024  # 100MB
 
 
+@router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def backup_page(request: Request, db: AsyncSession = Depends(get_db)):
     _require_permission(request, "system")

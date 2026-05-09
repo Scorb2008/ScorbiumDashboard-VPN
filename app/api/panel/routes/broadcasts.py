@@ -12,6 +12,7 @@ from .shared import _require_permission, _toast, _base_ctx, templates
 router = APIRouter()
 
 
+@router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def broadcasts_page(request: Request, db: AsyncSession = Depends(get_db)):
     _require_permission(request, "broadcasts")
@@ -20,6 +21,7 @@ async def broadcasts_page(request: Request, db: AsyncSession = Depends(get_db)):
     return templates.TemplateResponse("broadcasts.html", ctx)
 
 
+@router.post("", response_class=HTMLResponse)
 @router.post("/", response_class=HTMLResponse)
 async def create_broadcast_view(
     request: Request,

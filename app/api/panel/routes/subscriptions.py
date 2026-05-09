@@ -19,6 +19,7 @@ from .shared import _require_permission, _toast, _base_ctx, _to_detail, template
 router = APIRouter()
 
 
+@router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def subscriptions_page(request: Request, db: AsyncSession = Depends(get_db)):
     admin_info = _require_permission(request, "subscriptions")

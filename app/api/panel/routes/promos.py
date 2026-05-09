@@ -15,6 +15,7 @@ from .shared import _require_permission, _toast, _base_ctx, templates
 router = APIRouter()
 
 
+@router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def promos_page(request: Request, db: AsyncSession = Depends(get_db)):
     _require_permission(request, "promos")
@@ -23,6 +24,7 @@ async def promos_page(request: Request, db: AsyncSession = Depends(get_db)):
     return templates.TemplateResponse("promos.html", ctx)
 
 
+@router.post("", response_class=HTMLResponse)
 @router.post("/", response_class=HTMLResponse)
 async def create_promo(
     request: Request,

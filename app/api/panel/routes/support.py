@@ -15,6 +15,7 @@ from .shared import _require_permission, _toast, _base_ctx, _render_messages, te
 router = APIRouter()
 
 
+@router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def support_page(request: Request, db: AsyncSession = Depends(get_db)):
     admin_info = _require_permission(request, "support")

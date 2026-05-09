@@ -36,6 +36,7 @@ _DEFAULT_LAYOUT = [
 ]
 
 
+@router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def keyboard_editor(request: Request, db: AsyncSession = Depends(get_db)):
     _require_permission(request, "system")

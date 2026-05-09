@@ -16,6 +16,7 @@ from .shared import _require_permission, _toast, _base_ctx, templates, _get_upti
 router = APIRouter()
 
 
+@router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def monitoring_page(request: Request, db: AsyncSession = Depends(get_db)):
     _require_permission(request, "system")

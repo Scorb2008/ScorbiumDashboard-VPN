@@ -16,6 +16,7 @@ from .shared import _require_permission, _toast, _base_ctx, templates, _NOTIFY_S
 router = APIRouter()
 
 
+@router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def notifications_page(request: Request, db: AsyncSession = Depends(get_db)):
     _require_permission(request, "system")

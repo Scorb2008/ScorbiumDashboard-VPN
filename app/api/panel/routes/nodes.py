@@ -13,6 +13,7 @@ from .shared import _require_permission, _base_ctx, _toast, templates
 router = APIRouter()
 
 
+@router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def nodes_page(request: Request, db: AsyncSession = Depends(get_db)):
     admin_info = _require_permission(request, "vpn.read")

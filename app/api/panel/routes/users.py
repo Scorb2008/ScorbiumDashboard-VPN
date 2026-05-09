@@ -20,6 +20,7 @@ from .shared import _require_permission, _toast, _to_detail, templates
 router = APIRouter()
 
 
+@router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def users_page(request: Request, db: AsyncSession = Depends(get_db)):
     _require_permission(request, "users.read")

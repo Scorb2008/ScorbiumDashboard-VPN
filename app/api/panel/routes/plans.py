@@ -17,6 +17,7 @@ from .shared import _require_permission, _toast, templates
 router = APIRouter()
 
 
+@router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def plans_page(request: Request, db: AsyncSession = Depends(get_db)):
     _require_permission(request, "plans")
@@ -25,6 +26,7 @@ async def plans_page(request: Request, db: AsyncSession = Depends(get_db)):
     return templates.TemplateResponse("plans.html", ctx)
 
 
+@router.post("", response_class=HTMLResponse)
 @router.post("/", response_class=HTMLResponse)
 async def create_plan_view(
     request: Request,

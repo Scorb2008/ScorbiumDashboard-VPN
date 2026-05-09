@@ -23,6 +23,7 @@ from .shared import _require_permission, _toast, _base_ctx, templates
 router = APIRouter()
 
 
+@router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def payments_page(
     request: Request,

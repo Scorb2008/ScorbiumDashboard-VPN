@@ -13,6 +13,7 @@ from .shared import _require_permission, _base_ctx, templates
 router = APIRouter()
 
 
+@router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def audit_page(request: Request, db: AsyncSession = Depends(get_db)):
     _require_permission(request, "system")

@@ -25,6 +25,7 @@ import qrcode
 import base64
 
 
+@router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def telegram_page(request: Request, db: AsyncSession = Depends(get_db)):
     _require_permission(request, "system")
