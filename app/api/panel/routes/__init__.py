@@ -3,7 +3,7 @@ from fastapi import APIRouter
 from . import auth, dashboard, users, plans, payments
 from . import subscriptions, promos, referrals, support, vpn
 from . import broadcasts, telegram, backup, pasarguard, nodes
-from . import exports, admins, keyboard, audit, monitoring, notifications, logo
+from . import exports, admins, keyboard, audit, monitoring, notifications, logo, health
 
 router = APIRouter()
 router.include_router(auth.router)
@@ -28,3 +28,4 @@ router.include_router(monitoring.router, prefix="/monitoring")
 router.include_router(notifications.router, prefix="/notifications")
 router.include_router(users.router, prefix="/users")
 router.include_router(logo.router)
+router.include_router(health.router)

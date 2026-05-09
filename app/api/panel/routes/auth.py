@@ -1,4 +1,5 @@
 """Authentication, 2FA, and Mini App login routes."""
+import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
