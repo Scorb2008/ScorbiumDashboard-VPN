@@ -7,7 +7,7 @@ from . import broadcasts, telegram, backup, pasarguard, nodes
 from . import exports, admins, keyboard, audit, monitoring, notifications
 
 router = APIRouter()
-router.include_router(auth.router, prefix="/auth")
+router.include_router(auth.router)
 router.include_router(dashboard.router)
 router.include_router(plans.router, prefix="/plans")
 router.include_router(payments.router, prefix="/payments")
