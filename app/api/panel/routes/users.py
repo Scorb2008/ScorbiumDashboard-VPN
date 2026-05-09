@@ -15,7 +15,7 @@ from app.services.telegram_notify import TelegramNotifyService
 from app.services.user import UserService
 from app.services.vpn_key import VpnKeyService
 
-from .shared import _require_permission, _toast, _to_detail, templates
+from .shared import _base_ctx, _require_permission, _toast, _to_detail, templates
 
 router = APIRouter()
 

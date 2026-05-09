@@ -12,7 +12,7 @@ from app.api.dependencies import get_db
 from app.services.bot_settings import BotSettingsService
 from app.services.plan import PlanService
 
-from .shared import _require_permission, _toast, templates
+from .shared import _base_ctx, _require_permission, _toast, templates
 
 router = APIRouter()
 
