@@ -255,7 +255,7 @@ def create_app() -> FastAPI:
         lifespan=_lifespan,
         docs_url="/docs",
         redoc_url="/redoc",
-        redirect_slashes=False,
+        redirect_slashes=True,
     )
 
     origins = [str(o) for o in config.web.allowed_origins] or ["*"]
