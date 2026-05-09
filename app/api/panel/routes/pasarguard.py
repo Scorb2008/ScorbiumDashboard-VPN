@@ -66,7 +66,9 @@ async def pg_users(request: Request):
         status = u.get("status", "")
         dot_class = {"active": "online", "expired": "offline", "disabled": "warning"}.get(status, "")
         status_label = {"active": "Активен", "expired": "Истёк", "disabled": "Отключён"}.get(status, status)
-        used = round((u.get("used_traffic", 0) or 0) / 1073741824, 2)
+        download = u.get("download", 0) or 0
+        upload = u.get("upload", 0) or 0
+        used = round((download + upload) / 1073741824, 2)
         limit = u.get("data_limit", 0) or 0
         limit_str = f"{round(limit / 1073741824, 1)} GB" if limit else "∞"
         username = html.escape(str(u.get("username", "")))
