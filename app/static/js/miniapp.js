@@ -3,7 +3,7 @@
 
 class MiniApp {
   constructor() {
-    this.apiBase = window.location.origin + '/app';
+    this.apiBase = '/app';
     this.initData = window.Telegram?.WebApp?.initData || '';
     this.initDataUnsafe = window.Telegram?.WebApp?.initDataUnsafe || {};
     this.user = null;
@@ -57,20 +57,31 @@ class MiniApp {
     if (bar) bar.classList.toggle('on', !online);
   }
 
+  _xhr(method, url, headers, body) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open(method, url, true);
+      for (const [k, v] of Object.entries(headers)) {
+        xhr.setRequestHeader(k, v);
+      }
+      xhr.onreadystatechange = () => {
+        if (xhr.readyState === 4) {
+          try {
+            const data = JSON.parse(xhr.responseText || '{}');
+            resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, data });
+          } catch {
+            resolve({ ok: false, status: xhr.status, data: {} });
+          }
+        }
+      };
+      xhr.onerror = () => reject(new Error('XHR error'));
+      xhr.ontimeout = () => reject(new Error('XHR timeout'));
+      xhr.send(body || null);
+    });
+  }
+
   async api(path, options = {}) {
     const url = `${this.apiBase}${path}`;
-    const headers = {
-      'Content-Type': 'application/json',
-      ...options.headers
-    };
-
-    // Always send initData in header for all requests (most reliable)
-    if (this.initData) {
-      headers['X-Telegram-Init-Data'] = this.initData;
-    }
-
-    const config = { headers, ...options };
-
     if (!this.initData) {
       return { ok: false, error: 'auth_required' };
     }
@@ -79,33 +90,38 @@ class MiniApp {
       try {
         if (!this.isOnline) throw new Error('OFFLINE');
 
-        const resp = await fetch(url, config);
+        const headers = {};
+        if (this.initData) headers['X-Telegram-Init-Data'] = this.initData;
+        if (options.method && options.method !== 'GET') {
+          headers['Content-Type'] = 'application/json';
+        }
+
+        const resp = await this._xhr(
+          options.method || 'GET',
+          url,
+          headers,
+          options.body || null
+        );
 
         if (!resp.ok) {
-          const data = await resp.json().catch(() => ({}));
-
           if (resp.status === 401) {
             this.showToast('Перезайдите в приложение', 'err');
             return { ok: false, error: 'auth_required' };
           }
-
-          if (data.error?.includes('not found')) {
+          if (resp.data?.error?.includes('not found')) {
             return { ok: false, error: 'not_found' };
           }
-
-          throw new Error(data.error || `HTTP ${resp.status}`);
+          throw new Error(resp.data?.error || `HTTP ${resp.status}`);
         }
 
-        return await resp.json();
+        return resp.data;
 
       } catch (e) {
         console.warn(`API ${path} attempt ${i + 1} failed:`, e);
-
         if (i === this.maxRetries - 1) {
           this.showToast('Нет соединения. Проверьте интернет.', 'err');
           return { ok: false, error: e.message };
         }
-
         await new Promise(r => setTimeout(r, 1000 * (i + 1)));
       }
     }
