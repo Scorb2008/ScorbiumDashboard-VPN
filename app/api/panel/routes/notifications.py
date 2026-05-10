@@ -1,5 +1,5 @@
 """Notification settings & testing routes."""
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, Form, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -55,10 +55,14 @@ async def test_notification(request: Request, db: AsyncSession = Depends(get_db)
     _require_permission(request, "system")
     notify = TelegramNotifyService()
     admin_ids = config.telegram.telegram_admin_ids
+    svc = BotSettingsService(db)
+    lang = (await svc.get("bot_language")) or "ru"
+    tz_offsets = {"ru": 3, "fa": 3.5, "en": -5}
+    tz = timezone(timedelta(hours=tz_offsets.get(lang, 3)))
     msg = (
         "🔔 <b>Тестовое уведомление</b>\n\n"
         "Если вы получили это сообщение — уведомления работают корректно.\n"
-        f"Время: {datetime.now(timezone.utc).strftime('%H:%M:%S')}"
+        f"Время: {datetime.now(timezone.utc).astimezone(tz).strftime('%H:%M:%S')}"
     )
     sent = 0
     for admin_id in admin_ids:

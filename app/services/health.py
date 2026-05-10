@@ -1,7 +1,7 @@
 """Health check service — monitors all external dependencies."""
 import asyncio
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from app.core.config import config
@@ -136,6 +136,10 @@ class HealthService:
         notify = TelegramNotifyService()
         now = time.time()
 
+        lang = (await settings.get("bot_language")) or "ru"
+        tz_offsets = {"ru": 3, "fa": 3.5, "en": -5}
+        tz = timezone(timedelta(hours=tz_offsets.get(lang, 3)))
+
         for name, entry in self._entries.items():
             if entry.status == ServiceStatus.DOWN or (notify_on_degraded and entry.status == ServiceStatus.DEGRADED):
                 if not notify_svc.get(name, True):
@@ -150,7 +154,7 @@ class HealthService:
                 msg = (
                     f"{emoji} <b>Сервис {label}: {name}</b>\n\n"
                     f"Ошибка: {entry.message}\n"
-                    f"Время: {entry.checked_at.strftime('%H:%M:%S')}"
+                    f"Время: {entry.checked_at.astimezone(tz).strftime('%H:%M:%S')}"
                 )
                 for chat_id in target_ids:
                     try:
