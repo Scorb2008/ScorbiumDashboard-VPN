@@ -50,11 +50,7 @@ def _compute_hmac(token: str, data_check: str) -> str:
 
 
 async def _verify_telegram_data(init_data: str, db=None) -> Optional[dict]:
-    """Verify Telegram WebApp initData per official docs.
-
-    NOTE: data_check must use ORIGINAL URL-encoded values as they appear
-    in the query string — Telegram computes HMAC over encoded values.
-    """
+    """Verify Telegram WebApp initData per official docs."""
     try:
         if not init_data or len(init_data) < 10:
             return None
@@ -64,8 +60,6 @@ async def _verify_telegram_data(init_data: str, db=None) -> Optional[dict]:
         user_data = None
         auth_ts = None
 
-        # Split manually — parse_qsl URL-decodes values, but HMAC needs
-        # the original encoded form per Telegram spec.
         for pair in sorted(
             init_data.split("&"),
             key=lambda x: x.split("=", 1)[0] if "=" in x else x,
@@ -80,12 +74,11 @@ async def _verify_telegram_data(init_data: str, db=None) -> Optional[dict]:
                 user_data = json.loads(urllib.parse.unquote(value))
             if key == "auth_date":
                 auth_ts = int(urllib.parse.unquote(value))
-            data_check_parts.append(pair)  # keep original (encoded) form
+            data_check_parts.append(f"{key}={urllib.parse.unquote(value)}")
 
         if not hash_val or not user_data or "id" not in user_data:
             return None
 
-        # Reject initData older than 24 hours per Telegram recommendation
         if auth_ts:
             auth_dt = datetime.fromtimestamp(auth_ts, tz=timezone.utc)
             if datetime.now(timezone.utc) - auth_dt > timedelta(days=1):
@@ -94,7 +87,6 @@ async def _verify_telegram_data(init_data: str, db=None) -> Optional[dict]:
 
         data_check = "\n".join(data_check_parts)
 
-        # Get tokens to verify against
         tokens = []
         env_token = config.telegram.telegram_bot_token.get_secret_value()
         if env_token:
@@ -144,19 +136,87 @@ async def _get_tg_user(request: Request, db=None) -> Optional[dict]:
 
 @router.get("/debug")
 async def miniapp_debug(request: Request, db: AsyncSession = Depends(get_db)):
-    """Debug endpoint to check initData."""
-    init_data = request.headers.get("x-telegram-init-data", "") or request.headers.get("X-Telegram-Init-Data", "")
-    result = {"has_data": bool(init_data), "header_len": len(init_data)}
+    """Debug endpoint — shows full initData diagnostics + HMAC comparison."""
+    init_data = request.headers.get("X-Telegram-Init-Data", "") or request.headers.get("x-telegram-init-data", "")
+    body_init = ""
+    if request.method == "POST":
+        try:
+            body = await request.json()
+            body_init = body.get("initData", "")[:200]
+        except Exception:
+            pass
+
+    result = {
+        "has_data": bool(init_data),
+        "header_len": len(init_data),
+        "header_preview": init_data[:150],
+        "body_preview": body_init,
+        "body_len": len(body_init),
+    }
+
     if init_data:
         try:
-            parsed = dict(urllib.parse.parse_qsl(init_data, keep_blank_values=True))
-            result["has_hash"] = "hash" in parsed
-            result["has_user"] = "user" in parsed
-            if "user" in parsed:
-                user = json.loads(urllib.parse.unquote(parsed["user"]))
-                result["user_id"] = user.get("id")
+            raw_pairs = []
+            for pair in init_data.split("&"):
+                if "=" in pair:
+                    raw_pairs.append(pair.split("=", 1))
+            keys = {k for k, _ in raw_pairs}
+            result["keys"] = sorted(keys)
+            result["key_details"] = {}
+            for k in sorted(keys):
+                vals = [v for key, v in raw_pairs if key == k]
+                result["key_details"][k] = {
+                    "count": len(vals),
+                    "len": len(vals[0]) if vals else 0,
+                    "preview": vals[0][:80] if vals else "",
+                }
+
+            # Show what data_check_string looks like (decoded values)
+            data_check_parts = []
+            for k, v in sorted(raw_pairs, key=lambda x: x[0]):
+                if k == "hash":
+                    continue
+                data_check_parts.append(f"{k}={urllib.parse.unquote(v)}")
+            data_check = "\n".join(data_check_parts)
+            result["data_check_preview"] = data_check[:300]
+            result["data_check_len"] = len(data_check)
+
+            # Hash from Telegram
+            hash_val = None
+            for k, v in raw_pairs:
+                if k == "hash":
+                    hash_val = v
+                    break
+            result["hash_from_telegram"] = hash_val[:40] + "..." if hash_val and len(hash_val) > 40 else (hash_val or "")
+
+            # Compute HMAC with all available tokens
+            tokens = []
+            env_token = config.telegram.telegram_bot_token.get_secret_value()
+            if env_token:
+                tokens.append(("env_token", env_token[:20] + ("..." if len(env_token) > 20 else ""), env_token))
+            if db:
+                try:
+                    db_token = await BotSettingsService(db).get("telegram_bot_token")
+                    if db_token:
+                        tokens.append(("db_token", db_token[:20] + ("..." if len(db_token) > 20 else ""), db_token))
+                except Exception:
+                    pass
+
+            result["tokens"] = []
+            for name, display, token in tokens:
+                computed = _compute_hmac(token, data_check)
+                match = "✅ MATCH" if hmac.compare_digest(computed, hash_val) else "❌ MISMATCH"
+                result["tokens"].append({
+                    "name": name,
+                    "display": display,
+                    "computed_hash": computed,
+                    "match": match,
+                })
         except Exception as e:
             result["error"] = str(e)
+            import traceback
+            result["traceback"] = traceback.format_exc()
+
     return JSONResponse(result)
 
 
@@ -317,7 +377,9 @@ async def miniapp_auth(request: Request, db: AsyncSession = Depends(get_db)):
                 body_init = body.get("initData", "")[:100]
             except Exception:
                 pass
-        log.warning(f"Auth failed. Header len: {len(init_data)}, Body preview: {body_init}")
+        env_token_preview = config.telegram.telegram_bot_token.get_secret_value()[:20] + "..."
+        log.warning(f"Auth failed. Header len: {len(init_data)}, Body preview: {body_init}, "
+                     f"Bot token (env): {env_token_preview}")
         return JSONResponse({"ok": False, "error": "Invalid auth"}, status_code=401)
 
     user_id = tg_user.get("id")
