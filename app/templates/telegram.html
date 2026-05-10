@@ -141,197 +141,230 @@
 
 <!-- ══ TAB: КАСТОМИЗАЦИЯ ═════════════════════════════════════════════════════ -->
 <div id="tab-customize" class="tab-pane">
-<div class="row g-3">
+<div class="row g-4">
 
-  <!-- Logo upload -->
+  <!-- ═══ ВНЕШНИЙ ВИД ═══ -->
   <div class="col-12">
-    <div class="card p-3">
-      <div class="fw-semibold mb-3" style="color:var(--text)"><i class="bi bi-image me-2 text-muted"></i>Логотип панели</div>
-      <div class="d-flex gap-3 align-items-start flex-wrap">
-        <div class="d-flex flex-column align-items-center gap-2">
-          {% if bot_settings.get('custom_logo') %}
-          <img src="{{ bot_settings.get('custom_logo') }}" id="logo-preview" style="width:64px;height:64px;border-radius:14px;object-fit:contain;background:var(--surface);border:1px solid var(--border);" />
-          {% else %}
-          <div id="logo-preview" style="width:64px;height:64px;border-radius:14px;background:linear-gradient(135deg,var(--accent),var(--accent-secondary));display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:#fff;border:1px solid var(--border);"><i class="bi bi-shield-lock-fill"></i></div>
-          {% endif %}
-          <span style="font-size:.7rem;color:var(--text-muted)">Предпросмотр</span>
-        </div>
-        <div style="flex:1;min-width:280px">
-          <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:.75rem">
-            Загрузите логотип для отображения в боковой панели и на странице входа. Форматы: PNG, JPG, WebP, SVG, GIF. Макс. 2MB.
-          </p>
-          <form id="logo-upload-form" hx-post="/panel/logo/upload" hx-encoding="multipart/form-data" hx-swap="none"
-                hx-on::after-request="handleLogoUpload(event)">
-            <div class="d-flex gap-2 flex-wrap align-items-end">
-              <div style="flex:1;min-width:200px">
-                <label class="form-label">Файл логотипа</label>
-                <input type="file" name="logo" accept="image/*" class="form-control" id="logo-file-input" required />
-              </div>
-              <button type="submit" class="btn btn-accent"><i class="bi bi-upload me-1"></i>Загрузить</button>
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <div style="width:4px;height:20px;border-radius:2px;background:linear-gradient(180deg,var(--accent),var(--accent-secondary))"></div>
+      <span style="font-size:.85rem;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.5px">Внешний вид</span>
+    </div>
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <div class="card p-3 h-100">
+          <div class="d-flex align-items-center gap-3">
+            <div class="d-flex flex-column align-items-center gap-2" style="flex-shrink:0">
               {% if bot_settings.get('custom_logo') %}
-              <button type="button" class="btn btn-outline-danger" hx-post="/panel/logo/clear" hx-swap="none"
-                      hx-on::after-request="location.reload()">
-                <i class="bi bi-trash me-1"></i>Удалить
-              </button>
+              <div style="width:72px;height:72px;border-radius:16px;overflow:hidden;border:2px solid var(--border);background:var(--bg)">
+                <img src="{{ bot_settings.get('custom_logo') }}" id="logo-preview" style="width:100%;height:100%;object-fit:contain;display:block" />
+              </div>
+              {% else %}
+              <div id="logo-preview" style="width:72px;height:72px;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--accent-secondary));display:flex;align-items:center;justify-content:center;font-size:2rem;color:#fff;border:2px solid var(--border);box-shadow:0 0 20px var(--accent-glow)"><i class="bi bi-shield-lock-fill"></i></div>
               {% endif %}
+              <span style="font-size:.65rem;color:var(--text-muted);font-weight:600">Логотип</span>
             </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:.25rem">Логотип панели</div>
+              <p style="font-size:.7rem;color:var(--text-muted);margin-bottom:.75rem">PNG, JPG, WebP, SVG, GIF · до 2 MB</p>
+              <form id="logo-upload-form" hx-post="/panel/logo/upload" hx-encoding="multipart/form-data" hx-swap="none" hx-on::after-request="handleLogoUpload(event)">
+                <div class="d-flex gap-2 flex-wrap">
+                  <input type="file" name="logo" accept="image/*" class="form-control" id="logo-file-input" required style="font-size:.75rem;width:auto;max-width:180px" />
+                  <button type="submit" class="btn btn-accent btn-sm"><i class="bi bi-upload me-1"></i>Загрузить</button>
+                  {% if bot_settings.get('custom_logo') %}
+                  <button type="button" class="btn btn-outline-danger btn-sm" hx-post="/panel/logo/clear" hx-swap="none" hx-on::after-request="location.reload()"><i class="bi bi-trash me-1"></i></button>
+                  {% endif %}
+                </div>
+              </form>
+              <div id="logo-result" style="font-size:.7rem;margin-top:.35rem;color:var(--accent)"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card p-3 h-100">
+          <div class="d-flex align-items-start justify-content-between gap-3">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:.25rem">Язык бота по умолчанию</div>
+              <p style="font-size:.7rem;color:var(--text-muted);margin-bottom:.75rem">Пользователи могут сменить язык кнопкой «🌐 Язык» в боте</p>
+              <form hx-post="/panel/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')" class="d-flex gap-2 align-items-end">
+                <div>
+                  <select name="bot_language" class="form-select" style="min-width:150px;font-size:.8rem">
+                    <option value="ru" {% if bot_settings.get('bot_language','ru')=='ru' %}selected{% endif %}>🇷🇺 Русский</option>
+                    <option value="en" {% if bot_settings.get('bot_language')=='en' %}selected{% endif %}>🇬🇧 English</option>
+                    <option value="fa" {% if bot_settings.get('bot_language')=='fa' %}selected{% endif %}>🇮🇷 فارسی</option>
+                  </select>
+                </div>
+                <button type="submit" class="btn btn-accent btn-sm"><i class="bi bi-floppy me-1"></i></button>
+              </form>
+            </div>
+            <div style="font-size:2rem;color:var(--accent);opacity:.3;flex-shrink:0;line-height:1">🌐</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ ПРОБНЫЙ ПЕРИОД ═══ -->
+  <div class="col-12 col-lg-6">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <div style="width:4px;height:20px;border-radius:2px;background:linear-gradient(180deg,var(--accent-warm),#f97316)"></div>
+      <span style="font-size:.85rem;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.5px">Пробный период</span>
+    </div>
+    <div class="card p-3">
+      <form hx-post="/panel/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
+        <div class="d-flex align-items-start gap-3">
+          <div style="font-size:1.6rem;flex-shrink:0;line-height:1">🎁</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:.75rem">Пробный доступ</div>
+            <div class="d-flex flex-wrap gap-3 align-items-end">
+              <div>
+                <label class="form-label" style="font-size:.7rem">Статус</label>
+                <div class="form-check form-switch mt-1">
+                  <input class="form-check-input" type="checkbox" name="trial_enabled" value="1" id="trial_enabled_check"
+                    {% if bot_settings.get('trial_enabled','0') == '1' %}checked{% endif %}
+                    onchange="this.form.querySelector('[name=trial_enabled_hidden]').disabled = this.checked">
+                  <input type="hidden" name="trial_enabled_hidden" value="0" {% if bot_settings.get('trial_enabled','0') == '1' %}disabled{% endif %}>
+                  <label class="form-check-label" for="trial_enabled_check" style="font-size:.75rem">Включён</label>
+                </div>
+              </div>
+              <div>
+                <label class="form-label" style="font-size:.7rem">Дней</label>
+                <input type="number" name="trial_days" class="form-control" style="width:80px;font-size:.8rem"
+                  min="1" max="30" value="{{ bot_settings.get('trial_days','3') }}" />
+              </div>
+              <div style="flex:1;min-width:160px">
+                <label class="form-label" style="font-size:.7rem">Текст кнопки</label>
+                <input type="text" name="trial_label" class="form-control" style="font-size:.8rem"
+                  placeholder="🎁 Пробный период ({days} дн.)"
+                  value="{{ bot_settings.get('trial_label','') }}" />
+                <div style="font-size:.65rem;color:var(--text-muted);margin-top:.2rem">Переменная: <code>{days}</code></div>
+              </div>
+            </div>
+            <div style="font-size:.7rem;color:var(--text-muted);margin-top:.75rem;padding:.5rem .65rem;background:rgba(0,212,170,.06);border-radius:8px;border:1px solid rgba(0,212,170,.1)">
+              <i class="bi bi-info-circle me-1" style="color:var(--accent)"></i>
+              Доступен только новым пользователям без подписок. Добавьте кнопку «🎁 Пробный период» в раскладку через таб «Кнопки».
+            </div>
+            <button type="submit" class="btn btn-accent btn-sm mt-3"><i class="bi bi-floppy me-1"></i>Сохранить</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══ УВЕДОМЛЕНИЯ ═══ -->
+  <div class="col-12 col-lg-6">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <div style="width:4px;height:20px;border-radius:2px;background:linear-gradient(180deg,#0ea5e9,#06b6d4)"></div>
+      <span style="font-size:.85rem;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.5px">Уведомления</span>
+    </div>
+    <div class="card p-3">
+      <form hx-post="/panel/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
+        <div class="d-flex align-items-start gap-3">
+          <div style="font-size:1.6rem;flex-shrink:0;line-height:1">🔔</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:.75rem">Уведомления об истечении</div>
+            <div class="d-flex flex-wrap gap-3 align-items-end">
+              <div>
+                <label class="form-label" style="font-size:.7rem">Статус</label>
+                <div class="form-check form-switch mt-1">
+                  <input class="form-check-input" type="checkbox" name="notify_expiry_enabled" value="1" id="notify_expiry_check"
+                    {% if bot_settings.get('notify_expiry_enabled','1') == '1' %}checked{% endif %}>
+                  <label class="form-check-label" for="notify_expiry_check" style="font-size:.75rem">Включены</label>
+                </div>
+              </div>
+              <div style="flex:1;min-width:140px">
+                <label class="form-label" style="font-size:.7rem">За сколько дней</label>
+                <input type="text" name="notify_expiry_days" class="form-control" style="font-size:.8rem"
+                  placeholder="7,3,1" value="{{ bot_settings.get('notify_expiry_days','7,3,1') }}" />
+                <div style="font-size:.65rem;color:var(--text-muted);margin-top:.2rem">Через запятую: <code>7,3,1</code></div>
+              </div>
+            </div>
+            <div class="mt-3">
+              <label class="form-label" style="font-size:.7rem">Текст уведомления</label>
+              <textarea name="notify_expiry_message" class="form-control" rows="2" style="font-size:.8rem"
+                placeholder="⚠️ Подписка истекает через {days} дн.!">{{ bot_settings.get('notify_expiry_message','') }}</textarea>
+              <div style="font-size:.65rem;color:var(--text-muted);margin-top:.2rem">
+                Переменные: <code>{days}</code> <code>{name}</code> <code>{date}</code>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-accent btn-sm mt-3"><i class="bi bi-floppy me-1"></i>Сохранить</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══ ТЕКСТЫ ═══ -->
+  <div class="col-12">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <div style="width:4px;height:20px;border-radius:2px;background:linear-gradient(180deg,var(--accent-secondary),#7c3aed)"></div>
+      <span style="font-size:.85rem;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.5px">Тексты</span>
+    </div>
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <div class="card p-3 h-100">
+          <div class="d-flex align-items-center gap-2 mb-3">
+            <i class="bi bi-chat-text" style="color:var(--accent);font-size:1.1rem"></i>
+            <span style="font-size:.8rem;font-weight:600;color:var(--text)">Тексты бота</span>
+          </div>
+          <form hx-post="/panel/telegram/bot-settings" hx-swap="none">
+            <div class="mb-3">
+              <label class="form-label" style="font-size:.75rem">Приветствие (/start)</label>
+              <textarea name="welcome_message" class="form-control" rows="3" style="font-size:.8rem" placeholder="👋 Привет, {name}!">{{ bot_settings.get('welcome_message','') }}</textarea>
+              <div style="font-size:.65rem;color:var(--text-muted);margin-top:.2rem">Переменная: <code>{name}</code></div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" style="font-size:.75rem">Текст «О проекте»</label>
+              <textarea name="about_text" class="form-control" rows="4" style="font-size:.8rem" placeholder="🌐 О нашем VPN...">{{ bot_settings.get('about_text','') }}</textarea>
+            </div>
+            <div class="mb-2">
+              <label class="form-label" style="font-size:.75rem">Сообщение после оплаты</label>
+              <textarea name="payment_success_message" class="form-control" rows="2" style="font-size:.8rem">{{ bot_settings.get('payment_success_message','') }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-accent btn-sm w-100 mt-2"><i class="bi bi-floppy me-1"></i>Сохранить</button>
           </form>
-          <div id="logo-result" style="font-size:.78rem;margin-top:.5rem"></div>
-    </div>
-  </div>
-
-  <!-- Language selector -->
-  <div class="col-12">
-    <div class="card p-3">
-      <div class="fw-semibold" style="color:var(--text)" mb-3"><i class="bi bi-translate me-2 text-muted"></i>Язык бота по умолчанию</div>
-      <form hx-post="/panel/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
-        <div class="d-flex gap-3 flex-wrap align-items-end">
-          <div>
-            <label class="form-label">Язык по умолчанию</label>
-            <select name="bot_language" class="form-select" style="min-width:180px">
-              <option value="ru" {% if bot_settings.get('bot_language','ru')=='ru' %}selected{% endif %}>🇷🇺 Русский</option>
-              <option value="en" {% if bot_settings.get('bot_language')=='en' %}selected{% endif %}>🇬🇧 English</option>
-              <option value="fa" {% if bot_settings.get('bot_language')=='fa' %}selected{% endif %}>🇮🇷 فارسی (Persian)</option>
-            </select>
-            <div style="font-size:.7rem;color:var(--text-muted);margin-top:.25rem">Пользователи могут менять язык кнопкой «🌐 Язык» в боте</div>
-          </div>
-          <button type="submit" class="btn btn-accent"><i class="bi bi-floppy me-1"></i>Сохранить</button>
         </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Trial period -->
-  <div class="col-12">
-    <div class="card p-3">
-      <div class="fw-semibold" style="color:var(--text)" mb-3"><i class="bi bi-gift me-2 text-muted"></i>Пробный период</div>
-      <form hx-post="/panel/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
-        <div class="row g-3 align-items-end">
-          <div class="col-auto">
-            <label class="form-label">Статус</label>
-            <div class="form-check form-switch mt-1">
-              <input class="form-check-input" type="checkbox" name="trial_enabled" value="1"
-                id="trial_enabled_check"
-                {% if bot_settings.get('trial_enabled','0') == '1' %}checked{% endif %}
-                onchange="this.form.querySelector('[name=trial_enabled_hidden]').disabled = this.checked">
-              <input type="hidden" name="trial_enabled_hidden" value="0" {% if bot_settings.get('trial_enabled','0') == '1' %}disabled{% endif %}>
-              <label class="form-check-label" for="trial_enabled_check">Включён</label>
+      </div>
+      <div class="col-lg-6">
+        <div class="card p-3 h-100">
+          <div class="d-flex align-items-center gap-2 mb-3">
+            <i class="bi bi-exclamation-triangle" style="color:var(--accent-warm);font-size:1.1rem"></i>
+            <span style="font-size:.8rem;font-weight:600;color:var(--text)">Системные сообщения</span>
+          </div>
+          <form hx-post="/panel/telegram/bot-settings" hx-swap="none">
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label" style="font-size:.7rem">При бане</label>
+                <textarea name="ban_message" class="form-control" rows="2" style="font-size:.8rem" placeholder="🚫 Аккаунт заблокирован.">{{ bot_settings.get('ban_message','') }}</textarea>
+              </div>
+              <div class="col-6">
+                <label class="form-label" style="font-size:.7rem">При разблокировке</label>
+                <textarea name="unban_message" class="form-control" rows="2" style="font-size:.8rem" placeholder="✅ Аккаунт разблокирован.">{{ bot_settings.get('unban_message','') }}</textarea>
+              </div>
+              <div class="col-6">
+                <label class="form-label" style="font-size:.7rem">Бот отключён</label>
+                <textarea name="bot_disabled_message" class="form-control" rows="2" style="font-size:.8rem" placeholder="🔧 Бот временно отключён.">{{ bot_settings.get('bot_disabled_message','') }}</textarea>
+              </div>
+              <div class="col-6">
+                <label class="form-label" style="font-size:.7rem">Выдача ключа</label>
+                <textarea name="subscription_issued_message" class="form-control" rows="2" style="font-size:.8rem" placeholder="🔑 VPN-ключ выдан!">{{ bot_settings.get('subscription_issued_message','') }}</textarea>
+              </div>
+              <div class="col-6">
+                <label class="form-label" style="font-size:.7rem">Отмена подписки</label>
+                <textarea name="subscription_cancelled_message" class="form-control" rows="2" style="font-size:.8rem" placeholder="❌ Подписка отменена.">{{ bot_settings.get('subscription_cancelled_message','') }}</textarea>
+              </div>
+              <div class="col-6">
+                <label class="form-label" style="font-size:.7rem">Реферал зарегистрировался</label>
+                <textarea name="referral_welcome_message" class="form-control" rows="2" style="font-size:.8rem" placeholder="🎉 По вашей ссылке зарегистрировался новый пользователь!">{{ bot_settings.get('referral_welcome_message','') }}</textarea>
+              </div>
             </div>
-          </div>
-          <div class="col-auto">
-            <label class="form-label">Дней пробного периода</label>
-            <input type="number" name="trial_days" class="form-control" style="width:100px"
-              min="1" max="30" value="{{ bot_settings.get('trial_days','3') }}" />
-          </div>
-          <div class="col">
-            <label class="form-label">Текст кнопки</label>
-            <input type="text" name="trial_label" class="form-control"
-              placeholder="🎁 Пробный период ({days} дн.)"
-              value="{{ bot_settings.get('trial_label','') }}" />
-            <div style="font-size:.7rem;color:var(--text-muted);margin-top:.25rem">Переменная: <code>{days}</code></div>
-          </div>
-          <div class="col-auto">
-            <button type="submit" class="btn btn-accent"><i class="bi bi-floppy me-1"></i>Сохранить</button>
-          </div>
+            <button type="submit" class="btn btn-accent btn-sm w-100 mt-3"><i class="bi bi-floppy me-1"></i>Сохранить</button>
+          </form>
         </div>
-        <div style="font-size:.75rem;color:var(--text-muted);margin-top:.75rem">
-          <i class="bi bi-info-circle me-1"></i>Доступен только новым пользователям без подписок. Добавь кнопку «🎁 Пробный период» в раскладку через таб «Кнопки».
-        </div>
-      </form>
+      </div>
     </div>
   </div>
 
-  <!-- Notifications -->
-  <div class="col-12">
-    <div class="card p-3">
-      <div class="fw-semibold" style="color:var(--text)" mb-3"><i class="bi bi-bell me-2 text-muted"></i>Уведомления об истечении подписки</div>
-      <form hx-post="/panel/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
-        <div class="row g-3 align-items-end">
-          <div class="col-auto">
-            <label class="form-label">Статус</label>
-            <div class="form-check form-switch mt-1">
-              <input class="form-check-input" type="checkbox" name="notify_expiry_enabled" value="1"
-                id="notify_expiry_check"
-                {% if bot_settings.get('notify_expiry_enabled','1') == '1' %}checked{% endif %}>
-              <label class="form-check-label" for="notify_expiry_check">Включены</label>
-            </div>
-          </div>
-          <div class="col">
-            <label class="form-label">За сколько дней уведомлять</label>
-            <input type="text" name="notify_expiry_days" class="form-control"
-              placeholder="7,3,1"
-              value="{{ bot_settings.get('notify_expiry_days','7,3,1') }}" />
-            <div style="font-size:.7rem;color:var(--text-muted);margin-top:.25rem">Через запятую: <code>7,3,1</code> — уведомит за 7, 3 и 1 день до истечения</div>
-          </div>
-        </div>
-        <div class="mt-3">
-          <label class="form-label">Текст уведомления</label>
-          <textarea name="notify_expiry_message" class="form-control" rows="3"
-            placeholder="⚠️ Подписка истекает через {days} дн.!">{{ bot_settings.get('notify_expiry_message','') }}</textarea>
-          <div style="font-size:.7rem;color:var(--text-muted);margin-top:.25rem">
-            Переменные: <code>{days}</code> — дней, <code>{name}</code> — название, <code>{date}</code> — дата
-          </div>
-        </div>
-        <button type="submit" class="btn btn-accent btn-sm mt-3"><i class="bi bi-floppy me-1"></i>Сохранить</button>
-      </form>
-    </div>
-  </div>
-
-  <div class="col-lg-6">
-    <div class="card p-3 mb-3">
-      <div class="fw-semibold" style="color:var(--text)" mb-3"><i class="bi bi-chat-text me-2 text-muted"></i>Тексты бота</div>
-      <form hx-post="/panel/telegram/bot-settings" hx-swap="none">
-        <div class="mb-3">
-          <label class="form-label">Приветствие (/start)</label>
-          <textarea name="welcome_message" class="form-control" rows="3" placeholder="👋 Привет, {name}!">{{ bot_settings.get('welcome_message','') }}</textarea>
-          <div style="font-size:.7rem;color:var(--text-muted);margin-top:.25rem">Переменная: <code>{name}</code></div>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Текст «О проекте»</label>
-          <textarea name="about_text" class="form-control" rows="4" placeholder="🌐 О нашем VPN...">{{ bot_settings.get('about_text','') }}</textarea>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Сообщение после оплаты</label>
-          <textarea name="payment_success_message" class="form-control" rows="2">{{ bot_settings.get('payment_success_message','') }}</textarea>
-        </div>
-        <button type="submit" class="btn btn-accent w-100"><i class="bi bi-floppy me-1"></i>Сохранить</button>
-      </form>
-    </div>
-  </div>
-  <div class="col-lg-6">
-    <div class="card p-3">
-      <div class="fw-semibold" style="color:var(--text)" mb-3"><i class="bi bi-exclamation-circle me-2 text-muted"></i>Системные сообщения</div>
-      <form hx-post="/panel/telegram/bot-settings" hx-swap="none">
-        <div class="mb-2">
-          <label class="form-label">При бане</label>
-          <textarea name="ban_message" class="form-control" rows="2" placeholder="🚫 Аккаунт заблокирован.">{{ bot_settings.get('ban_message','') }}</textarea>
-        </div>
-        <div class="mb-2">
-          <label class="form-label">При разблокировке</label>
-          <textarea name="unban_message" class="form-control" rows="2" placeholder="✅ Ваш аккаунт разблокирован. Добро пожаловать обратно!">{{ bot_settings.get('unban_message','') }}</textarea>
-        </div>
-        <div class="mb-2">
-          <label class="form-label">Бот отключён</label>
-          <textarea name="bot_disabled_message" class="form-control" rows="2" placeholder="🔧 Бот временно отключён.">{{ bot_settings.get('bot_disabled_message','') }}</textarea>
-        </div>
-        <div class="mb-2">
-          <label class="form-label">Выдача ключа</label>
-          <textarea name="subscription_issued_message" class="form-control" rows="2" placeholder="🔑 Ваш VPN-ключ выдан!">{{ bot_settings.get('subscription_issued_message','') }}</textarea>
-        </div>
-        <div class="mb-2">
-          <label class="form-label">Отмена подписки</label>
-          <textarea name="subscription_cancelled_message" class="form-control" rows="2" placeholder="❌ Подписка отменена.">{{ bot_settings.get('subscription_cancelled_message','') }}</textarea>
-        </div>
-        <div class="mb-2">
-          <label class="form-label">Реферал зарегистрировался</label>
-          <textarea name="referral_welcome_message" class="form-control" rows="2" placeholder="🎉 По вашей ссылке зарегистрировался новый пользователь!">{{ bot_settings.get('referral_welcome_message','') }}</textarea>
-        </div>
-        <button type="submit" class="btn btn-accent w-100 mt-2"><i class="bi bi-floppy me-1"></i>Сохранить</button>
-      </form>
-    </div>
-  </div>
-</div>
-</div>
 </div>
 </div>
 

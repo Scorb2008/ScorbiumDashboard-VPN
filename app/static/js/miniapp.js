@@ -45,6 +45,8 @@ class MiniApp {
       const authOk = await this.auth();
       if (authOk) {
         this.loadHome();
+      } else {
+        this.renderError('home-c', 'Ошибка авторизации. Попробуйте перезапустить приложение.');
       }
     } else {
       this.showError('Перезайдите в приложение через бота');

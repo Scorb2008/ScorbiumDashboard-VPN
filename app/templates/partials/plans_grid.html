@@ -3,10 +3,12 @@
   <div class="col-md-6 col-xl-4 plan-item" data-plan-id="{{ plan.id }}">
     <div class="card h-100 p-3">
       <div class="d-flex align-items-start justify-content-between mb-2">
-        <div>
-          <span class="drag-handle me-2" style="cursor:grab;color:var(--text-muted);font-size:.9rem"><i class="bi bi-grip-vertical"></i></span>
-          <div class="fw-bold" style="color:var(--text)">{{ plan.name }}</div>
-          <code style="font-size:.7rem;color:var(--text-muted)">{{ plan.slug }}</code>
+        <div class="d-flex align-items-start gap-1 drag-handle" style="flex:1;min-width:0">
+          <span class="mt-1" style="color:var(--text-muted);font-size:1.1rem;flex-shrink:0"><i class="bi bi-grip-vertical"></i></span>
+          <div style="min-width:0">
+            <div class="fw-bold" style="color:var(--text)">{{ plan.name }}</div>
+            <code style="font-size:.7rem;color:var(--text-muted)">{{ plan.slug }}</code>
+          </div>
         </div>
         {% if plan.is_active %}
           <span class="badge badge-custom badge-active">Активен</span>

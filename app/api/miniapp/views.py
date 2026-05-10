@@ -50,33 +50,49 @@ def _compute_hmac(token: str, data_check: str) -> str:
 
 
 async def _verify_telegram_data(init_data: str, db=None) -> Optional[dict]:
-    """Verify Telegram WebApp initData per official docs."""
+    """Verify Telegram WebApp initData per official docs.
+
+    NOTE: data_check must use ORIGINAL URL-encoded values as they appear
+    in the query string — Telegram computes HMAC over encoded values.
+    """
     try:
         if not init_data or len(init_data) < 10:
             return None
 
-        parsed = list(urllib.parse.parse_qsl(init_data, keep_blank_values=True))
-        
-        # Extract hash and build data_check (all fields except hash, sorted by key)
         hash_val = None
         data_check_parts = []
-        
-        for k, v in sorted(parsed, key=lambda x: x[0]):
-            if k == "hash":
-                hash_val = v
-            else:
-                # Use URL-decoded values for data_check per Telegram docs
-                data_check_parts.append(f"{k}={urllib.parse.unquote(v)}")
-        
-        if not hash_val:
+        user_data = None
+        auth_ts = None
+
+        # Split manually — parse_qsl URL-decodes values, but HMAC needs
+        # the original encoded form per Telegram spec.
+        for pair in sorted(
+            init_data.split("&"),
+            key=lambda x: x.split("=", 1)[0] if "=" in x else x,
+        ):
+            if "=" not in pair:
+                continue
+            key, value = pair.split("=", 1)
+            if key == "hash":
+                hash_val = value
+                continue
+            if key == "user":
+                user_data = json.loads(urllib.parse.unquote(value))
+            if key == "auth_date":
+                auth_ts = int(urllib.parse.unquote(value))
+            data_check_parts.append(pair)  # keep original (encoded) form
+
+        if not hash_val or not user_data or "id" not in user_data:
             return None
-        
+
+        # Reject initData older than 24 hours per Telegram recommendation
+        if auth_ts:
+            auth_dt = datetime.fromtimestamp(auth_ts, tz=timezone.utc)
+            if datetime.now(timezone.utc) - auth_dt > timedelta(days=1):
+                log.warning(f"MiniApp auth_date expired for user {user_data.get('id')}")
+                return None
+
         data_check = "\n".join(data_check_parts)
-        
-        user_raw = dict(parsed).get("user", "{}")
-        user_data = json.loads(urllib.parse.unquote(user_raw))
-        if not user_data or "id" not in user_data:
-            return None
 
         # Get tokens to verify against
         tokens = []

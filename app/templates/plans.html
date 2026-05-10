@@ -103,14 +103,18 @@
     plansSortable = new Sortable(plansGrid, {
       animation: 150,
       handle: '.drag-handle',
+      filter: 'button, a, input, select, textarea, .btn, .badge',
+      preventOnFilter: true,
       ghostClass: 'sortable-ghost',
       chosenClass: 'sortable-chosen',
       draggable: '.plan-item',
       forceFallback: true,
       fallbackClass: 'sortable-fallback',
       fallbackOnBody: true,
-      onEnd: function(evt) {
-        const order = Array.from(plansGrid.querySelectorAll('.plan-item')).map(el => el.dataset.planId).filter(Boolean);
+      onEnd: function() {
+        const container = document.getElementById('plans-grid-container');
+        if (!container) return;
+        const order = Array.from(container.querySelectorAll('.plan-item')).map(el => el.dataset.planId).filter(Boolean);
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
         fetch('/panel/plans/reorder', {
           method: 'POST',
@@ -129,12 +133,18 @@
       setTimeout(initSortable, 50);
     }
   });
+  document.addEventListener('htmx:afterSettle', function(e) {
+    if (e.target.id === 'plans-grid-container' || e.target.closest('#plans-grid-container')) {
+      setTimeout(initSortable, 10);
+    }
+  });
 </script>
 <style>
   .sortable-ghost { opacity: 0.4; }
   .sortable-chosen { box-shadow: 0 0 0 2px var(--accent); }
   .sortable-fallback { box-shadow: 0 8px 32px rgba(0,0,0,0.4); transform: scale(1.02); z-index: 9999 !important; }
-  .drag-handle { cursor: grab; user-select: none; -webkit-user-select: none; }
+  .drag-handle { cursor: grab; user-select: none; -webkit-user-select: none; touch-action: none; }
   .drag-handle:active { cursor: grabbing; }
+  .plan-item { position: relative; }
 </style>
 {% endblock %}
