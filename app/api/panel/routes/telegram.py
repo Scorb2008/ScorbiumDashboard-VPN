@@ -54,6 +54,8 @@ async def telegram_page(request: Request, db: AsyncSession = Depends(get_db)):
     pg_merchant = (await svc.get("platega_merchant_id") or "").strip()
     pg_secret = (await svc.get("platega_secret") or "").strip()
     pp_token = (await svc.get("paypalych_api_token") or "").strip()
+    pp_merchant_id = (await svc.get("paypalych_merchant_id") or "").strip()
+    pp_merchant_secret = (await svc.get("paypalych_merchant_secret") or "").strip()
     fk_secret1 = (await svc.get("freekassa_secret_word_1") or "").strip()
     fk_secret2 = (await svc.get("freekassa_secret_word_2") or "").strip()
 
@@ -81,9 +83,10 @@ async def telegram_page(request: Request, db: AsyncSession = Depends(get_db)):
         "aikassa_shop_id": ak_shop,
         "paypalych_enabled": _toggle("ps_paypalych_enabled"),
         "paypalych_configured": bool(pp_token),
+        "paypalych_merchant_configured": bool(pp_merchant_id and pp_merchant_secret),
         "paypalych_toggle": _toggle("ps_paypalych_enabled"),
-        "paypalych_merchant_id": "",
-        "paypalych_secret_set": bool(pp_token),
+        "paypalych_merchant_id": pp_merchant_id,
+        "paypalych_secret_set": bool(pp_merchant_secret),
         "cryptobot_enabled": _toggle("ps_cryptobot_enabled"),
         "cryptobot_configured": bool(cb_token),
         "cryptobot_toggle": _toggle("ps_cryptobot_enabled"),
@@ -131,7 +134,7 @@ async def ps_save_yookassa(request: Request, db: AsyncSession = Depends(get_db))
     saved_key = bool(await svc.get("yookassa_secret_key_override"))
     enabled = bool(saved_shop and saved_key)
 
-    return JSONResponse({"ok": True, "message": "ЮКасса сохранена", "enabled": enabled})
+    return JSONResponse({"ok": True, "message": "ЮКасса сохранена", "configured": enabled, "enabled": enabled})
 
 
 @router.post("/payment-systems/yookassa/test")
@@ -214,7 +217,7 @@ async def ps_save_cryptobot(request: Request, db: AsyncSession = Depends(get_db)
     await db.commit()
 
     return JSONResponse(
-        {"ok": True, "message": "CryptoBot токен сохранён", "enabled": True}
+        {"ok": True, "message": "CryptoBot токен сохранён", "configured": True, "enabled": True}
     )
 
 
@@ -307,7 +310,7 @@ async def ps_save_freekassa(request: Request, db: AsyncSession = Depends(get_db)
     if word2:
         await svc.set("freekassa_secret_word_2", word2)
     await db.commit()
-    return JSONResponse({"ok": True, "message": "FreeKassa сохранена"})
+    return JSONResponse({"ok": True, "message": "FreeKassa сохранена", "configured": bool(shop_id and api_key)})
 
 
 @router.post("/payment-systems/freekassa/test")
@@ -350,7 +353,7 @@ async def ps_save_aikassa(request: Request, db: AsyncSession = Depends(get_db)):
     if token:
         await svc.set("aikassa_token", token)
     await db.commit()
-    return JSONResponse({"ok": True, "message": "AiKassa сохранена"})
+    return JSONResponse({"ok": True, "message": "AiKassa сохранена", "configured": bool(shop_id and token)})
 
 
 @router.post("/payment-systems/aikassa/test")
@@ -385,12 +388,29 @@ async def ps_save_paypalych(request: Request, db: AsyncSession = Depends(get_db)
     _require_permission(request, "system")
     form = await request.form()
     token = str(form.get("paypalych_api_token", "")).strip()
+    merchant_id = str(form.get("paypalych_merchant_id", "")).strip()
+    secret = str(form.get("paypalych_secret", "")).strip()
 
     svc = BotSettingsService(db)
     if token:
         await svc.set("paypalych_api_token", token)
+    if merchant_id:
+        await svc.set("paypalych_merchant_id", merchant_id)
+    if secret:
+        await svc.set("paypalych_merchant_secret", secret)
     await db.commit()
-    return JSONResponse({"ok": True, "message": "PayPalych сохранён"})
+
+    api_token = (await svc.get("paypalych_api_token") or "").strip()
+    mid = (await svc.get("paypalych_merchant_id") or "").strip()
+    msec = (await svc.get("paypalych_merchant_secret") or "").strip()
+    enabled = (await svc.get("ps_paypalych_enabled")) == "1"
+    return JSONResponse({
+        "ok": True,
+        "message": "PayPalych сохранён",
+        "configured": bool(api_token),
+        "merchant_configured": bool(mid and msec),
+        "enabled": enabled,
+    })
 
 
 @router.post("/payment-systems/paypalych/test")
@@ -398,25 +418,35 @@ async def ps_test_paypalych(request: Request, db: AsyncSession = Depends(get_db)
     _require_permission(request, "system")
     svc = BotSettingsService(db)
     token = (await svc.get("paypalych_api_token") or "").strip()
+    merchant_id = (await svc.get("paypalych_merchant_id") or "").strip()
+    merchant_secret = (await svc.get("paypalych_merchant_secret") or "").strip()
 
-    if not token:
-        return JSONResponse(
-            {"ok": False, "message": "PayPalych не настроен"}, status_code=400
-        )
+    messages = []
+    any_ok = False
 
-    try:
-        from app.services.paypalych import PayPalychService
-        pp = PayPalychService(token)
-        result = await pp.test_connection()
-        if result.get("ok"):
-            return JSONResponse({"ok": True, "message": "✅ PayPalych подключён"})
-        return JSONResponse(
-            {"ok": False, "message": result.get("error", "Ошибка")}, status_code=400
-        )
-    except Exception as e:
-        return JSONResponse(
-            {"ok": False, "message": f"Ошибка подключения: {str(e)}"}, status_code=400
-        )
+    if token:
+        try:
+            from app.services.paypalych import PayPalychService
+            pp = PayPalychService(token)
+            result = await pp.test_connection()
+            if result.get("ok"):
+                messages.append("✅ API: подключён")
+                any_ok = True
+            else:
+                messages.append(f"❌ API: {result.get('message', 'Ошибка')}")
+        except Exception as e:
+            messages.append(f"❌ API: {str(e)}")
+
+    if merchant_id and merchant_secret:
+        messages.append("✅ Merchant: данные сохранены")
+        any_ok = True
+    elif merchant_id or merchant_secret:
+        messages.append("❌ Merchant: заполните оба поля (ID + Secret)")
+
+    if not messages:
+        return JSONResponse({"ok": False, "message": "Ничего не настроено"}, status_code=400)
+
+    return JSONResponse({"ok": any_ok, "message": " | ".join(messages)})
 
 
 @router.post("/payment-systems/platega")
@@ -432,7 +462,7 @@ async def ps_save_platega(request: Request, db: AsyncSession = Depends(get_db)):
     if secret:
         await svc.set("platega_secret", secret)
     await db.commit()
-    return JSONResponse({"ok": True, "message": "Platega сохранена"})
+    return JSONResponse({"ok": True, "message": "Platega сохранена", "configured": bool(merchant_id and secret)})
 
 
 @router.post("/payment-systems/platega/test")

@@ -1025,7 +1025,7 @@
       <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.75rem;padding-left:36px">
         Merchant ID + Secret · <a href="https://paypalych.io" target="_blank" style="color:#00d4aa">paypalych.io</a>
       </div>
-      <form hx-post="/panel/telegram/payment-systems/paypalych" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'pl')">
+      <form hx-post="/panel/telegram/payment-systems/paypalych" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'plm')">
         <div class="mb-2">
           <label class="form-label" style="font-size:.7rem">Merchant ID</label>
           <input type="text" name="paypalych_merchant_id" class="form-control" style="font-size:.8rem"
@@ -1046,7 +1046,7 @@
         <div class="d-flex gap-2 mt-3">
           <button type="submit" class="btn btn-accent btn-sm flex-fill"><i class="bi bi-floppy me-1"></i>Сохранить</button>
           <button type="button" class="btn btn-outline-secondary btn-sm" style="font-size:.75rem"
-            hx-post="/panel/telegram/payment-systems/paypalych/test" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'pl-test')">
+            hx-post="/panel/telegram/payment-systems/paypalych/test" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'plm-test')">
             <i class="bi bi-lightning me-1"></i>Тест
           </button>
         </div>
@@ -1309,33 +1309,80 @@ function handlePsResponse(event, key) {
   const msg = data.message || (xhr.status === 200 ? 'OK' : 'Ошибка');
   const ok = xhr.status === 200 && data.ok !== false;
   const prefix = key.replace('-test', '');
+
   const resultEl = document.getElementById(prefix + '-result');
   if (resultEl) {
     resultEl.innerHTML = `<span style="color:${ok?'#22c55e':'#ef4444'}"><i class="bi bi-${ok?'check-circle':'x-circle'}-fill me-1"></i>${msg}</span>`;
   }
   showToast(msg, ok ? 'success' : 'error');
+
   if (ok && !key.endsWith('-test')) {
-    // Обновляем статус-бейдж после сохранения
-    const statusMap = {yk:'yk-status', cb:'cb-status', fk:'fk-status', ak:'ak-status'};
-    const toggleMap = {yk:'yk-toggle', cb:'cb-toggle', fk:'fk-toggle', ak:'ak-toggle'};
-    const statusId = statusMap[prefix];
-    const toggleId = toggleMap[prefix];
-    if (statusId) {
-      const badge = document.getElementById(statusId);
-      if (badge && data.configured !== undefined) {
-        badge.className = `badge badge-custom ${data.configured ? 'badge-active' : 'badge-closed'}`;
-        badge.textContent = data.configured ? 'Настроена' : 'Не настроена';
+    // Determine configured state for this card
+    let configured;
+    if (prefix === 'plm') {
+      configured = data.merchant_configured;
+    } else {
+      configured = data.configured;
+    }
+
+    if (configured === undefined) return; // nothing to update
+
+    // --- Update badge ---
+    const statusId = prefix + '-status';
+    const badge = document.getElementById(statusId);
+    if (badge) {
+      badge.className = `badge badge-custom ${configured ? 'badge-active' : 'badge-closed'}`;
+      badge.textContent = configured ? 'Вкл' : 'Выкл';
+    }
+
+    // --- Update elements inside the card ---
+    const form = event.detail.elt;
+    const card = form.closest('.card');
+
+    // Update password input placeholders and show/hide green "Сохранён" text
+    card.querySelectorAll('.mb-2').forEach(function(el) {
+      const input = el.querySelector('input[type="password"]');
+      if (!input) return;
+      const isConfigured = configured;
+      // Store original placeholder
+      if (!input.hasAttribute('data-ph')) input.setAttribute('data-ph', input.placeholder);
+      const savedDiv = input.closest('.mb-2').querySelector('div[style*="color:#22c55e"]');
+      if (isConfigured) {
+        input.placeholder = '••••••••••••';
+        if (!savedDiv) {
+          const d = document.createElement('div');
+          d.style = 'font-size:.65rem;color:#22c55e;margin-top:.2rem';
+          d.innerHTML = '<i class="bi bi-check-circle me-1"></i>Сохранён. Оставьте пустым чтобы не менять.';
+          input.closest('.input-group').after(d);
+        }
+      } else {
+        input.placeholder = input.getAttribute('data-ph');
+        if (savedDiv) savedDiv.remove();
+      }
+    });
+
+    // Show/hide toggle switch
+    const toggleWrap = card.querySelector('.form-check.form-switch');
+    if (toggleWrap) {
+      if (configured) {
+        toggleWrap.style.display = '';
+        const cb = toggleWrap.querySelector('.form-check-input');
+        if (cb && data.enabled !== undefined) cb.checked = data.enabled;
+      } else {
+        toggleWrap.style.display = 'none';
       }
     }
-    // Показываем переключатель после успешного сохранения
-    if (data.enabled !== undefined && toggleId) {
-      const toggleWrap = document.querySelector(`#${prefix}-status`).closest('.d-flex');
-      if (toggleWrap && !document.getElementById(toggleId)) {
-        const div = document.createElement('div');
-        div.className = 'form-check form-switch mb-0';
-        div.innerHTML = `<input class="form-check-input" type="checkbox" id="${toggleId}" ${data.enabled ? 'checked' : ''} onchange="psToggle('ps_${prefix}_enabled', this.checked, '${prefix}')">`;
-        toggleWrap.appendChild(div);
-      }
+
+    // --- Update summary dots ---
+    const dotLabel = prefix === 'plm' ? 'PayPalych.io (Merchant)' : (prefix === 'pl' ? 'PayPalych.io' : null);
+    if (dotLabel) {
+      const dots = document.querySelectorAll('#ps-summary .d-flex');
+      dots.forEach(function(d) {
+        if (d.textContent.trim() === dotLabel) {
+          const dot = d.querySelector('span');
+          if (dot) dot.style.background = configured ? '#22c55e' : '#ef4444';
+        }
+      });
     }
   }
 }
