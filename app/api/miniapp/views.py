@@ -144,6 +144,7 @@ async def miniapp_debug(request: Request, db: AsyncSession = Depends(get_db)):
     return JSONResponse(result)
 
 
+@router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def miniapp_index(request: Request, db: AsyncSession = Depends(get_db)):
     from app.core.config import config as _cfg
