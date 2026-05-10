@@ -362,6 +362,7 @@ async def miniapp_index(request: Request, db: AsyncSession = Depends(get_db)):
 @router.post("/auth")
 async def miniapp_auth(request: Request, db: AsyncSession = Depends(get_db)):
     """Authenticate user via Telegram initData."""
+    log.info(f"Auth request received. Headers: { {k:v for k,v in request.headers.items() if 'telegram' in k.lower() or 'init' in k.lower()} }")
     tg_user = await _get_tg_user(request, db)
 
     if not tg_user:
