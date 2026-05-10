@@ -3,6 +3,6 @@ from .views import router as miniapp_router
 
 
 def get_miniapp_router() -> APIRouter:
-    r = APIRouter(prefix="/app")
-    r.include_router(miniapp_router)
+    r = APIRouter()
+    r.include_router(miniapp_router, prefix="/app")
     return r
