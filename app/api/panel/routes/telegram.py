@@ -552,11 +552,11 @@ async def upload_photo(
 @router.post("/miniapp", response_class=HTMLResponse)
 async def save_miniapp_settings(
     request: Request,
-    miniapp_url: str = Form(""),
+    panel_url: str = Form(""),
     db: AsyncSession = Depends(get_db),
 ):
     _require_permission(request, "system")
-    await BotSettingsService(db).set("panel_url", miniapp_url.strip())
+    await BotSettingsService(db).set("panel_url", panel_url.strip())
     await db.commit()
     resp = Response(status_code=200)
     _toast(resp, "Настройки Mini App сохранены")
