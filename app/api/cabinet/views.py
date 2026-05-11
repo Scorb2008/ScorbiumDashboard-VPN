@@ -19,7 +19,7 @@ from app.services.bot_settings import BotSettingsService
 from app.models.payment import PaymentProvider
 from app.utils.log import log
 
-from .auth import get_dashboard_user, try_miniapp_auth, set_session_cookie
+from .auth import get_cabinet_user, try_miniapp_auth, set_session_cookie
 
 router = APIRouter()
 
@@ -28,7 +28,7 @@ templates = Jinja2Templates(directory=str(_tpl_path))
 
 
 async def _require_user(request: Request, db: AsyncSession):
-    user = await get_dashboard_user(request, db)
+    user = await get_cabinet_user(request, db)
     if user:
         return user
     user = await try_miniapp_auth(request, db)
@@ -41,20 +41,20 @@ def _is_mini_app(request: Request) -> bool:
     return bool(request.headers.get("X-Telegram-Init-Data", ""))
 
 
-@router.get("/dashboard", response_class=HTMLResponse)
-@router.get("/dashboard/", response_class=HTMLResponse)
-async def dashboard_index(request: Request, db: AsyncSession = Depends(get_db)):
+@router.get("/cabinet", response_class=HTMLResponse)
+@router.get("/cabinet/", response_class=HTMLResponse)
+async def cabinet_index(request: Request, db: AsyncSession = Depends(get_db)):
     user = await _require_user(request, db)
     if user:
         if user.is_banned:
-            return templates.TemplateResponse("dashboard/login.html", {
+            return templates.TemplateResponse("cabinet/login.html", {
                 "request": request, "app_name": config.web.app_name, "settings": {},
                 "error": "Аккаунт заблокирован", "is_mini_app": _is_mini_app(request),
             })
         svc = await BotSettingsService(db).get_all()
         plans = await PlanService(db).get_all(only_active=True)
         keys = await VpnKeyService(db).get_active_for_user(user.id)
-        return templates.TemplateResponse("dashboard/index.html", {
+        return templates.TemplateResponse("cabinet/index.html", {
             "request": request, "app_name": config.web.app_name,
             "app_version": config.web.app_version,
             "user": user, "plans": plans, "keys": keys,
@@ -65,26 +65,26 @@ async def dashboard_index(request: Request, db: AsyncSession = Depends(get_db)):
     svc = await BotSettingsService(db).get_all()
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if init_data:
-        return templates.TemplateResponse("dashboard/login.html", {
+        return templates.TemplateResponse("cabinet/login.html", {
             "request": request, "app_name": config.web.app_name, "settings": svc,
             "error": "Ошибка авторизации. Попробуйте заново.",
             "is_mini_app": True,
         })
-    return templates.TemplateResponse("dashboard/login.html", {
+    return templates.TemplateResponse("cabinet/login.html", {
         "request": request, "app_name": config.web.app_name, "settings": svc,
         "error": None, "is_mini_app": False,
     })
 
 
-@router.get("/dashboard/profile", response_class=HTMLResponse)
-async def dashboard_profile(request: Request, db: AsyncSession = Depends(get_db)):
+@router.get("/cabinet/profile", response_class=HTMLResponse)
+async def cabinet_profile(request: Request, db: AsyncSession = Depends(get_db)):
     user = await _require_user(request, db)
     if not user:
-        return RedirectResponse(url="/dashboard/", status_code=302)
+        return RedirectResponse(url="/cabinet/", status_code=302)
     keys = await VpnKeyService(db).get_all_for_user(user.id)
     payments = await PaymentService(db).get_all(user_id=user.id, limit=50)
     referrals = await ReferralService(db).count_referrals(user.id)
-    return templates.TemplateResponse("dashboard/profile.html", {
+    return templates.TemplateResponse("cabinet/profile.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "keys": keys, "payments": payments,
         "referrals_count": referrals, "now": datetime.now(timezone.utc),
@@ -92,60 +92,60 @@ async def dashboard_profile(request: Request, db: AsyncSession = Depends(get_db)
     })
 
 
-@router.get("/dashboard/keys", response_class=HTMLResponse)
-async def dashboard_keys(request: Request, db: AsyncSession = Depends(get_db)):
+@router.get("/cabinet/keys", response_class=HTMLResponse)
+async def cabinet_keys(request: Request, db: AsyncSession = Depends(get_db)):
     user = await _require_user(request, db)
     if not user:
-        return RedirectResponse(url="/dashboard/", status_code=302)
+        return RedirectResponse(url="/cabinet/", status_code=302)
     keys = await VpnKeyService(db).get_all_for_user(user.id)
-    return templates.TemplateResponse("dashboard/keys.html", {
+    return templates.TemplateResponse("cabinet/keys.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "keys": keys, "now": datetime.now(timezone.utc),
         "is_mini_app": _is_mini_app(request),
     })
 
 
-@router.get("/dashboard/plans", response_class=HTMLResponse)
-async def dashboard_plans(request: Request, db: AsyncSession = Depends(get_db)):
+@router.get("/cabinet/plans", response_class=HTMLResponse)
+async def cabinet_plans(request: Request, db: AsyncSession = Depends(get_db)):
     user = await _require_user(request, db)
     if not user:
-        return RedirectResponse(url="/dashboard/", status_code=302)
+        return RedirectResponse(url="/cabinet/", status_code=302)
     plans = await PlanService(db).get_all(only_active=True)
     settings = await BotSettingsService(db).get_all()
-    return templates.TemplateResponse("dashboard/plans.html", {
+    return templates.TemplateResponse("cabinet/plans.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "plans": plans, "settings": settings,
         "is_mini_app": _is_mini_app(request),
     })
 
 
-@router.get("/dashboard/balance", response_class=HTMLResponse)
-async def dashboard_balance(request: Request, db: AsyncSession = Depends(get_db)):
+@router.get("/cabinet/balance", response_class=HTMLResponse)
+async def cabinet_balance(request: Request, db: AsyncSession = Depends(get_db)):
     user = await _require_user(request, db)
     if not user:
-        return RedirectResponse(url="/dashboard/", status_code=302)
+        return RedirectResponse(url="/cabinet/", status_code=302)
     payments = await PaymentService(db).get_all(user_id=user.id, limit=100)
     settings = await BotSettingsService(db).get_all()
-    return templates.TemplateResponse("dashboard/balance.html", {
+    return templates.TemplateResponse("cabinet/balance.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "payments": payments, "settings": settings,
         "is_mini_app": _is_mini_app(request),
     })
 
 
-@router.get("/dashboard/promo", response_class=HTMLResponse)
-async def dashboard_promo(request: Request, db: AsyncSession = Depends(get_db)):
+@router.get("/cabinet/promo", response_class=HTMLResponse)
+async def cabinet_promo(request: Request, db: AsyncSession = Depends(get_db)):
     user = await _require_user(request, db)
     if not user:
-        return RedirectResponse(url="/dashboard/", status_code=302)
-    return templates.TemplateResponse("dashboard/promo.html", {
+        return RedirectResponse(url="/cabinet/", status_code=302)
+    return templates.TemplateResponse("cabinet/promo.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "is_mini_app": _is_mini_app(request),
     })
 
 
-@router.post("/dashboard/promo/apply")
-async def dashboard_promo_apply(
+@router.post("/cabinet/promo/apply")
+async def cabinet_promo_apply(
     request: Request, code: str = Form(""), db: AsyncSession = Depends(get_db),
 ):
     user = await _require_user(request, db)
@@ -160,20 +160,20 @@ async def dashboard_promo_apply(
         return JSONResponse({"ok": False, "message": str(e)}, status_code=400)
 
 
-@router.get("/dashboard/support", response_class=HTMLResponse)
-async def dashboard_support(request: Request, db: AsyncSession = Depends(get_db)):
+@router.get("/cabinet/support", response_class=HTMLResponse)
+async def cabinet_support(request: Request, db: AsyncSession = Depends(get_db)):
     user = await _require_user(request, db)
     if not user:
-        return RedirectResponse(url="/dashboard/", status_code=302)
+        return RedirectResponse(url="/cabinet/", status_code=302)
     tickets = await SupportService(db).get_for_user(user.id)
-    return templates.TemplateResponse("dashboard/support.html", {
+    return templates.TemplateResponse("cabinet/support.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "tickets": tickets, "is_mini_app": _is_mini_app(request),
     })
 
 
-@router.post("/dashboard/support/create")
-async def dashboard_support_create(
+@router.post("/cabinet/support/create")
+async def cabinet_support_create(
     request: Request, subject: str = Form(""), text: str = Form(""),
     db: AsyncSession = Depends(get_db),
 ):
@@ -186,24 +186,24 @@ async def dashboard_support_create(
     return JSONResponse({"ok": True, "ticket_id": ticket.id})
 
 
-@router.get("/dashboard/support/{ticket_id}", response_class=HTMLResponse)
-async def dashboard_support_ticket(
+@router.get("/cabinet/support/{ticket_id}", response_class=HTMLResponse)
+async def cabinet_support_ticket(
     request: Request, ticket_id: int, db: AsyncSession = Depends(get_db),
 ):
     user = await _require_user(request, db)
     if not user:
-        return RedirectResponse(url="/dashboard/", status_code=302)
+        return RedirectResponse(url="/cabinet/", status_code=302)
     ticket = await SupportService(db).get_by_id(ticket_id)
     if not ticket or ticket.user_id != user.id:
-        return RedirectResponse(url="/dashboard/support", status_code=302)
-    return templates.TemplateResponse("dashboard/support_ticket.html", {
+        return RedirectResponse(url="/cabinet/support", status_code=302)
+    return templates.TemplateResponse("cabinet/support_ticket.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "ticket": ticket, "is_mini_app": _is_mini_app(request),
     })
 
 
-@router.post("/dashboard/support/{ticket_id}/message")
-async def dashboard_support_message(
+@router.post("/cabinet/support/{ticket_id}/message")
+async def cabinet_support_message(
     request: Request, ticket_id: int, text: str = Form(""),
     db: AsyncSession = Depends(get_db),
 ):
@@ -216,62 +216,62 @@ async def dashboard_support_message(
     return JSONResponse({"ok": True})
 
 
-@router.get("/dashboard/referrals", response_class=HTMLResponse)
-async def dashboard_referrals(request: Request, db: AsyncSession = Depends(get_db)):
+@router.get("/cabinet/referrals", response_class=HTMLResponse)
+async def cabinet_referrals(request: Request, db: AsyncSession = Depends(get_db)):
     user = await _require_user(request, db)
     if not user:
-        return RedirectResponse(url="/dashboard/", status_code=302)
+        return RedirectResponse(url="/cabinet/", status_code=302)
     refs = await ReferralService(db).get_for_user(user.id)
     top = await ReferralService(db).get_top(limit=20)
     settings = await BotSettingsService(db).get_all()
-    return templates.TemplateResponse("dashboard/referrals.html", {
+    return templates.TemplateResponse("cabinet/referrals.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "referrals": refs, "top_referrers": top,
         "settings": settings, "is_mini_app": _is_mini_app(request),
     })
 
 
-@router.get("/dashboard/servers", response_class=HTMLResponse)
-async def dashboard_servers(request: Request, db: AsyncSession = Depends(get_db)):
+@router.get("/cabinet/servers", response_class=HTMLResponse)
+async def cabinet_servers(request: Request, db: AsyncSession = Depends(get_db)):
     user = await _require_user(request, db)
     if not user:
-        return RedirectResponse(url="/dashboard/", status_code=302)
+        return RedirectResponse(url="/cabinet/", status_code=302)
     try:
         from app.services.pasarguard.pasarguard import get_vpn_panel
         hosts = await get_vpn_panel().get_hosts()
     except Exception:
         hosts = []
-    return templates.TemplateResponse("dashboard/servers.html", {
+    return templates.TemplateResponse("cabinet/servers.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "hosts": hosts, "is_mini_app": _is_mini_app(request),
     })
 
 
-@router.get("/dashboard/guides", response_class=HTMLResponse)
-async def dashboard_guides(request: Request, db: AsyncSession = Depends(get_db)):
+@router.get("/cabinet/guides", response_class=HTMLResponse)
+async def cabinet_guides(request: Request, db: AsyncSession = Depends(get_db)):
     user = await _require_user(request, db)
     if not user:
-        return RedirectResponse(url="/dashboard/", status_code=302)
+        return RedirectResponse(url="/cabinet/", status_code=302)
     settings = await BotSettingsService(db).get_all()
-    return templates.TemplateResponse("dashboard/guides.html", {
+    return templates.TemplateResponse("cabinet/guides.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "settings": settings, "is_mini_app": _is_mini_app(request),
     })
 
 
-@router.get("/dashboard/language", response_class=HTMLResponse)
-async def dashboard_language(request: Request, db: AsyncSession = Depends(get_db)):
+@router.get("/cabinet/language", response_class=HTMLResponse)
+async def cabinet_language(request: Request, db: AsyncSession = Depends(get_db)):
     user = await _require_user(request, db)
     if not user:
-        return RedirectResponse(url="/dashboard/", status_code=302)
-    return templates.TemplateResponse("dashboard/language.html", {
+        return RedirectResponse(url="/cabinet/", status_code=302)
+    return templates.TemplateResponse("cabinet/language.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "is_mini_app": _is_mini_app(request),
     })
 
 
-@router.post("/dashboard/language")
-async def dashboard_language_set(
+@router.post("/cabinet/language")
+async def cabinet_language_set(
     request: Request, lang: str = Form("ru"), db: AsyncSession = Depends(get_db),
 ):
     user = await _require_user(request, db)
@@ -284,16 +284,16 @@ async def dashboard_language_set(
     return JSONResponse({"ok": True, "language": lang})
 
 
-@router.get("/dashboard/trial", response_class=HTMLResponse)
-async def dashboard_trial(request: Request, db: AsyncSession = Depends(get_db)):
+@router.get("/cabinet/trial", response_class=HTMLResponse)
+async def cabinet_trial(request: Request, db: AsyncSession = Depends(get_db)):
     user = await _require_user(request, db)
     if not user:
-        return RedirectResponse(url="/dashboard/", status_code=302)
+        return RedirectResponse(url="/cabinet/", status_code=302)
     settings = await BotSettingsService(db).get_all()
     trial_enabled = settings.get("trial_enabled", "0") == "1"
     trial_days = int(settings.get("trial_days", "3"))
     has_keys = len(await VpnKeyService(db).get_all_for_user(user.id)) > 0
-    return templates.TemplateResponse("dashboard/trial.html", {
+    return templates.TemplateResponse("cabinet/trial.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "trial_enabled": trial_enabled,
         "trial_days": trial_days, "has_keys": has_keys,
@@ -301,8 +301,8 @@ async def dashboard_trial(request: Request, db: AsyncSession = Depends(get_db)):
     })
 
 
-@router.post("/dashboard/trial/activate")
-async def dashboard_trial_activate(request: Request, db: AsyncSession = Depends(get_db)):
+@router.post("/cabinet/trial/activate")
+async def cabinet_trial_activate(request: Request, db: AsyncSession = Depends(get_db)):
     user = await _require_user(request, db)
     if not user:
         return JSONResponse({"ok": False, "message": "Not authenticated"}, status_code=401)
@@ -323,8 +323,8 @@ async def dashboard_trial_activate(request: Request, db: AsyncSession = Depends(
         return JSONResponse({"ok": False, "message": "Ошибка сервера"}, status_code=500)
 
 
-@router.post("/dashboard/pay/balance")
-async def dashboard_pay_balance(
+@router.post("/cabinet/pay/balance")
+async def cabinet_pay_balance(
     request: Request, plan_id: int = Form(0), db: AsyncSession = Depends(get_db),
 ):
     user = await _require_user(request, db)
@@ -346,8 +346,8 @@ async def dashboard_pay_balance(
     return JSONResponse({"ok": False, "message": "Ошибка при создании ключа"}, status_code=500)
 
 
-@router.get("/dashboard/logout")
-async def dashboard_logout():
-    resp = RedirectResponse(url="/dashboard/", status_code=302)
-    resp.delete_cookie("dashboard_session")
+@router.get("/cabinet/logout")
+async def cabinet_logout():
+    resp = RedirectResponse(url="/cabinet/", status_code=302)
+    resp.delete_cookie("cabinet_session")
     return resp

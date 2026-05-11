@@ -31,7 +31,7 @@ def _should_skip(request: Request) -> bool:
         return True
     if path.startswith("/api/v1/"):
         return True
-    if path.startswith("/dashboard/"):
+    if path.startswith("/cabinet/"):
         return True
     if path.startswith("/webhook/"):
         return True

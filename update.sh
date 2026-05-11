@@ -301,8 +301,8 @@ http {
         proxy_next_upstream   error timeout http_502 http_503;
         proxy_next_upstream_tries 2;
 
-        location /dashboard/ {
-            proxy_pass http://vpn_app/dashboard/;
+        location /cabinet/ {
+            proxy_pass http://vpn_app/cabinet/;
             proxy_set_header Host              \$host;
             proxy_set_header X-Real-IP         \$remote_addr;
             proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;

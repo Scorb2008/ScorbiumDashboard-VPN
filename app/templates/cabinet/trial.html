@@ -1,4 +1,4 @@
-{% extends "dashboard/base.html" %}
+{% extends "cabinet/base.html" %}
 {% block title %}Пробный период — {{ app_name }}{% endblock %}
 {% block content %}
 <div class="dash-header">
@@ -29,7 +29,7 @@
 async function activateTrial() {
   const result = document.getElementById('trial-result');
   try {
-    const r = await fetch('/dashboard/trial/activate', {method:'POST'});
+    const r = await fetch('/cabinet/trial/activate', {method:'POST'});
     const d = await r.json();
     if (d.ok) {
       result.innerHTML = '<span class="text-success">✅ ' + d.message + '</span>';

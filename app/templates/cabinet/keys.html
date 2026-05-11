@@ -1,4 +1,4 @@
-{% extends "dashboard/base.html" %}
+{% extends "cabinet/base.html" %}
 {% block title %}Подписки — {{ app_name }}{% endblock %}
 {% block content %}
 <div class="dash-header">
@@ -62,7 +62,7 @@
 <div class="empty-state">
   <i class="bi bi-key" style="font-size:3rem;opacity:.3"></i>
   <p>У вас пока нет подписок</p>
-  <a href="/dashboard/plans" class="btn-accent">Приобрести</a>
+  <a href="/cabinet/plans" class="btn-accent">Приобрести</a>
 </div>
 {% endif %}
 {% endblock %}

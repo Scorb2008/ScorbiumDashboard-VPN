@@ -1,4 +1,4 @@
-{% extends "dashboard/base.html" %}
+{% extends "cabinet/base.html" %}
 {% block title %}Вход — {{ app_name }}{% endblock %}
 {% block head %}
 {% if not is_mini_app and settings.get('bot_username') %}
@@ -33,13 +33,13 @@
       document.querySelector('.login-loading').textContent = 'Ошибка: нет данных Telegram';
       return;
     }
-    const r = await fetch('/dashboard/auth', {
+    const r = await fetch('/cabinet/auth', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({initData: tg.initData})
     });
     if (r.redirected) window.location.href = r.url;
-    else if (r.ok) window.location.href = '/dashboard/';
+    else if (r.ok) window.location.href = '/cabinet/';
     else document.querySelector('.login-loading').textContent = 'Ошибка авторизации';
   } catch(e) {
     document.querySelector('.login-loading').textContent = 'Ошибка сети';
@@ -49,13 +49,13 @@
 {% else %}
 <script>
 function onTelegramAuth(user) {
-  fetch('/dashboard/auth', {
+  fetch('/cabinet/auth', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(user)
   }).then(r => {
     if (r.redirected) window.location.href = r.url;
-    else if (r.ok) window.location.href = '/dashboard/';
+    else if (r.ok) window.location.href = '/cabinet/';
     else r.json().then(d => showToast(d.message || 'Ошибка', 'error'));
   }).catch(() => showToast('Ошибка сети', 'error'));
 }

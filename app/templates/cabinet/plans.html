@@ -1,4 +1,4 @@
-{% extends "dashboard/base.html" %}
+{% extends "cabinet/base.html" %}
 {% block title %}Тарифы — {{ app_name }}{% endblock %}
 {% block content %}
 <div class="dash-header">
@@ -37,7 +37,7 @@
 <div class="section mt-3">
   <div class="info-card">
     <i class="bi bi-info-circle"></i>
-    <span>Пополнить баланс можно через <a href="/dashboard/balance">страницу баланса</a></span>
+    <span>Пополнить баланс можно через <a href="/cabinet/balance">страницу баланса</a></span>
   </div>
 </div>
 
@@ -46,7 +46,7 @@ async function payBalance(planId) {
   const fd = new FormData();
   fd.append('plan_id', planId);
   try {
-    const r = await fetch('/dashboard/pay/balance', {method:'POST', body:fd});
+    const r = await fetch('/cabinet/pay/balance', {method:'POST', body:fd});
     const d = await r.json();
     if (d.ok) { showToast(d.message, 'success'); setTimeout(() => location.reload(), 1000); }
     else showToast(d.message, 'error');

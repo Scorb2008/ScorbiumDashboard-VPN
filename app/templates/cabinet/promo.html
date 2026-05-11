@@ -1,4 +1,4 @@
-{% extends "dashboard/base.html" %}
+{% extends "cabinet/base.html" %}
 {% block title %}Промокод — {{ app_name }}{% endblock %}
 {% block content %}
 <div class="dash-header">
@@ -22,7 +22,7 @@ async function applyPromo(event) {
   const fd = new FormData();
   fd.append('code', code);
   try {
-    const r = await fetch('/dashboard/promo/apply', {method:'POST', body:fd});
+    const r = await fetch('/cabinet/promo/apply', {method:'POST', body:fd});
     const d = await r.json();
     if (d.ok) { result.innerHTML = '<span class="text-success">✅ ' + d.message + '</span>'; }
     else { result.innerHTML = '<span class="text-danger">❌ ' + d.message + '</span>'; }

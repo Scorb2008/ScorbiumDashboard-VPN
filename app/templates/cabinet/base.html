@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>{% block title %}{{ app_name }}{% endblock %} — Кабинет</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="/static/css/cabinet.css">
+{% block head %}{% endblock %}
+</head>
+<body>
+<div id="app">
+  {% if not is_mini_app %}
+  <nav class="dash-nav">
+    <div class="dash-nav-inner">
+      <a href="/cabinet/" class="dash-logo">{{ app_name }}</a>
+      <div class="dash-nav-links">
+        <a href="/cabinet/" class="nav-link"><i class="bi bi-house-door"></i><span>Главная</span></a>
+        <a href="/cabinet/plans" class="nav-link"><i class="bi bi-cart"></i><span>Купить</span></a>
+        <a href="/cabinet/keys" class="nav-link"><i class="bi bi-key"></i><span>Подписки</span></a>
+        <a href="/cabinet/profile" class="nav-link"><i class="bi bi-person"></i><span>Профиль</span></a>
+        <a href="/cabinet/support" class="nav-link"><i class="bi bi-chat-dots"></i><span>Поддержка</span></a>
+      </div>
+      <a href="/cabinet/logout" class="dash-logout"><i class="bi bi-box-arrow-right"></i></a>
+    </div>
+  </nav>
+  {% endif %}
+  <main class="dash-main">
+    {% block content %}{% endblock %}
+  </main>
+  {% if is_mini_app %}
+  <nav class="mini-nav">
+    <a href="/cabinet/" class="mini-nav-link"><i class="bi bi-house-door"></i><span>Главная</span></a>
+    <a href="/cabinet/plans" class="mini-nav-link"><i class="bi bi-cart"></i><span>Купить</span></a>
+    <a href="/cabinet/keys" class="mini-nav-link"><i class="bi bi-key"></i><span>Ключи</span></a>
+    <a href="/cabinet/profile" class="mini-nav-link"><i class="bi bi-person"></i><span>Я</span></a>
+    <a href="/cabinet/support" class="mini-nav-link"><i class="bi bi-chat-dots"></i><span>Чат</span></a>
+  </nav>
+  {% endif %}
+</div>
+<script>
+{% if is_mini_app %}
+let tg = null;
+try { tg = window.Telegram.WebApp; tg.ready(); tg.expand(); } catch(e) {}
+{% endif %}
+
+function showToast(msg, type) {
+  const t = document.createElement('div');
+  t.className = 'toast toast-' + (type || 'info');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+{% block scripts %}{% endblock %}
+</script>
+</body>
+</html>

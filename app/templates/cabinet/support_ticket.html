@@ -1,8 +1,8 @@
-{% extends "dashboard/base.html" %}
+{% extends "cabinet/base.html" %}
 {% block title %}Тикет — {{ app_name }}{% endblock %}
 {% block content %}
 <div class="dash-header">
-  <a href="/dashboard/support" class="back-link"><i class="bi bi-arrow-left"></i> Назад</a>
+  <a href="/cabinet/support" class="back-link"><i class="bi bi-arrow-left"></i> Назад</a>
   <h2>💬 {{ ticket.subject }}</h2>
 </div>
 
@@ -34,7 +34,7 @@ async function sendMessage(event, ticketId) {
   const fd = new FormData();
   fd.append('text', text);
   try {
-    const r = await fetch('/dashboard/support/' + ticketId + '/message', {method:'POST', body:fd});
+    const r = await fetch('/cabinet/support/' + ticketId + '/message', {method:'POST', body:fd});
     const d = await r.json();
     if (d.ok) { location.reload(); }
     else { result.innerHTML = '<span class="text-danger">❌ ' + d.message + '</span>'; }

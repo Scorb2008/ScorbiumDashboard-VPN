@@ -321,10 +321,9 @@ def create_app() -> FastAPI:
 
             path = request.url.path
             is_panel = path.startswith("/panel")
-            is_dashboard = path.startswith("/dashboard")
-            is_docs = path in ("/docs", "/redoc", "/openapi.json")
+            is_cabinet = path.startswith("/cabinet")
 
-            if is_dashboard:
+            if is_cabinet:
                 resp.headers["X-Frame-Options"] = "ALLOWALL"
             elif is_panel:
                 resp.headers["X-Frame-Options"] = "SAMEORIGIN"
@@ -382,8 +381,8 @@ def create_app() -> FastAPI:
 
     app.include_router(get_router())
     app.include_router(get_panel_router())
-    from app.api.dashboard import get_dashboard_router
-    app.include_router(get_dashboard_router())
+    from app.api.cabinet import get_cabinet_router
+    app.include_router(get_cabinet_router())
     static_path = Path(__file__).resolve().parent.parent / "static"
     static_path.mkdir(exist_ok=True)
     app.mount("/static", StaticFiles(directory=str(static_path)), name="static")

@@ -17,8 +17,8 @@ from app.utils.security import create_access_token, decode_access_token_full
 
 router = APIRouter()
 
-COOKIE_NAME = "dashboard_session"
-DASHBOARD_COOKIE_MAX_AGE = 86400 * 30
+COOKIE_NAME = "cabinet_session"
+CABINET_COOKIE_MAX_AGE = 86400 * 30
 
 
 def _verify_telegram_init_data(init_data: str) -> dict | None:
@@ -81,7 +81,7 @@ def _verify_telegram_login(data: dict) -> dict | None:
         return None
 
 
-async def get_dashboard_user(request: Request, db: AsyncSession):
+async def get_cabinet_user(request: Request, db: AsyncSession):
     token = request.cookies.get(COOKIE_NAME)
     if token:
         payload = decode_access_token_full(token)
@@ -120,12 +120,12 @@ def set_session_cookie(resp, user_id: int):
     token = create_access_token(subject=str(user_id), role="user", expires_delta=timedelta(days=30))
     resp.set_cookie(
         COOKIE_NAME, token,
-        httponly=True, samesite="lax", max_age=DASHBOARD_COOKIE_MAX_AGE,
+        httponly=True, samesite="lax", max_age=CABINET_COOKIE_MAX_AGE,
     )
 
 
-@router.post("/dashboard/auth")
-async def dashboard_auth(request: Request, db: AsyncSession = Depends(get_db)):
+@router.post("/cabinet/auth")
+async def cabinet_auth(request: Request, db: AsyncSession = Depends(get_db)):
     try:
         body = await request.json()
     except Exception:
@@ -160,6 +160,6 @@ async def dashboard_auth(request: Request, db: AsyncSession = Depends(get_db)):
     if user.is_banned:
         return JSONResponse({"ok": False, "message": "Account is banned"}, status_code=403)
 
-    resp = RedirectResponse(url="/dashboard/", status_code=302)
+    resp = RedirectResponse(url="/cabinet/", status_code=302)
     set_session_cookie(resp, user.id)
     return resp
