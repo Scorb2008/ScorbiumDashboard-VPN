@@ -1,6 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, AnyHttpUrl, field_validator,SecretStr
-from typing import List,Optional
+from pydantic import Field, AnyHttpUrl, field_validator, SecretStr, model_validator
+from typing import List, Optional
 from functools import lru_cache
 import re
 
@@ -34,6 +34,8 @@ class _WebConfig(BaseSettings):
     web_superadmin_password: SecretStr = Field(default_factory=lambda: SecretStr("SUPERADMIN"), validation_alias="WEB_SUPERADMIN_PASSWORD")
     metrics_api_key: SecretStr = Field(default_factory=lambda: SecretStr(""), validation_alias="METRICS_API_KEY")
     site_url: str = Field(default="", description="Public site URL, e.g. https://example.com:8443", validation_alias="SITE_URL")
+    domain: str = Field(default="", description="Domain name (without protocol)", validation_alias="DOMAIN")
+    https_port: int = Field(default=443, description="HTTPS port", validation_alias="HTTPS_PORT", ge=1, le=65535)
     
     @field_validator("allowed_origins")
     @classmethod
@@ -79,6 +81,14 @@ class _WebConfig(BaseSettings):
         if len(value) < 3:
             raise WebException("Superadmin username must be at least 3 characters long")
         return value.strip()
+
+    @model_validator(mode="after")
+    def derive_site_url(self) -> "_WebConfig":
+        if not self.site_url and self.domain:
+            port_str = f":{self.https_port}" if self.https_port != 443 else ""
+            self.site_url = f"https://{self.domain}{port_str}"
+            log.info(f"Auto-derived SITE_URL from DOMAIN+HTTPS_PORT: {self.site_url}")
+        return self
     
 @lru_cache()
 def get_web_config() -> _WebConfig:

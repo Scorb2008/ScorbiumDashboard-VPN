@@ -60,6 +60,8 @@ DEFAULTS = {
     "photo_language": "",
     "photo_trial": "",
     "panel_url": "",
+    "cabinet_url": "",
+    "admin_panel_url": "",
     "keyboard_layout": "",  # JSON раскладка главного меню
     "bot_language": "ru",  # Язык бота: ru | en | fa
     "cryptobot_token": "",  # CryptoBot API токен

@@ -36,6 +36,7 @@ async def telegram_page(request: Request, db: AsyncSession = Depends(get_db)):
     svc = BotSettingsService(db)
     settings = await svc.get_all()
     ctx["bot_settings"] = settings
+    ctx["config"] = config
 
     ctx["all_buttons"] = _ALL_BUTTONS
     ctx["default_layout"] = _DEFAULT_LAYOUT

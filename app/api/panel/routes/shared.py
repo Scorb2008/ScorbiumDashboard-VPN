@@ -61,6 +61,8 @@ _ALL_BUTTONS = [
     {"id": "status", "label": "📊 Статус", "callback": "status_cmd"},
     {"id": "language", "label": "🌐 Язык", "callback": "language"},
     {"id": "trial", "label": "🎁 Пробный период", "callback": "trial"},
+    {"id": "cabinet", "label": "📱 Кабинет", "web_app": ""},
+    {"id": "admin_panel", "label": "⚙️ Админ панель", "url": ""},
 ]
 
 _DEFAULT_LAYOUT = [
@@ -80,6 +82,8 @@ _DEFAULT_LAYOUT = [
     ],
     [{"id": "top_referrers", "label": "🏆 Топ рефералов", "callback": "top_referrers"}],
     [{"id": "support", "label": "💬 Поддержка", "callback": "support"}],
+    [{"id": "cabinet", "label": "📱 Кабинет", "web_app": ""}],
+    [{"id": "admin_panel", "label": "⚙️ Админ панель", "url": ""}],
 ]
 
 _startup_time = datetime.now(timezone.utc)

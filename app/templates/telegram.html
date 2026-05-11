@@ -362,6 +362,54 @@
         </div>
       </div>
     </div>
+  <!-- ═══ URL НАСТРОЙКИ ═══ -->
+  <div class="col-12">
+    <div class="d-flex align-items-center gap-2 mb-3 mt-3">
+      <div style="width:4px;height:20px;border-radius:2px;background:linear-gradient(180deg,#0ea5e9,#06b6d4)"></div>
+      <span style="font-size:.85rem;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.5px">URL настройки</span>
+    </div>
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <div class="card p-3 h-100">
+          <div class="d-flex align-items-start gap-3">
+            <div style="font-size:1.4rem;flex-shrink:0;line-height:1">📱</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:.25rem">URL кабинета пользователя</div>
+              <p style="font-size:.7rem;color:var(--text-muted);margin-bottom:.75rem">WebApp кнопка «Кабинет» в меню бота</p>
+              <form hx-post="/panel/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
+                <input type="text" name="cabinet_url" class="form-control" style="font-size:.8rem"
+                  placeholder="https://example.com:8443/cabinet/"
+                  value="{{ bot_settings.get('cabinet_url', '') }}" />
+                <div style="font-size:.65rem;color:var(--text-muted);margin-top:.2rem">
+                  Пусто = авто: <code>{{ config.web.site_url ~ '/cabinet/' if config.web.site_url else 'SITE_URL + /cabinet/' }}</code>
+                </div>
+                <button type="submit" class="btn btn-accent btn-sm mt-2"><i class="bi bi-floppy me-1"></i>Сохранить</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card p-3 h-100">
+          <div class="d-flex align-items-start gap-3">
+            <div style="font-size:1.4rem;flex-shrink:0;line-height:1">⚙️</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:.25rem">URL админ панели</div>
+              <p style="font-size:.7rem;color:var(--text-muted);margin-bottom:.75rem">Кнопка «Админ панель» в меню бота (только для админов)</p>
+              <form hx-post="/panel/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
+                <input type="text" name="admin_panel_url" class="form-control" style="font-size:.8rem"
+                  placeholder="https://example.com:8443/panel/"
+                  value="{{ bot_settings.get('admin_panel_url', '') }}" />
+                <div style="font-size:.65rem;color:var(--text-muted);margin-top:.2rem">
+                  Пусто = авто: <code>{{ config.web.site_url ~ '/panel/' if config.web.site_url else 'SITE_URL + /panel/' }}</code>
+                </div>
+                <button type="submit" class="btn btn-accent btn-sm mt-2"><i class="bi bi-floppy me-1"></i>Сохранить</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
 </div>
