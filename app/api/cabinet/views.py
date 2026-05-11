@@ -42,6 +42,25 @@ def _is_mini_app(request: Request) -> bool:
     return bool(request.headers.get("X-Telegram-Init-Data", ""))
 
 
+async def _ensure_bot_username(db: AsyncSession, settings: dict) -> str:
+    bu = settings.get("bot_username", "")
+    if bu:
+        return bu
+    try:
+        import httpx
+        token = config.telegram.telegram_bot_token.get_secret_value()
+        async with httpx.AsyncClient(timeout=5) as c:
+            r = await c.get(f"https://api.telegram.org/bot{token}/getMe")
+            if r.status_code == 200:
+                bu = (r.json().get("result", {}) or {}).get("username", "")
+                if bu:
+                    await BotSettingsService(db).set("bot_username", bu)
+                    await db.commit()
+        return bu
+    except Exception:
+        return ""
+
+
 @router.get("/cabinet", response_class=HTMLResponse)
 @router.get("/cabinet/", response_class=HTMLResponse)
 async def cabinet_index(request: Request, db: AsyncSession = Depends(get_db)):
@@ -65,6 +84,9 @@ async def cabinet_index(request: Request, db: AsyncSession = Depends(get_db)):
         })
 
     svc = await BotSettingsService(db).get_all()
+    bot_username = await _ensure_bot_username(db, svc)
+    if bot_username:
+        svc["bot_username"] = bot_username
     return templates.TemplateResponse("cabinet/login.html", {
         "request": request, "app_name": config.web.app_name, "settings": svc,
         "error": None, "is_mini_app": bool(request.headers.get("X-Telegram-Init-Data", "")),
