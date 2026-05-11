@@ -37,8 +37,8 @@ async function sendMessage(event, ticketId) {
     const r = await fetch('/cabinet/support/' + ticketId + '/message', {method:'POST', body:fd});
     const d = await r.json();
     if (d.ok) { location.reload(); }
-    else { result.innerHTML = '<span class="text-danger">❌ ' + d.message + '</span>'; }
-  } catch(e) { result.innerHTML = '<span class="text-danger">❌ Ошибка сети</span>'; }
+    else { setMsg(result, false, d.message || 'Ошибка'); }
+  } catch(e) { setMsg(result, false, 'Ошибка сети'); }
 }
 </script>
 {% endblock %}

@@ -59,6 +59,13 @@ function showToast(msg, type) {
   document.body.appendChild(t);
   setTimeout(function() { t.remove(); }, 3000);
 }
+function setMsg(el, ok, msg) {
+  el.innerHTML = '';
+  var s = document.createElement('span');
+  s.className = ok ? 'text-success' : 'text-danger';
+  s.textContent = (ok ? '✅ ' : '❌ ') + msg;
+  el.appendChild(s);
+}
 {% block scripts %}{% endblock %}
 </script>
 </body>

@@ -32,13 +32,13 @@ async function activateTrial() {
     const r = await fetch('/cabinet/trial/activate', {method:'POST'});
     const d = await r.json();
     if (d.ok) {
-      result.innerHTML = '<span class="text-success">✅ ' + d.message + '</span>';
-      setTimeout(() => location.reload(), 1500);
+      setMsg(result, true, d.message || 'OK');
+      setTimeout(function() { location.reload(); }, 1500);
     } else {
-      result.innerHTML = '<span class="text-danger">❌ ' + d.message + '</span>';
+      setMsg(result, false, d.message || 'Ошибка');
     }
   } catch(e) {
-    result.innerHTML = '<span class="text-danger">❌ Ошибка сети</span>';
+    setMsg(result, false, 'Ошибка сети');
   }
 }
 </script>

@@ -291,9 +291,9 @@ http {
         ssl_session_tickets off;
 
         add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
-        add_header X-Frame-Options SAMEORIGIN always;
         add_header X-Content-Type-Options nosniff always;
         add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Permissions-Policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()" always;
 
         proxy_connect_timeout 10s;
         proxy_read_timeout    60s;
@@ -301,6 +301,9 @@ http {
         proxy_next_upstream   error timeout http_502 http_503;
         proxy_next_upstream_tries 2;
 
+        location = /cabinet {
+            return 301 /cabinet/;
+        }
         location /cabinet/ {
             limit_req zone=cabinet burst=20 nodelay;
             proxy_pass http://vpn_app/cabinet/;
@@ -357,6 +360,18 @@ http {
             proxy_set_header X-Forwarded-Proto \$scheme;
         }
         location /ws/notifications {
+            proxy_pass http://vpn_app;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host              \$host;
+            proxy_set_header X-Real-IP         \$remote_addr;
+            proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+        }
+        location /ws/metrics {
             proxy_pass http://vpn_app;
             proxy_http_version 1.1;
             proxy_set_header Upgrade \$http_upgrade;

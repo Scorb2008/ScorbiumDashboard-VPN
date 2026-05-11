@@ -51,7 +51,7 @@
   </div>
   {% if key.access_url and key.status == 'active' %}
   <div class="key-detail-footer">
-    <a href="{{ key.access_url }}" target="_blank" class="btn-accent w-100">
+    <a href="{{ key.access_url }}" target="_blank" rel="noopener noreferrer" class="btn-accent w-100">
       <i class="bi bi-box-arrow-up-right me-1"></i>Подключиться
     </a>
   </div>

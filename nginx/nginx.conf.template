@@ -27,9 +27,10 @@ server {
     client_max_body_size 20M;
 
     add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
-    add_header X-Frame-Options SAMEORIGIN always;
     add_header X-Content-Type-Options nosniff always;
+    add_header Permissions-Policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()" always;
 
+    location = /cabinet { return 301 /cabinet/; }
     location /cabinet/ {
         limit_req zone=cabinet burst=20 nodelay;
         proxy_pass http://vpn_app/cabinet/;

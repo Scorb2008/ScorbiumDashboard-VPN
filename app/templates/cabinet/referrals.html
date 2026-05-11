@@ -9,7 +9,7 @@
   <p class="referral-text">Приглашайте друзей и получайте бонусы!</p>
   {% if user.referral_code %}
   <div class="referral-code-box">
-    <input type="text" id="ref-link" class="form-input" value="https://t.me/{{ settings.get('bot_username', 'bot') }}?start={{ user.referral_code }}" readonly>
+    <input type="text" id="ref-link" class="form-input" value="https://t.me/{{ settings.get('bot_username') or '...' }}?start={{ user.referral_code }}" readonly>
     <button class="btn-accent" onclick="copyRefLink()">Копировать</button>
   </div>
   {% endif %}
@@ -46,7 +46,13 @@
 function copyRefLink() {
   const input = document.getElementById('ref-link');
   input.select();
-  navigator.clipboard.writeText(input.value).then(() => showToast('Ссылка скопирована', 'success'));
+  navigator.clipboard.writeText(input.value).then(function() {
+    showToast('Ссылка скопирована', 'success');
+  }).catch(function() {
+    input.select();
+    document.execCommand('copy');
+    showToast('Ссылка скопирована', 'success');
+  });
 }
 </script>
 {% endblock %}

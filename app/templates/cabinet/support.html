@@ -43,10 +43,10 @@ async function createTicket(event) {
     const r = await fetch('/cabinet/support/create', {method:'POST', body:fd});
     const d = await r.json();
     if (d.ok) {
-      result.innerHTML = '<span class="text-success">✅ Обращение создано!</span>';
-      setTimeout(() => window.location.href = '/cabinet/support/' + d.ticket_id, 1000);
-    } else { result.innerHTML = '<span class="text-danger">❌ ' + d.message + '</span>'; }
-  } catch(e) { result.innerHTML = '<span class="text-danger">❌ Ошибка сети</span>'; }
+      setMsg(result, true, 'Обращение создано!');
+      setTimeout(function() { window.location.href = '/cabinet/support/' + d.ticket_id; }, 1000);
+    } else { setMsg(result, false, d.message || 'Ошибка'); }
+  } catch(e) { setMsg(result, false, 'Ошибка сети'); }
 }
 </script>
 {% endblock %}

@@ -38,10 +38,11 @@ class TokenBlacklistService:
 
     async def is_blacklisted(self, jti: str, sub: str) -> bool:
         """Check if a token (identified by jti + sub) is blacklisted."""
+        now = datetime.now(timezone.utc)
         result = await self.session.execute(
             select(BlacklistedToken).where(
                 BlacklistedToken.sub == sub,
-                BlacklistedToken.expires_at > datetime.now(timezone.utc),
+                (BlacklistedToken.expires_at > now) | (BlacklistedToken.expires_at.is_(None)),
             )
         )
         entries = result.scalars().all()
@@ -56,7 +57,8 @@ class TokenBlacklistService:
         """Remove expired blacklist entries. Returns count removed."""
         result = await self.session.execute(
             delete(BlacklistedToken).where(
-                BlacklistedToken.expires_at < datetime.now(timezone.utc)
+                BlacklistedToken.expires_at < datetime.now(timezone.utc),
+                BlacklistedToken.expires_at.isnot(None),
             )
         )
         return result.rowcount

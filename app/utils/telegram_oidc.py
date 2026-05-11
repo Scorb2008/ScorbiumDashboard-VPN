@@ -38,7 +38,7 @@ def _find_key(keys: list[dict], kid: str) -> Optional[dict]:
     for k in keys:
         if k.get("kid") == kid:
             return k
-    return keys[0] if keys else None
+    return None
 
 
 async def verify_telegram_id_token(id_token: str) -> Optional[dict]:
@@ -57,7 +57,7 @@ async def verify_telegram_id_token(id_token: str) -> Optional[dict]:
             algorithms=["RS256"],
             audience=str(config.telegram.telegram_client_id),
             issuer=OIDC_ISSUER,
-            options={"verify_exp": True},
+            options={"verify_exp": True, "verify_at_hash": False},
         )
         return payload
     except JWTError as e:

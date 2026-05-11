@@ -38,6 +38,13 @@ async def _require_user(request: Request, db: AsyncSession):
     return None
 
 
+async def _require_active_user(request: Request, db: AsyncSession):
+    user = await _require_user(request, db)
+    if user and not user.is_banned:
+        return user
+    return None
+
+
 def _is_mini_app(request: Request) -> bool:
     return bool(request.headers.get("X-Telegram-Init-Data", ""))
 
@@ -103,7 +110,7 @@ async def cabinet_index(request: Request, db: AsyncSession = Depends(get_db)):
 
 @router.get("/cabinet/profile", response_class=HTMLResponse)
 async def cabinet_profile(request: Request, db: AsyncSession = Depends(get_db)):
-    user = await _require_user(request, db)
+    user = await _require_active_user(request, db)
     if not user:
         return RedirectResponse(url="/cabinet/", status_code=302)
     keys = await VpnKeyService(db).get_all_for_user(user.id)
@@ -119,7 +126,7 @@ async def cabinet_profile(request: Request, db: AsyncSession = Depends(get_db)):
 
 @router.get("/cabinet/keys", response_class=HTMLResponse)
 async def cabinet_keys(request: Request, db: AsyncSession = Depends(get_db)):
-    user = await _require_user(request, db)
+    user = await _require_active_user(request, db)
     if not user:
         return RedirectResponse(url="/cabinet/", status_code=302)
     keys = await VpnKeyService(db).get_all_for_user(user.id)
@@ -132,7 +139,7 @@ async def cabinet_keys(request: Request, db: AsyncSession = Depends(get_db)):
 
 @router.get("/cabinet/plans", response_class=HTMLResponse)
 async def cabinet_plans(request: Request, db: AsyncSession = Depends(get_db)):
-    user = await _require_user(request, db)
+    user = await _require_active_user(request, db)
     if not user:
         return RedirectResponse(url="/cabinet/", status_code=302)
     plans = await PlanService(db).get_all(only_active=True)
@@ -146,7 +153,7 @@ async def cabinet_plans(request: Request, db: AsyncSession = Depends(get_db)):
 
 @router.get("/cabinet/balance", response_class=HTMLResponse)
 async def cabinet_balance(request: Request, db: AsyncSession = Depends(get_db)):
-    user = await _require_user(request, db)
+    user = await _require_active_user(request, db)
     if not user:
         return RedirectResponse(url="/cabinet/", status_code=302)
     payments = await PaymentService(db).get_all(user_id=user.id, limit=100)
@@ -160,7 +167,7 @@ async def cabinet_balance(request: Request, db: AsyncSession = Depends(get_db)):
 
 @router.get("/cabinet/promo", response_class=HTMLResponse)
 async def cabinet_promo(request: Request, db: AsyncSession = Depends(get_db)):
-    user = await _require_user(request, db)
+    user = await _require_active_user(request, db)
     if not user:
         return RedirectResponse(url="/cabinet/", status_code=302)
     return templates.TemplateResponse("cabinet/promo.html", {
@@ -173,7 +180,7 @@ async def cabinet_promo(request: Request, db: AsyncSession = Depends(get_db)):
 async def cabinet_promo_apply(
     request: Request, code: str = Form(""), db: AsyncSession = Depends(get_db),
 ):
-    user = await _require_user(request, db)
+    user = await _require_active_user(request, db)
     if not user:
         return JSONResponse({"ok": False, "message": "Not authenticated"}, status_code=401)
     try:
@@ -187,7 +194,7 @@ async def cabinet_promo_apply(
 
 @router.get("/cabinet/support", response_class=HTMLResponse)
 async def cabinet_support(request: Request, db: AsyncSession = Depends(get_db)):
-    user = await _require_user(request, db)
+    user = await _require_active_user(request, db)
     if not user:
         return RedirectResponse(url="/cabinet/", status_code=302)
     tickets = await SupportService(db).get_for_user(user.id)
@@ -202,7 +209,7 @@ async def cabinet_support_create(
     request: Request, subject: str = Form(""), text: str = Form(""),
     db: AsyncSession = Depends(get_db),
 ):
-    user = await _require_user(request, db)
+    user = await _require_active_user(request, db)
     if not user:
         return JSONResponse({"ok": False, "message": "Not authenticated"}, status_code=401)
     if not subject.strip() or not text.strip():
@@ -215,7 +222,7 @@ async def cabinet_support_create(
 async def cabinet_support_ticket(
     request: Request, ticket_id: int, db: AsyncSession = Depends(get_db),
 ):
-    user = await _require_user(request, db)
+    user = await _require_active_user(request, db)
     if not user:
         return RedirectResponse(url="/cabinet/", status_code=302)
     ticket = await SupportService(db).get_by_id(ticket_id)
@@ -232,7 +239,7 @@ async def cabinet_support_message(
     request: Request, ticket_id: int, text: str = Form(""),
     db: AsyncSession = Depends(get_db),
 ):
-    user = await _require_user(request, db)
+    user = await _require_active_user(request, db)
     if not user:
         return JSONResponse({"ok": False, "message": "Not authenticated"}, status_code=401)
     if not text.strip():
@@ -246,12 +253,15 @@ async def cabinet_support_message(
 
 @router.get("/cabinet/referrals", response_class=HTMLResponse)
 async def cabinet_referrals(request: Request, db: AsyncSession = Depends(get_db)):
-    user = await _require_user(request, db)
+    user = await _require_active_user(request, db)
     if not user:
         return RedirectResponse(url="/cabinet/", status_code=302)
     refs = await ReferralService(db).get_for_user(user.id)
     top = await ReferralService(db).get_top(limit=20)
     settings = await BotSettingsService(db).get_all()
+    bot_username = await _ensure_bot_username(db, settings)
+    if bot_username:
+        settings["bot_username"] = bot_username
     return templates.TemplateResponse("cabinet/referrals.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "referrals": refs, "top_referrers": top,
@@ -261,7 +271,7 @@ async def cabinet_referrals(request: Request, db: AsyncSession = Depends(get_db)
 
 @router.get("/cabinet/servers", response_class=HTMLResponse)
 async def cabinet_servers(request: Request, db: AsyncSession = Depends(get_db)):
-    user = await _require_user(request, db)
+    user = await _require_active_user(request, db)
     if not user:
         return RedirectResponse(url="/cabinet/", status_code=302)
     try:
@@ -277,7 +287,7 @@ async def cabinet_servers(request: Request, db: AsyncSession = Depends(get_db)):
 
 @router.get("/cabinet/guides", response_class=HTMLResponse)
 async def cabinet_guides(request: Request, db: AsyncSession = Depends(get_db)):
-    user = await _require_user(request, db)
+    user = await _require_active_user(request, db)
     if not user:
         return RedirectResponse(url="/cabinet/", status_code=302)
     settings = await BotSettingsService(db).get_all()
@@ -289,7 +299,7 @@ async def cabinet_guides(request: Request, db: AsyncSession = Depends(get_db)):
 
 @router.get("/cabinet/language", response_class=HTMLResponse)
 async def cabinet_language(request: Request, db: AsyncSession = Depends(get_db)):
-    user = await _require_user(request, db)
+    user = await _require_active_user(request, db)
     if not user:
         return RedirectResponse(url="/cabinet/", status_code=302)
     return templates.TemplateResponse("cabinet/language.html", {
@@ -302,7 +312,7 @@ async def cabinet_language(request: Request, db: AsyncSession = Depends(get_db))
 async def cabinet_language_set(
     request: Request, lang: str = Form("ru"), db: AsyncSession = Depends(get_db),
 ):
-    user = await _require_user(request, db)
+    user = await _require_active_user(request, db)
     if not user:
         return JSONResponse({"ok": False, "message": "Not authenticated"}, status_code=401)
     if lang not in ("ru", "en", "fa"):
@@ -314,7 +324,7 @@ async def cabinet_language_set(
 
 @router.get("/cabinet/trial", response_class=HTMLResponse)
 async def cabinet_trial(request: Request, db: AsyncSession = Depends(get_db)):
-    user = await _require_user(request, db)
+    user = await _require_active_user(request, db)
     if not user:
         return RedirectResponse(url="/cabinet/", status_code=302)
     settings = await BotSettingsService(db).get_all()
@@ -331,7 +341,7 @@ async def cabinet_trial(request: Request, db: AsyncSession = Depends(get_db)):
 
 @router.post("/cabinet/trial/activate")
 async def cabinet_trial_activate(request: Request, db: AsyncSession = Depends(get_db)):
-    user = await _require_user(request, db)
+    user = await _require_active_user(request, db)
     if not user:
         return JSONResponse({"ok": False, "message": "Not authenticated"}, status_code=401)
     settings = await BotSettingsService(db).get_all()
@@ -355,7 +365,7 @@ async def cabinet_trial_activate(request: Request, db: AsyncSession = Depends(ge
 async def cabinet_pay_balance(
     request: Request, plan_id: int = Form(0), db: AsyncSession = Depends(get_db),
 ):
-    user = await _require_user(request, db)
+    user = await _require_active_user(request, db)
     if not user:
         return JSONResponse({"ok": False, "message": "Not authenticated"}, status_code=401)
     plan = await PlanService(db).get_by_id(plan_id)
@@ -366,7 +376,9 @@ async def cabinet_pay_balance(
     from app.models.user import User
     locked = await db.execute(select(User).where(User.id == user.id).with_for_update())
     locked_user = locked.scalar_one_or_none()
-    if not locked_user or locked_user.balance < plan.price:
+    if not locked_user or locked_user.is_banned:
+        return JSONResponse({"ok": False, "message": "Аккаунт заблокирован"}, status_code=403)
+    if locked_user.balance < plan.price:
         return JSONResponse({"ok": False, "message": "Недостаточно средств"}, status_code=400)
 
     try:
@@ -389,7 +401,18 @@ async def cabinet_pay_balance(
 
 
 @router.get("/cabinet/logout")
-async def cabinet_logout():
+async def cabinet_logout(request: Request, db: AsyncSession = Depends(get_db)):
+    token = request.cookies.get("cabinet_session")
+    if token:
+        from app.utils.security import decode_access_token_full
+        payload = decode_access_token_full(token)
+        if payload:
+            from app.services.token_blacklist import TokenBlacklistService
+            from datetime import timedelta
+            jti = payload.get("jti", "")
+            sub = payload.get("sub", "")
+            bk = TokenBlacklistService(db)
+            await bk.blacklist_jti(jti, sub, expires_at=None)
     resp = RedirectResponse(url="/cabinet/", status_code=302)
     resp.delete_cookie("cabinet_session")
     return resp
