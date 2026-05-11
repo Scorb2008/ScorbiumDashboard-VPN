@@ -12,22 +12,34 @@
     <div id="login-status" class="login-loading" style="display:none">
       <i class="bi bi-arrow-repeat spin"></i> <span id="login-status-text">Авторизация...</span>
     </div>
-    <div id="telegram-login"></div>
+    <button id="login-btn" class="btn-accent w-100" onclick="handleLoginClick()" style="display:none">
+      <i class="bi bi-telegram"></i> Войти через Telegram
+    </button>
     <p id="login-hint" class="login-hint">Нажмите кнопку выше, чтобы войти</p>
+    {% if not telegram_client_id %}
+    <div class="alert alert-error" style="margin-top:12px;font-size:.8rem">
+      Telegram OIDC не настроен. Укажите TELEGRAM_CLIENT_ID и TELEGRAM_CLIENT_SECRET в .env
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}
 {% block head %}
-<script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="{{ settings.get('bot_username', '') }}" data-size="large" data-radius="12" data-onauth="onTelegramAuth(user)" data-request-access="write"></script>
+<script src="https://telegram.org/js/telegram-login.js"></script>
 {% endblock %}
 {% block scripts %}
 <script>
+var TG_CLIENT_ID = {{ telegram_client_id }};
+</script>
+<script>
+var oidcInitialized = false;
+
 (function() {
   var tg = null;
   try { tg = window.Telegram.WebApp; } catch(e) {}
 
-  if (tg && tg.initData) {
-    document.getElementById('telegram-login').style.display = 'none';
+  if (tg && tg.initData && TG_CLIENT_ID) {
+    document.getElementById('login-btn').style.display = 'none';
     document.getElementById('login-hint').style.display = 'none';
     var st = document.getElementById('login-status');
     st.style.display = '';
@@ -38,41 +50,78 @@
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({initData: tg.initData})
     }).then(function(r) {
-      if (r.redirected) { window.location.href = r.url; return; }
-      if (r.ok) { window.location.href = '/cabinet/'; return; }
-      document.getElementById('login-status-text').textContent = 'Ошибка авторизации';
-      document.getElementById('telegram-login').style.display = '';
-      document.getElementById('login-hint').style.display = '';
+      return r.json();
+    }).then(function(d) {
+      if (d.ok) { window.location.href = d.redirect || '/cabinet/'; return; }
+      document.getElementById('login-status-text').textContent = d.message || 'Ошибка авторизации';
+      showLoginButton();
     }).catch(function() {
       document.getElementById('login-status-text').textContent = 'Ошибка сети';
-      document.getElementById('telegram-login').style.display = '';
-      document.getElementById('login-hint').style.display = '';
+      showLoginButton();
     });
+    return;
   }
+
+  if (TG_CLIENT_ID) {
+    Telegram.Login.init({
+      client_id: TG_CLIENT_ID,
+      request_access: ['write']
+    }, onOidcCallback);
+    oidcInitialized = true;
+  }
+  document.getElementById('login-btn').style.display = '';
 })();
 
-function onTelegramAuth(user) {
+function showLoginButton() {
+  document.getElementById('login-status').style.display = 'none';
+  document.getElementById('login-btn').style.display = '';
+  document.getElementById('login-hint').style.display = '';
+}
+
+function handleLoginClick() {
+  if (!TG_CLIENT_ID) {
+    showToast('Telegram OIDC не настроен', 'error');
+    return;
+  }
+  if (!oidcInitialized) {
+    Telegram.Login.init({
+      client_id: TG_CLIENT_ID,
+      request_access: ['write']
+    }, onOidcCallback);
+    oidcInitialized = true;
+  }
+  Telegram.Login.open(onOidcCallback);
+}
+
+function onOidcCallback(data) {
+  if (data.error) {
+    showToast(data.error, 'error');
+    return;
+  }
+  if (!data.id_token) return;
+
   var st = document.getElementById('login-status');
   st.style.display = '';
   document.getElementById('login-status-text').textContent = 'Авторизация...';
-  document.getElementById('telegram-login').style.display = 'none';
+  document.getElementById('login-btn').style.display = 'none';
   document.getElementById('login-hint').style.display = 'none';
 
   fetch('/cabinet/auth', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(user)
+    body: JSON.stringify({id_token: data.id_token})
   }).then(function(r) {
-    if (r.redirected) { window.location.href = r.url; return; }
-    if (r.ok) { window.location.href = '/cabinet/'; return; }
-    r.json().then(function(d) { showToast(d.message || 'Ошибка', 'error'); });
+    return r.json();
+  }).then(function(d) {
+    if (d.ok) { window.location.href = d.redirect || '/cabinet/'; return; }
+    showToast(d.message || 'Ошибка', 'error');
     st.style.display = 'none';
-    document.getElementById('telegram-login').style.display = '';
+    document.getElementById('login-btn').style.display = '';
     document.getElementById('login-hint').style.display = '';
   }).catch(function() {
     showToast('Ошибка сети', 'error');
     st.style.display = 'none';
-    document.getElementById('telegram-login').style.display = '';
+    document.getElementById('login-btn').style.display = '';
     document.getElementById('login-hint').style.display = '';
   });
 }

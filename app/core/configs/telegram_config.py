@@ -58,6 +58,16 @@ class _TelegramConfig(BaseSettings):
         description="Port for aiohttp webhook server",
         validation_alias="TELEGRAM_WEBHOOK_PORT",
     )
+    telegram_client_id: int = Field(
+        default=0,
+        description="Telegram OIDC Client ID from @BotFather",
+        validation_alias="TELEGRAM_CLIENT_ID",
+    )
+    telegram_client_secret: SecretStr = Field(
+        default=SecretStr(""),
+        description="Telegram OIDC Client Secret from @BotFather",
+        validation_alias="TELEGRAM_CLIENT_SECRET",
+    )
 
     @field_validator("telegram_bot_token")
     @classmethod

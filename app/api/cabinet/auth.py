@@ -5,7 +5,7 @@ from datetime import timedelta, datetime, timezone
 from urllib.parse import unquote_plus
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db
@@ -14,6 +14,7 @@ from app.schemas.user import UserCreate
 from app.services.user import UserService
 from app.utils.log import log
 from app.utils.security import create_access_token, decode_access_token_full
+from app.utils.telegram_oidc import verify_telegram_id_token
 
 router = APIRouter()
 
@@ -136,6 +137,31 @@ async def cabinet_auth(request: Request, db: AsyncSession = Depends(get_db)):
     except Exception:
         body = dict(await request.form())
 
+    id_token = body.get("id_token", "") if isinstance(body, dict) else ""
+
+    if id_token:
+        payload = await verify_telegram_id_token(id_token)
+        if not payload:
+            return JSONResponse({"ok": False, "message": "Auth verification failed"}, status_code=401)
+        user_id = int(payload.get("sub", 0))
+        if not user_id:
+            return JSONResponse({"ok": False, "message": "Invalid user ID"}, status_code=401)
+        user_info = {
+            "username": payload.get("preferred_username", ""),
+            "first_name": (payload.get("name", "") or "").split(" ", 1)[0],
+            "last_name": (payload.get("name", "") or "").split(" ", 1)[1] if " " in (payload.get("name", "") or "") else "",
+        }
+        user, _ = await UserService(db).get_or_create(UserCreate(
+            id=user_id,
+            username=user_info["username"],
+            full_name=" ".join(filter(None, [user_info["first_name"], user_info["last_name"]])),
+        ))
+        if user.is_banned:
+            return JSONResponse({"ok": False, "message": "Account is banned"}, status_code=403)
+        resp = JSONResponse({"ok": True, "redirect": "/cabinet/"})
+        set_session_cookie(resp, user.id)
+        return resp
+
     init_data = body.get("initData", "") if isinstance(body, dict) else ""
     if init_data:
         tg_data = _verify_telegram_init_data(init_data)
@@ -165,6 +191,6 @@ async def cabinet_auth(request: Request, db: AsyncSession = Depends(get_db)):
     if user.is_banned:
         return JSONResponse({"ok": False, "message": "Account is banned"}, status_code=403)
 
-    resp = RedirectResponse(url="/cabinet/", status_code=302)
+    resp = JSONResponse({"ok": True, "redirect": "/cabinet/"})
     set_session_cookie(resp, user.id)
     return resp

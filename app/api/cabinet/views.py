@@ -51,6 +51,7 @@ async def cabinet_index(request: Request, db: AsyncSession = Depends(get_db)):
             return templates.TemplateResponse("cabinet/login.html", {
                 "request": request, "app_name": config.web.app_name, "settings": {},
                 "error": "Аккаунт заблокирован", "is_mini_app": _is_mini_app(request),
+                "telegram_client_id": config.telegram.telegram_client_id,
             })
         svc = await BotSettingsService(db).get_all()
         plans = await PlanService(db).get_all(only_active=True)
@@ -67,6 +68,7 @@ async def cabinet_index(request: Request, db: AsyncSession = Depends(get_db)):
     return templates.TemplateResponse("cabinet/login.html", {
         "request": request, "app_name": config.web.app_name, "settings": svc,
         "error": None, "is_mini_app": bool(request.headers.get("X-Telegram-Init-Data", "")),
+        "telegram_client_id": config.telegram.telegram_client_id,
     })
 
 
