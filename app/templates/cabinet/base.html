@@ -8,9 +8,8 @@
 <link rel="stylesheet" href="/static/css/cabinet.css">
 {% block head %}{% endblock %}
 </head>
-<body>
+<body class="{% if not is_mini_app %}web-mode{% else %}mini-mode{% endif %}">
 <div id="app">
-  {% if not is_mini_app %}
   <nav class="dash-nav">
     <div class="dash-nav-inner">
       <a href="/cabinet/" class="dash-logo">{{ app_name }}</a>
@@ -27,11 +26,9 @@
       <a href="/cabinet/logout" class="dash-logout"><i class="bi bi-box-arrow-right"></i></a>
     </div>
   </nav>
-  {% endif %}
   <main class="dash-main">
     {% block content %}{% endblock %}
   </main>
-  {% if is_mini_app %}
   <nav class="mini-nav">
     <a href="/cabinet/" class="mini-nav-link"><i class="bi bi-house-door"></i><span>Главная</span></a>
     <a href="/cabinet/plans" class="mini-nav-link"><i class="bi bi-cart"></i><span>Купить</span></a>
@@ -42,20 +39,25 @@
     <a href="/panel/" class="mini-nav-link"><i class="bi bi-shield-lock"></i><span>Админ</span></a>
     {% endif %}
   </nav>
-  {% endif %}
 </div>
 <script>
-{% if is_mini_app %}
-let tg = null;
-try { tg = window.Telegram.WebApp; tg.ready(); tg.expand(); } catch(e) {}
-{% endif %}
+(function detectMode() {
+  var tg = null;
+  try { tg = window.Telegram.WebApp; } catch(e) {}
+  if (tg && tg.initData) {
+    document.body.classList.remove('web-mode');
+    document.body.classList.add('mini-mode');
+    tg.ready();
+    tg.expand();
+  }
+})();
 
 function showToast(msg, type) {
-  const t = document.createElement('div');
+  var t = document.createElement('div');
   t.className = 'toast toast-' + (type || 'info');
   t.textContent = msg;
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 3000);
+  setTimeout(function() { t.remove(); }, 3000);
 }
 {% block scripts %}{% endblock %}
 </script>

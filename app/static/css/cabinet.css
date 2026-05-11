@@ -19,6 +19,10 @@ body {
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
+/* ── Mode toggle (set by JS) ── */
+.mini-mode .dash-nav { display: none; }
+.web-mode .mini-nav { display: none; }
+
 /* ── Navigation ── */
 .dash-nav {
   background: var(--bg-card); border-bottom: 1px solid var(--border);

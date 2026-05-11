@@ -361,7 +361,7 @@ def create_app() -> FastAPI:
                     "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; "
                     "img-src 'self' data: https:; "
                     "connect-src 'self' wss: https:; "
-                    "frame-src 'none'; "
+                    "frame-src https://telegram.org https://oauth.telegram.org; "
                     "object-src 'none'; "
                     "base-uri 'self'; "
                     "form-action 'self'"
