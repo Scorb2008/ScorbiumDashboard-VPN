@@ -184,7 +184,7 @@
       widgetId = widgetEl.getAttribute('data-telegram-login');
       widgetsOrigin = TG_WIDGET_ORIGIN;
       widgetElId = 'telegram-login-' + widgetId.replace(/[^a-z0-9_]/ig, '-');
-      src = widgetsOrigin + '/embed/' + widgetId + '?origin=' + encodeURIComponent(location.protocol + '//' + location.hostname) + '&return_to=' + encodeURIComponent(location.href);
+      src = widgetsOrigin + '/embed/' + widgetId + '?origin=' + encodeURIComponent(location.origin || location.protocol + '//' + location.hostname) + '&return_to=' + encodeURIComponent(location.href);
       allowedAttrs = ['size', 'userpic', 'init_auth', 'request_access', 'radius', 'min_width', 'max_width', 'lang'];
       defWidth = 186;
       defHeight = 28;
@@ -515,7 +515,7 @@
         }
         setTimeout(checkClose, 100, bot_id);
       }
-      var popup_url = Telegram.Login.widgetsOrigin + '/auth?bot_id=' + encodeURIComponent(options.bot_id) + '&origin=' + encodeURIComponent(location.protocol + '//' + location.hostname) + (options.request_access ? '&request_access=' + encodeURIComponent(options.request_access) : '') + (options.lang ? '&lang=' + encodeURIComponent(options.lang) : '') + '&return_to=' + encodeURIComponent(location.href);
+      var popup_url = Telegram.Login.widgetsOrigin + '/auth?bot_id=' + encodeURIComponent(options.bot_id) + '&origin=' + encodeURIComponent(location.origin || location.protocol + '//' + location.hostname) + (options.request_access ? '&request_access=' + encodeURIComponent(options.request_access) : '') + (options.lang ? '&lang=' + encodeURIComponent(options.lang) : '') + '&return_to=' + encodeURIComponent(location.href);
       var popup = window.open(popup_url, 'telegram_oauth_bot' + bot_id, 'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',status=0,location=0,menubar=0,toolbar=0');
       TelegramLogin.popups[bot_id] = {
         window: popup,
