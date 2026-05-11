@@ -33,6 +33,7 @@ class _WebConfig(BaseSettings):
     web_superadmin_username: str = Field(default="admin", validation_alias="WEB_SUPERADMIN_USERNAME")
     web_superadmin_password: SecretStr = Field(default_factory=lambda: SecretStr("SUPERADMIN"), validation_alias="WEB_SUPERADMIN_PASSWORD")
     metrics_api_key: SecretStr = Field(default_factory=lambda: SecretStr(""), validation_alias="METRICS_API_KEY")
+    site_url: str = Field(default="", description="Public site URL, e.g. https://example.com:8443", validation_alias="SITE_URL")
     
     @field_validator("allowed_origins")
     @classmethod

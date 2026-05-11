@@ -50,10 +50,20 @@ def main_menu_kb(
             bid = b.get("id", "")
             label = b.get("label", "")
             callback = b.get("callback", bid)
+            url = b.get("url", "")
+            web_app_url = b.get("web_app", "")
             style = styles.get(bid) or None
             emoji_id = emojis.get(bid) or None
 
-            if bid == "support" and support_url:
+            if web_app_url:
+                row_btns.append(
+                    btn(label, web_app=web_app_url, style=style, emoji_id=emoji_id)
+                )
+            elif url:
+                row_btns.append(
+                    btn(label, url=url, style=style, emoji_id=emoji_id)
+                )
+            elif bid == "support" and support_url:
                 row_btns.append(
                     btn(label, url=support_url, style=style, emoji_id=emoji_id)
                 )

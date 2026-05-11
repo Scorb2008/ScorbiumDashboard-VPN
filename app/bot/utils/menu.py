@@ -4,6 +4,7 @@ import json
 from aiogram.types import InlineKeyboardMarkup
 from app.bot.keyboards.main import main_menu_kb, _DEFAULT_LAYOUT
 from app.services.bot_settings import BotSettingsService
+from app.core.config import config
 
 _BUTTON_IDS = [
     "my_keys",
@@ -19,6 +20,8 @@ _BUTTON_IDS = [
     "status",
     "language",
     "trial",
+    "cabinet",
+    "admin_panel",
 ]
 
 # Переводы лейблов кнопок по умолчанию
@@ -37,6 +40,8 @@ _BTN_LABELS: dict[str, dict[str, str]] = {
         "status": "📊 Статус",
         "language": "🌐 Язык",
         "trial": "🎁 Пробный период",
+        "cabinet": "📱 Кабинет",
+        "admin_panel": "⚙️ Админ панель",
     },
     "en": {
         "my_keys": "🔑 My subscriptions",
@@ -52,6 +57,8 @@ _BTN_LABELS: dict[str, dict[str, str]] = {
         "status": "📊 Status",
         "language": "🌐 Language",
         "trial": "🎁 Trial period",
+        "cabinet": "📱 Cabinet",
+        "admin_panel": "⚙️ Admin panel",
     },
     "fa": {
         "my_keys": "🔑 اشتراک‌های من",
@@ -67,6 +74,8 @@ _BTN_LABELS: dict[str, dict[str, str]] = {
         "status": "📊 وضعیت",
         "language": "🌐 زبان",
         "trial": "🎁 دوره آزمایشی",
+        "cabinet": "📱 کابینت",
+        "admin_panel": "⚙️ پنل مدیریت",
     },
 }
 
@@ -114,8 +123,23 @@ async def get_main_menu_kb(
             layout = [[b for b in row if b.get("id") != "trial"] for row in layout]
             layout = [row for row in layout if row]  # убираем пустые ряды
 
+    # Cabinet WebApp button (all users)
+    if config.web.site_url:
+        cabinet_url = config.web.site_url.rstrip("/") + "/cabinet/"
+        layout.append([{"id": "cabinet", "label": "📱 Кабинет", "web_app": cabinet_url}])
+
+    # Admin panel button (only for admins)
+    if is_admin and config.web.site_url:
+        panel_url = config.web.site_url.rstrip("/") + "/panel/"
+        layout.append([{"id": "admin_panel", "label": "⚙️ Админ панель", "url": panel_url}])
+
     # Translate labels
     layout = _translate_layout(layout, lang, s)
+
+    # Admin panel button (only for admins)
+    if is_admin and config.web.site_url:
+        panel_url = config.web.site_url.rstrip("/") + "/panel/"
+        layout.append([{"id": "admin_panel", "label": "⚙️ Админ панель", "url": panel_url}])
 
     # Load styles
     styles = {bid: s.get(f"btn_style_{bid}", "") for bid in _BUTTON_IDS}
