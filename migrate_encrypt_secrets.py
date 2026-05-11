@@ -3,7 +3,6 @@ Migration script to encrypt existing plaintext secrets in the database.
 Run with: uv run python migrate_encrypt_secrets.py
 """
 import asyncio
-import sys
 
 _SENSITIVE_KEYS = {
     "cryptobot_token",

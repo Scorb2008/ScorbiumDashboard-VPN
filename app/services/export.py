@@ -6,7 +6,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.payment import Payment, PaymentStatus
+from app.models.payment import Payment
 from app.models.user import User
 from app.models.vpn_key import VpnKey
 from app.utils.log import log
@@ -125,7 +125,6 @@ class ExportService:
         writer = csv.writer(buf, dialect="excel", lineterminator="\r\n")
         writer.writerow(headers)
         writer.writerows(rows)
-        # UTF-8 BOM for Excel compatibility
         return b"\xef\xbb\xbf" + buf.getvalue().encode("utf-8")
 
     def _to_xlsx(self, headers: list, rows: list, sheet_name: str) -> bytes:
@@ -159,7 +158,6 @@ class ExportService:
                     cell.border = thin_border
                     cell.alignment = Alignment(vertical="center")
 
-            # Auto-adjust column widths
             for col in range(1, len(headers) + 1):
                 max_length = 0
                 for row in range(1, len(rows) + 2):

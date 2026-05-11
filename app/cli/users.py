@@ -18,11 +18,9 @@ async def _list_users(limit: int, offset: int, page: int):
     from sqlalchemy import select, func
     
     async with AsyncSessionFactory() as session:
-        # Get total count
         count_result = await session.execute(select(func.count(User.id)))
         total = count_result.scalar()
         
-        # Get users with subscription count
         stmt = select(User).order_by(User.id).offset(offset).limit(limit)
         result = await session.execute(stmt)
         users = result.scalars().all()
@@ -36,7 +34,6 @@ async def _list_users(limit: int, offset: int, page: int):
         table.add_column("Статус")
         
         for user in users:
-            # Count active subscriptions
             from app.models.vpn_key import VpnKey
             sub_stmt = select(func.count(VpnKey.id)).where(
                 VpnKey.user_id == user.id,
@@ -136,7 +133,6 @@ async def _user_info(user_id: int):
         click.echo(f"Реферальный код: {user.referral_code or '-'}")
         click.echo(f"Создан: {user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else '-'}")
         
-        # Active subscriptions
         stmt = select(VpnKey).where(
             VpnKey.user_id == user_id,
             VpnKey.status == "active"
@@ -153,7 +149,6 @@ async def _user_info(user_id: int):
             click.echo("")
             click.secho("Нет активных подписок", fg="yellow")
         
-        # Recent payments
         stmt = select(Payment).where(Payment.user_id == user_id).order_by(Payment.created_at.desc()).limit(5)
         result = await session.execute(stmt)
         payments = result.scalars().all()
@@ -272,7 +267,6 @@ async def _gift_subscription():
         
         click.echo(f"Пользователь: {user.first_name} {user.last_name}")
         
-        # Show available plans
         stmt = select(Plan).where(Plan.is_active == True)
         result = await session.execute(stmt)
         plans = result.scalars().all()
@@ -296,7 +290,6 @@ async def _gift_subscription():
             click.secho("Отменено", fg="yellow")
             return
         
-        # Create VPN key
         expires_at = datetime.utcnow() + timedelta(days=plan.duration_days)
         vpn_key = VpnKey(
             user_id=user.id,

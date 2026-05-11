@@ -209,7 +209,6 @@ async def cmd_ping(message: Message) -> None:
 
     try:
         panel = get_vpn_panel()
-        # Only Marzban/Pasarguard has nodes endpoint
         from app.services.pasarguard.pasarguard import PasarguardService
 
         if isinstance(panel, PasarguardService):
@@ -225,7 +224,6 @@ async def cmd_ping(message: Message) -> None:
         nodes = []
 
     if not nodes:
-        # Fallback: ping the main panel
         try:
             import httpx
             from app.core.config import config

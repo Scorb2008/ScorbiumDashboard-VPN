@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.bot_settings import BotSettings
 from app.utils.log import log
 
-# Keys that must be encrypted at rest
 _SENSITIVE_KEYS = {
     "cryptobot_token",
     "freekassa_api_key",
@@ -21,7 +20,7 @@ _SENSITIVE_KEYS = {
     "paypalych_api_token",
 }
 
-_CACHE_TTL = 300  # 5 minutes
+_CACHE_TTL = 300
 _cache: Optional[dict] = None
 _cache_ts: float = 0
 _cache_lock = asyncio.Lock()
@@ -62,10 +61,10 @@ DEFAULTS = {
     "panel_url": "",
     "cabinet_url": "",
     "admin_panel_url": "",
-    "keyboard_layout": "",  # JSON раскладка главного меню
-    "bot_language": "ru",  # Язык бота: ru | en | fa
-    "cryptobot_token": "",  # CryptoBot API токен
-    "stars_rate": "1.5",  # Курс: 1 Star = X рублей
+    "keyboard_layout": "",
+    "bot_language": "ru", 
+    "cryptobot_token": "",
+    "stars_rate": "1.5",
     # ── Платёжные системы — включение/отключение ──────────────────────────
     "ps_yookassa_enabled": "0",
     "ps_cryptobot_enabled": "0",
@@ -84,12 +83,12 @@ DEFAULTS = {
     "aikassa_shop_id": "",
     "aikassa_token": "",
     # ── Пробный период ────────────────────────────────────────────────────────
-    "trial_enabled": "0",  # 1 = включён
-    "trial_days": "3",  # кол-во дней пробного периода
-    "trial_label": "🎁 Пробный период ({days} дн.)",  # текст кнопки
+    "trial_enabled": "0",
+    "trial_days": "3", 
+    "trial_label": "🎁 Пробный период ({days} дн.)",
     # ── Уведомления об истечении подписки ─────────────────────────────────────
-    "notify_expiry_enabled": "1",  # 1 = включены уведомления
-    "notify_expiry_days": "7,3,1",  # за сколько дней уведомлять (через запятую)
+    "notify_expiry_enabled": "1",
+    "notify_expiry_days": "7,3,1",
     "notify_expiry_message": "⚠️ <b>Подписка истекает через {days} дн.!</b>\n\n📦 {name}\n📅 Дата истечения: <b>{date}</b>\n\nПродлите подписку чтобы не потерять доступ.",
     # ── Стили inline кнопок ───────────────────────────────────────────────────
     "btn_style_buy": "success",
@@ -106,11 +105,11 @@ DEFAULTS = {
     "btn_style_status": "",
     "btn_style_language": "",
     # ── Maintenance Mode ───────────────────────────────────────────────────────
-    "maintenance_mode": "0",  # 1 = maintenance on, stop key provisioning
+    "maintenance_mode": "0", 
     "maintenance_message": "⛔️ Ведутся технические работы. Напишите через час.",
     # ── Traffic Abuse Analysis ─────────────────────────────────────────
-    "traffic_abuse_threshold_gb": "500",  # GB per day threshold for abuse alert
-    "traffic_abuse_speed_limit_mbps": "10",  # Speed limit in Mbps when triggered
+    "traffic_abuse_threshold_gb": "100", 
+    "traffic_abuse_speed_limit_mbps": "10",
     # ── Custom emoji ID для кнопок (Premium) ─────────────────────────────────
     "btn_emoji_buy": "",
     "btn_emoji_my_keys": "",
@@ -125,16 +124,16 @@ DEFAULTS = {
     "btn_emoji_status": "",
     "btn_emoji_language": "",
     # ── Уведомления о мониторинге ─────────────────────────────────────────────
-    "notify_monitoring_enabled": "1",  # 1 = общие уведомления включены
-    "notify_svc_database": "1",  # уведомления о БД
-    "notify_svc_telegram_bot": "1",  # уведомления о Telegram боте
-    "notify_svc_vpn_panel": "1",  # уведомления о VPN панели (Pasarguard/Marzban)
-    "notify_svc_yookassa": "0",  # уведомления о YooKassa
-    "notify_svc_cryptobot": "0",  # уведомления о CryptoBot
-    "notify_cooldown_seconds": "300",  # интервал между повторными уведомлениями (сек)
-    "notify_on_degraded": "0",  # 1 = уведомлять о degraded статусе
+    "notify_monitoring_enabled": "1",
+    "notify_svc_database": "1", 
+    "notify_svc_telegram_bot": "1",
+    "notify_svc_vpn_panel": "1",
+    "notify_svc_yookassa": "0", 
+    "notify_svc_cryptobot": "0",
+    "notify_cooldown_seconds": "300", 
+    "notify_on_degraded": "0",
     # ── Telegram Chat ID для уведомлений ──────────────────────────────────────
-    "notify_chat_ids": "",  # список chat_id через запятую (если пустой — все админы)
+    "notify_chat_ids": "",
 }
 
 

@@ -2,7 +2,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.vpn_key import VpnKey, VpnKeyStatus
+from app.models.vpn_key import VpnKey
 from app.models.plan import Plan
 from app.services.vpn_key import VpnKeyService
 

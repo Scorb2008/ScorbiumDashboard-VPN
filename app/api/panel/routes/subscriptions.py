@@ -1,6 +1,4 @@
 """Subscriptions (VPN Keys) routes."""
-from datetime import datetime, timezone
-from decimal import Decimal
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Request, Response
@@ -12,9 +10,8 @@ from app.api.dependencies import get_db
 from app.services.plan import PlanService
 from app.services.vpn_key import VpnKeyService
 from app.services.telegram_notify import TelegramNotifyService
-from app.services.bot_settings import BotSettingsService
 
-from .shared import _require_permission, _toast, _base_ctx, _to_detail, templates
+from .shared import _require_permission, _toast, _base_ctx, templates
 
 router = APIRouter()
 
@@ -83,6 +80,7 @@ async def create_subscription_days(
             user_id,
             f"🔑 <b>Ваш VPN-ключ готов!</b>\n\nДлительность: <b>{days} дней</b>\n"
             f"📅 Действует до: <b>{exp_str}</b>\n\n<code>{key.access_url}</code>",
+            f"<i> 🔥 Приятного пользования! </i>"
         )
     resp = Response(status_code=200)
     _toast(resp, "Подписка выдана" if key else "Ошибка создания ключа")

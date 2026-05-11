@@ -13,7 +13,7 @@ async def _db_stats():
     from app.models.payment import Payment
     from app.models.plan import Plan
     from app.models.admin import Admin
-    from app.models.bot_setting import BotSetting
+    from app.models.bot_settings import BotSettings
     from sqlalchemy import select, func
     
     async with AsyncSessionFactory() as session:
@@ -57,7 +57,7 @@ async def _db_stats():
         admin_count = result.scalar()
         
         # Bot settings count
-        stmt = select(func.count(BotSetting.id))
+        stmt = select(func.count(BotSettings.id))
         result = await session.execute(stmt)
         settings_count = result.scalar()
         

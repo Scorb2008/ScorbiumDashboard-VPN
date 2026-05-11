@@ -366,7 +366,7 @@ def subs_list(status, limit):
 @click.option("--plan-id", type=int)
 @click.option("--days", type=int)
 @click.option("--name")
-def create(user_id, plan_id, days, name):
+def cmd_create(user_id, plan_id, days, name):
     """Создать подписку (по тарифу или по дням)"""
     from app.cli.subs import create
     create()
@@ -429,7 +429,7 @@ def payments_list(limit):
     list_payments(limit=limit)
 
 @payments.command()
-def stats():
+def get_stats():
     """Статистика платежей"""
     from app.cli.payments import stats
     stats()
@@ -469,28 +469,6 @@ def status():
     """Статус бота"""
     from app.cli.bot import status
     status()
-
-@bot.command("settings")
-def bot_settings():
-    """Все настройки бота"""
-    from app.cli.bot import settings_cmd
-    settings_cmd()
-
-@bot.command("get")
-@click.argument("key")
-def bot_get(key):
-    """Получить настройку по ключу"""
-    from app.cli.bot import get_cmd
-    get_cmd()
-
-@bot.command("set")
-@click.argument("key")
-@click.argument("value")
-def bot_set(key, value):
-    """Установить настройку"""
-    from app.cli.bot import set_cmd
-    set_cmd()
-
 
 @click.group()
 def system():

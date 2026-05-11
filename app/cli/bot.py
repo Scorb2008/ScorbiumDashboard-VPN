@@ -9,7 +9,7 @@ console = Console()
 async def _bot_status():
     from app.core.database import AsyncSessionFactory
     from app.models.admin import Admin
-    from app.models.bot_setting import BotSetting
+    from app.models.bot_settings import BotSettings
     from app.core.config import config
     from sqlalchemy import select, func
     
@@ -20,7 +20,7 @@ async def _bot_status():
         admin_count = result.scalar()
         
         # Settings count
-        stmt = select(func.count(BotSetting.id))
+        stmt = select(func.count(BotSettings.id))
         result = await session.execute(stmt)
         settings_count = result.scalar()
         
@@ -28,7 +28,6 @@ async def _bot_status():
         click.secho("СТАТУС БОТА", bold=True, fg="cyan")
         click.echo("=" * 50)
         
-        # Check if bot token is configured
         bot_token = config.telegram.bot_token if hasattr(config, 'telegram') else None
         if bot_token:
             click.secho("  ✓ Токен бота: настроен", fg="green")
@@ -38,7 +37,6 @@ async def _bot_status():
         click.echo(f"  Администраторов: {admin_count}")
         click.echo(f"  Настроек: {settings_count}")
         
-        # Check bot protocol
         protocol = config.telegram.type_protocol if hasattr(config, 'telegram') else "unknown"
         click.echo(f"  Протокол: {protocol}")
         
@@ -47,11 +45,11 @@ async def _bot_status():
 
 async def _bot_settings():
     from app.core.database import AsyncSessionFactory
-    from app.models.bot_setting import BotSetting
+    from app.models.bot_settings import BotSettings
     from sqlalchemy import select
     
     async with AsyncSessionFactory() as session:
-        stmt = select(BotSetting).order_by(BotSetting.key)
+        stmt = select(BotSettings).order_by(BotSettings.key)
         result = await session.execute(stmt)
         settings = result.scalars().all()
         
@@ -76,11 +74,11 @@ async def _bot_settings():
 
 async def _get_setting(key: str):
     from app.core.database import AsyncSessionFactory
-    from app.models.bot_setting import BotSetting
+    from app.models.bot_settings import BotSettings
     from sqlalchemy import select
     
     async with AsyncSessionFactory() as session:
-        stmt = select(BotSetting).where(BotSetting.key == key)
+        stmt = select(BotSettings).where(BotSettings.key == key)
         result = await session.execute(stmt)
         setting = result.scalar_one_or_none()
         
@@ -98,11 +96,11 @@ async def _get_setting(key: str):
 
 async def _set_setting(key: str, value: str):
     from app.core.database import AsyncSessionFactory
-    from app.models.bot_setting import BotSetting
+    from app.models.bot_settings import BotSettings
     from sqlalchemy import select
     
     async with AsyncSessionFactory() as session:
-        stmt = select(BotSetting).where(BotSetting.key == key)
+        stmt = select(BotSettings).where(BotSettings.key == key)
         result = await session.execute(stmt)
         setting = result.scalar_one_or_none()
         
@@ -113,7 +111,7 @@ async def _set_setting(key: str, value: str):
             click.echo(f"  Старое значение: {old_value}")
             click.echo(f"  Новое значение: {value}")
         else:
-            setting = BotSetting(key=key, value=value)
+            setting = BotSettings(key=key, value=value)
             session.add(setting)
             click.secho(f"✓ Настройка '{key}' создана", fg="green", bold=True)
             click.echo(f"  Значение: {value}")

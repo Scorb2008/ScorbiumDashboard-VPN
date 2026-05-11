@@ -1,51 +1,29 @@
 """Shared utilities and template setup for panel routes."""
-import gzip
 import html
-import io
 import json
-import re
-import subprocess
-import tempfile
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal
 from pathlib import Path
-from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, Request, Response, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
+from fastapi import Request, Response
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import cast, Numeric
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db
 from app.core.config import config
-from app.models.payment import PaymentStatus, PaymentType
-from app.models.support import TicketPriority, TicketStatus
+from app.models.payment import PaymentStatus
 from app.schemas.user import UserDetail, UserRead
 from app.services.bot_settings import BotSettingsService
-from app.services.broadcast import BroadcastService
 from app.services.payment import PaymentService
-from app.services.plan import PlanService
-from app.services.promo import PromoService
-from app.services.referral import ReferralService
 from app.services.support import SupportService
-from app.services.telegram_notify import TelegramNotifyService
-from app.services.user import UserService
-from app.services.vpn_key import VpnKeyService
 from app.utils.log import log
-from app.utils.security import create_access_token, decode_access_token_full
+from app.utils.security import decode_access_token_full
 from app.core.permissions import has_permission
-from app.services.admin import AdminService
-from app.models.admin import AdminRole
-from app.services.export import ExportService
-from app.services.notification import notification_manager
 
 _tpl_path = Path(__file__).resolve().parent.parent.parent.parent / "templates"
 templates = Jinja2Templates(directory=str(_tpl_path))
 
 SESSION_COOKIE = "vpn_session"
-
-import time as _time
 
 _ALL_BUTTONS = [
     {"id": "my_keys", "label": "🔑 Мои подписки", "callback": "my_keys"},
@@ -135,7 +113,6 @@ def _require_auth(request: Request) -> dict:
     """Enforce authentication. Returns {"sub": str, "role": str}."""
     info = _get_admin_info(request)
     if info is None:
-        # Helpful debug info for 401/redirect/403 cascades
         try:
             cookie_present = bool(request.cookies.get(SESSION_COOKIE))
         except Exception:

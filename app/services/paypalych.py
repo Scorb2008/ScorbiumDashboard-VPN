@@ -14,7 +14,6 @@ class PayPalychService:
     """Service for PayPal'ych API integration via pal24.pro."""
 
     def __init__(self, api_token: Optional[str] = None):
-        # Try to get token from param, then bot_settings (passed by views), then env
         self.api_token = api_token or os.getenv("PAYPALYCH_API_TOKEN", "")
         self.base_url = "pal24.pro"
 
@@ -38,7 +37,6 @@ class PayPalychService:
             conn = http.client.HTTPSConnection(self.base_url, timeout=15)
             payload = json.dumps(body) if body else ""
             headers = self._get_headers()
-            # Run blocking I/O in executor
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(
                 None,

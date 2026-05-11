@@ -13,19 +13,17 @@ class ServiceAlertManager:
     def __init__(self):
         self._notify = TelegramNotifyService()
         self._last_alerts: Dict[str, float] = {}
-        self._cooldown = 1800  # 30 min between repeated alerts
+        self._cooldown = 1800 
 
     async def check_metrics_and_alert(self, metrics: dict) -> None:
         """Check metrics and send alerts if thresholds exceeded."""
         now = datetime.now(timezone.utc).timestamp()
 
-        # CPU check (>90%)
         if metrics['cpu'] > 90:
             await self._send_alert(
                 "CPU", f"🔥 CPU overload: {metrics['cpu']}%", now
             )
 
-        # RAM check (>90%)
         if metrics['ram']['percent'] > 90:
             await self._send_alert(
                 "RAM",
@@ -33,7 +31,6 @@ class ServiceAlertManager:
                 now
             )
 
-        # Disk check (>90%)
         if metrics['disk']['percent'] > 90:
             await self._send_alert(
                 "Disk",
@@ -56,7 +53,7 @@ class ServiceAlertManager:
                 f"Service_{service_name}_up",
                 f"✅ Service UP: {service_name}",
                 now,
-                cooldown=300  # 5 min for recovery alerts
+                cooldown=300 
             )
 
     async def _send_alert(self, key: str, message: str, timestamp: float, cooldown: Optional[float] = None) -> None:
@@ -78,6 +75,4 @@ class ServiceAlertManager:
             except Exception as e:
                 log.warning(f"Alert send failed to {admin_id}: {e}")
 
-
-# Module-level singleton
 alert_manager = ServiceAlertManager()

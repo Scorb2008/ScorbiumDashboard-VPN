@@ -18,7 +18,6 @@ def _get_fernet() -> Fernet:
 
     key_env = os.environ.get("ENCRYPTION_KEY", "").strip()
     if not key_env:
-        # Generate a new key and log it — this is for dev/first-run only
         _FERNET = Fernet(Fernet.generate_key())
         log.warning(
             "⚠️ ENCRYPTION_KEY not set — using auto-generated key. "

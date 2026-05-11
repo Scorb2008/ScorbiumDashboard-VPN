@@ -4,9 +4,9 @@ from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from app.utils.log import log
 
-SLOW_QUERY_THRESHOLD = 1.0  # seconds
+SLOW_QUERY_THRESHOLD = 1.0  
 
-# In-memory log for the monitoring dashboard
+
 _slow_queries: list[dict] = []
 
 

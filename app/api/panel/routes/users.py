@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db
-from app.schemas.user import UserDetail, UserRead
+from app.schemas.user import UserRead
 from app.services.bot_settings import BotSettingsService
 from app.services.plan import PlanService
 from app.services.telegram_notify import TelegramNotifyService
@@ -179,6 +179,7 @@ async def gift_subscription(
             user_id,
             f"🎁 <b>Вам подарена подписка!</b>\n\nПлан: <b>{plan.name}</b> ({plan.duration_days} дней)\n\n"
             f"🔑 <b>Ссылка:</b>\n<code>{key.access_url}</code>",
+            f"<i> 🔥 Приятного пользования! </i>",
         )
     resp = Response(status_code=200)
     _toast(
@@ -215,6 +216,7 @@ async def gift_days(
             f"Длительность: <b>{days} дней</b>\n"
             f"Действует до: <b>{exp_str}</b>\n\n"
             f"🔑 <b>Ссылка:</b>\n<code>{key.access_url}</code>",
+            f"<i> 🔥 Приятного пользования! </i>",
         )
     resp = Response(status_code=200)
     _toast(
@@ -339,6 +341,7 @@ async def bulk_gift_action(
                 uid,
                 f"🎁 <b>Вам подарена подписка!</b>\n\nПлан: <b>{plan.name}</b> ({plan.duration_days} дней)\n\n"
                 f"🔑 <b>Ссылка:</b>\n<code>{key.access_url}</code>",
+                f"<i> 🔥 Приятного пользования! </i>",
             )
     await db.commit()
-    return JSONResponse({"ok": True, "message": f"Подарено {done} подписок «{plan.name}»"})
+    return JSONResponse({"ok": True, "message": f"🎁 Подарено {done} подписок «{plan.name}»"})

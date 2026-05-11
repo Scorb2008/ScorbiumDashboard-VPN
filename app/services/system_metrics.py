@@ -13,7 +13,6 @@ class SystemMetrics:
     @staticmethod
     async def collect() -> dict:
         loop = asyncio.get_event_loop()
-        # Run blocking calls in executor
         cpu = await loop.run_in_executor(None, lambda: psutil.cpu_percent(interval=0.5))
         mem = psutil.virtual_memory()
         disk = psutil.disk_usage('/')
@@ -21,7 +20,6 @@ class SystemMetrics:
         disk_io = psutil.disk_io_counters()
         boot_time = psutil.boot_time()
 
-        # System info
         system_info = {
             "hostname": socket.gethostname(),
             "platform": platform.system(),
@@ -30,17 +28,14 @@ class SystemMetrics:
             "uptime_seconds": int(time.time() - boot_time),
         }
 
-        # Load average (Linux only)
         try:
             load_avg = psutil.getloadavg()
             system_info["load_avg"] = {"1min": load_avg[0], "5min": load_avg[1], "15min": load_avg[2]}
         except Exception:
             system_info["load_avg"] = None
 
-        # Process count
         process_count = len(psutil.pids())
 
-        # Database check
         db_status = "unknown"
         try:
             from app.core.database import AsyncSessionFactory

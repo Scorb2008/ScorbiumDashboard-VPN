@@ -146,7 +146,6 @@ async def _remove_admin(admin_id: int):
         click.secho(f"✓ Администратор {admin_id} удален", fg="green", bold=True)
 
 async def _show_logs(lines: int):
-    # Try to get logs from docker
     click.echo(f"Последние {lines} строк логов:")
     click.echo("")
     
@@ -161,7 +160,6 @@ async def _show_logs(lines: int):
         if result.returncode == 0:
             click.echo(result.stdout)
         else:
-            # Try reading log file directly
             import os
             log_file = "/Users/itsskramb/ScorbiumDashboard/app.log"
             if os.path.exists(log_file):

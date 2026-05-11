@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import get_db
 from app.services.export import ExportService
 import io
-from .shared import _require_permission, templates
+from .shared import _require_permission
 
 router = APIRouter()
 

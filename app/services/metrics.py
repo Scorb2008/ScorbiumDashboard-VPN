@@ -1,5 +1,4 @@
 """Prometheus metrics collection for the VPN dashboard."""
-import time
 from prometheus_client import (
     Counter,
     Gauge,

@@ -10,9 +10,7 @@ from app.api.dependencies import get_db
 from app.models.payment import Payment, PaymentStatus, PaymentType
 from app.models.user import User
 from app.models.vpn_key import VpnKey, VpnKeyStatus
-from app.services.bot_settings import BotSettingsService
 from app.services.payment import PaymentService
-from app.services.plan import PlanService
 from app.services.user import UserService
 from app.services.vpn_key import VpnKeyService
 

@@ -21,7 +21,7 @@ from .shared import _require_permission, _toast, _base_ctx, templates
 
 router = APIRouter()
 
-_MAX_BACKUP = 100 * 1024 * 1024  # 100MB
+_MAX_BACKUP = 100 * 1024 * 1024 
 
 
 @router.get("", response_class=HTMLResponse)

@@ -17,7 +17,6 @@ class ReferralService:
         paid = await self.session.execute(
             select(func.count()).select_from(Referral).where(Referral.is_paid.is_(True))
         )
-        # Sum bonus_value where bonus_type = days
         bonus_sum = await self.session.execute(
             select(func.sum(Referral.bonus_value)).where(
                 Referral.bonus_type == ReferralBonusType.DAYS.value
@@ -93,7 +92,6 @@ class ReferralService:
         if existing:
             return None
 
-        # Enforce max referrals per user
         count = await self.count_referrals(referrer_id)
         if count >= self.MAX_REFERRALS_PER_USER:
             log.warning(f"Referral limit reached for user {referrer_id}: {count}")
@@ -154,7 +152,6 @@ class ReferralService:
                     except Exception as e:
                         log.warning(f"Failed to extend VPN for referral bonus: {e}")
         elif bonus_type == ReferralBonusType.PERCENT.value:
-            # Процент от следующего платежа — начисляем как баланс
             await user_svc.add_balance(ref.referrer_id, bonus_value)
 
         ref.is_paid = True

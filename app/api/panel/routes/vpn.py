@@ -1,12 +1,12 @@
 """VPN keys management routes (revoke, extend, delete, sync)."""
 from fastapi import APIRouter, Depends, Request, Response
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.api.dependencies import get_db
-from app.models.vpn_key import VpnKey, VpnKeyStatus
+from app.models.vpn_key import VpnKey
 from app.services.vpn_key import VpnKeyService
 from app.services.telegram_notify import TelegramNotifyService
 from app.services.pasarguard.pasarguard import get_vpn_panel

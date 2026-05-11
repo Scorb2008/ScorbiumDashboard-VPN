@@ -11,9 +11,8 @@ from .shared import _require_permission
 
 router = APIRouter()
 
-MAX_LOGO_SIZE = 2 * 1024 * 1024  # 2MB
+MAX_LOGO_SIZE = 2 * 1024 * 1024  
 
-# Magic bytes for image format detection (imghdr was removed in Python 3.13)
 _IMAGE_MAGIC: dict[bytes, tuple[str, str]] = {
     b"\x89PNG\r\n\x1a\n": ("png", "image/png"),
     b"\xff\xd8\xff": ("jpeg", "image/jpeg"),

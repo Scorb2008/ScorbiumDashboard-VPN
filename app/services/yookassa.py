@@ -14,9 +14,9 @@ from app.utils.log import log
 
 async def _get_yookassa_credentials() -> Optional[dict]:
     """
-    Возвращает учётные данные ЮКассы.
-    Приоритет: bot_settings (DB) → .env конфиг.
-    Использует ORM — SQL-инъекции невозможны.
+    Returns credentials Yookassa.
+    Priority: bot_settings (DB) → .env config.
+    Use ORM — SQL-injection impossible.
     """
     try:
         from app.core.database import AsyncSessionFactory
@@ -50,11 +50,10 @@ def _configure_yookassa_sync(shop_id: int, secret_key: str) -> None:
 class YookassaService:
     def __init__(self, shop_id: Optional[int] = None, secret_key: Optional[str] = None) -> None:
         """
-        Если shop_id/secret_key не переданы — используется _configure_yookassa() (env).
-        Для async-инициализации из БД используй YookassaService.create().
+        If shop_id/secret_key not set — use _configure_yookassa() (env).
+        For async-initialization from DB use YookassaService.create().
         """
         if shop_id and secret_key:
-            # This is called from async context via create(), lock is acquired there
             _configure_yookassa_sync(shop_id, secret_key)
             self._ready = True
         else:
@@ -64,7 +63,7 @@ class YookassaService:
 
     @classmethod
     async def create(cls) -> "YookassaService":
-        """Async factory — подхватывает настройки из БД или .env."""
+        """Async factory — get settings from DB or .env."""
         creds = await _get_yookassa_credentials()
         if not creds:
             raise YookassaPaymentError("Yookassa is not configured.")
@@ -133,7 +132,7 @@ class YookassaService:
 
     @staticmethod
     async def _sync_get_payment(payment_id: str) -> PaymentResponse:
-        """Синхронная проверка платежа — используется в async контексте через await YookassaService.create()."""
+        """Sync payment checker — used in async context through await YookassaService.create()."""
         try:
             return await asyncio.wait_for(
                 asyncio.to_thread(YKPayment.find_one, payment_id),

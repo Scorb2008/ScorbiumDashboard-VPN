@@ -1,7 +1,7 @@
 """Notification settings & testing routes."""
 from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, Depends, Form, Request, Response
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +11,7 @@ from app.services.bot_settings import BotSettingsService
 from app.services.telegram_notify import TelegramNotifyService
 from app.api.dependencies import get_db
 
-from .shared import _require_permission, _toast, _base_ctx, templates, _NOTIFY_SERVICES
+from .shared import _require_permission, _base_ctx, templates, _NOTIFY_SERVICES
 
 router = APIRouter()
 

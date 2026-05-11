@@ -1,17 +1,13 @@
 """System monitoring & health check routes."""
-import html
-from datetime import datetime, timedelta, timezone
-
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.health import health_service, ServiceStatus
 from app.services.slow_query import get_slow_queries
 from app.api.dependencies import get_db
 
-from .shared import _require_permission, _toast, _base_ctx, templates, _get_uptime, _startup_time
+from .shared import _require_permission, _base_ctx, templates, _get_uptime
 
 router = APIRouter()
 

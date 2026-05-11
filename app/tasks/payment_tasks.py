@@ -77,7 +77,6 @@ async def check_pending_yookassa_payments() -> None:
                 if not plan_id:
                     continue
 
-                # Extract all scalar data BEFORE session closes to avoid DetachedInstanceError
                 key_data = None
                 payment_amount = None
                 payment_currency = None
@@ -93,21 +92,17 @@ async def check_pending_yookassa_payments() -> None:
                     if not payment or payment.status == PaymentStatus.SUCCEEDED.value:
                         continue
 
-                    # Save scalars before session closes
                     payment_amount = str(payment.amount)
                     payment_currency = payment.currency
                     plan_days = plan.duration_days
                     plan_name = plan.name
 
-                    # Atomic confirm + provision
                     payment.status = PaymentStatus.SUCCEEDED.value
                     await session.flush()
 
-                    # Retry provisioning
                     key = await _provision_with_retry(session, pd["user_id"], plan)
                     if key:
                         payment.vpn_key_id = key.id
-                        # Extract key data before session closes
                         key_data = {
                             "id": key.id,
                             "access_url": key.access_url,
@@ -115,7 +110,6 @@ async def check_pending_yookassa_payments() -> None:
 
                     await session.commit()
 
-                # NOTIFY: outside DB session to avoid holding connection
                 try:
                     async with AsyncSessionFactory() as session:
                         settings = await BotSettingsService(session).get_all()
@@ -144,11 +138,9 @@ async def check_pending_yookassa_payments() -> None:
                             f"Платеж подтвержден, но ключ не создан. Проверьте Pasarguard."
                         )
 
-                # Only send notification if payment succeeded and has key
                 if key_data:
                     await TelegramNotifyService().send_message(pd["user_id"], text)
-                
-                # WebSocket notification to admin panel (only on success)
+
                 if key_data:
                     try:
                         from app.services.notification import notification_manager

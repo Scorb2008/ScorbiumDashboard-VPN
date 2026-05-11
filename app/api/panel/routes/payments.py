@@ -1,22 +1,18 @@
 """Payments management routes."""
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal
 from typing import Optional
 import html
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from sqlalchemy import func, select, cast, Numeric
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db
-from app.models.payment import Payment, PaymentProvider, PaymentStatus, PaymentType
-from app.services.bot_settings import BotSettingsService
+from app.models.payment import Payment,PaymentStatus
+
 from app.services.payment import PaymentService
-from app.services.plan import PlanService
-from app.services.vpn_key import VpnKeyService
-from app.services.telegram_notify import TelegramNotifyService
 
 from .shared import _require_permission, _toast, _base_ctx, templates
 

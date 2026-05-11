@@ -5,7 +5,6 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.token_blacklist import BlacklistedToken
-from app.utils.log import log
 
 
 class TokenBlacklistService:

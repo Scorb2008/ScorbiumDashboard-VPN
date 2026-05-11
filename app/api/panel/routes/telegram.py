@@ -1,7 +1,6 @@
 """Telegram bot settings and payment system configuration routes."""
 import json as _json
 import re
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, File, Request, Response, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -10,19 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db
 from app.core.config import config
-from app.models.admin import Admin, AdminRole
 from app.services.bot_settings import BotSettingsService
 from app.services.telegram_notify import TelegramNotifyService
 
 from .shared import (
-    _require_permission, _toast, _base_ctx, _time, templates, _ALL_BUTTONS, _DEFAULT_LAYOUT,
+    _require_permission, _toast, _base_ctx, templates, _ALL_BUTTONS, _DEFAULT_LAYOUT,
 )
 
 router = APIRouter()
-
-import io
-import qrcode
-import base64
 
 
 @router.get("", response_class=HTMLResponse)
@@ -285,7 +279,6 @@ async def ps_toggle(request: Request, db: AsyncSession = Depends(get_db)):
     await BotSettingsService(db).set(key, value)
     await db.commit()
 
-    # Clear health service cooldowns on settings change
     from app.services.health import health_service
     health_service._alert_cooldowns.clear()
 

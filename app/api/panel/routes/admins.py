@@ -88,7 +88,6 @@ async def edit_admin(
     if is_active is not None:
         updates["is_active"] = is_active == "1"
     await AdminService(db).update(admin_id, **updates)
-    # Blacklist all existing sessions for this admin when password changes
     if password is not None and password.strip():
         from app.services.token_blacklist import TokenBlacklistService
         await TokenBlacklistService(db).blacklist_all_for_user(target.username)

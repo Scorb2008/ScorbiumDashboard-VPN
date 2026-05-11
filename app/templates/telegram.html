@@ -52,7 +52,7 @@
 
     <!-- Bot info -->
     <div class="card p-3 mb-3">
-      <div class="fw-semibold" style="color:var(--text)" mb-3"><i class="bi bi-robot me-2 text-muted"></i>Информация о боте</div>
+      <div class="fw-semibold" style="color:var(--text); margin-bottom: 0.75rem"><i class="bi bi-robot me-2 text-muted"></i>Информация о боте</div>
       {% if bot_info %}
       <div class="d-flex align-items-center gap-3 mb-3">
         <div style="width:48px;height:48px;background:rgba(0,212,170,.15);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:#00d4aa"><i class="bi bi-robot"></i></div>
@@ -72,7 +72,7 @@
 
     <!-- Toggle -->
     <div class="card p-3 mb-3">
-      <div class="fw-semibold" style="color:var(--text)" mb-3"><i class="bi bi-power me-2 text-muted"></i>Управление</div>
+      <div class="fw-semibold" style="color:var(--text); margin-bottom: 0.75rem"><i class="bi bi-power me-2 text-muted"></i>Управление</div>
       {% set bot_on = bot_settings.get('bot_enabled','1') == '1' %}
       <div class="d-flex align-items-center justify-content-between">
         <div>
@@ -88,7 +88,7 @@
 
     <!-- Direct message -->
     <div class="card p-3">
-      <div class="fw-semibold" style="color:var(--text)" mb-3"><i class="bi bi-chat-dots me-2 text-muted"></i>Прямое сообщение</div>
+      <div class="fw-semibold" style="color:var(--text); margin-bottom: 0.75rem"><i class="bi bi-chat-dots me-2 text-muted"></i>Прямое сообщение</div>
       <form hx-post="/panel/telegram/send" hx-swap="none">
         <div class="mb-2"><label class="form-label">Telegram ID</label>
           <input type="number" name="chat_id" class="form-control" placeholder="123456789" required /></div>
@@ -102,7 +102,7 @@
   <div class="col-lg-7">
     <!-- Admins -->
     <div class="card p-3 mb-3">
-      <div class="fw-semibold" style="color:var(--text)" mb-3"><i class="bi bi-shield-lock me-2 text-muted"></i>Администраторы</div>
+      <div class="fw-semibold" style="color:var(--text); margin-bottom: 0.75rem"><i class="bi bi-shield-lock me-2 text-muted"></i>Администраторы</div>
       {% for admin_id in admin_ids %}
       <div class="d-flex align-items-center gap-3 p-2 mb-2" style="background:rgba(255,255,255,.03);border-radius:8px">
         <div style="width:36px;height:36px;background:rgba(0,212,170,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#00d4aa"><i class="bi bi-person-badge"></i></div>
@@ -114,7 +114,7 @@
 
     <!-- Referral -->
     <div class="card p-3">
-      <div class="fw-semibold" style="color:var(--text)" mb-3"><i class="bi bi-diagram-3 me-2 text-muted"></i>Реферальная программа</div>
+      <div class="fw-semibold" style="color:var(--text); margin-bottom: 0.75rem"><i class="bi bi-diagram-3 me-2 text-muted"></i>Реферальная программа</div>
       <form hx-post="/panel/telegram/bot-settings" hx-swap="none">
         <div class="row g-2">
           <div class="col-6">
@@ -492,7 +492,7 @@
 
     <!-- Styles -->
     <div class="card p-3">
-      <div class="fw-semibold" style="color:var(--text)" mb-3" style="font-size:.82rem">
+      <div class="fw-semibold" style="color:var(--text); margin-bottom: 0.75rem; font-size: .82rem">
         <i class="bi bi-palette2 me-2 text-muted"></i>Цвет кнопок
       </div>
       <div class="row g-2">
@@ -577,7 +577,7 @@
   <!-- Default language + info -->
   <div class="col-12">
     <div class="card p-3">
-      <div class="fw-semibold" style="color:var(--text)" mb-3"><i class="bi bi-translate me-2 text-muted"></i>Язык бота по умолчанию</div>
+      <div class="fw-semibold" style="color:var(--text); margin-bottom: 0.75rem"><i class="bi bi-translate me-2 text-muted"></i>Язык бота по умолчанию</div>
       <form hx-post="/panel/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
         <div class="d-flex gap-3 flex-wrap align-items-end">
           <div>
@@ -598,7 +598,7 @@
   <!-- Language string editor -->
   <div class="col-12">
     <div class="card p-3">
-      <div class="fw-semibold" style="color:var(--text)" mb-3"><i class="bi bi-pencil-square me-2 text-muted"></i>Редактор строк</div>
+      <div class="fw-semibold" style="color:var(--text); margin-bottom: 0.75rem"><i class="bi bi-pencil-square me-2 text-muted"></i>Редактор строк</div>
       <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:1rem">
         Переопределите любые строки бота для каждого языка. Пустое поле = используется значение по умолчанию.
       </div>

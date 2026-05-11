@@ -1,11 +1,8 @@
 """Authentication and 2FA routes."""
 import secrets
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
-
-from fastapi import APIRouter, Depends, Form, Request, Response
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db
@@ -15,11 +12,10 @@ from app.services.admin import AdminService
 from app.services.bot_settings import BotSettingsService
 from app.utils.log import log
 from app.utils.security import create_access_token, decode_access_token_full
-from app.core.permissions import has_permission
 
 from .shared import (
-    SESSION_COOKIE, _toast, _get_admin_info, _require_auth, _require_permission,
-    _redirect, _base_ctx, _check_session, templates,
+    SESSION_COOKIE, _require_auth, _require_permission,
+    _base_ctx, templates,
 )
 
 router = APIRouter()
