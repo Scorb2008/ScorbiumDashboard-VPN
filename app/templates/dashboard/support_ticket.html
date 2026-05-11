@@ -1,0 +1,44 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Тикет — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <a href="/dashboard/support" class="back-link"><i class="bi bi-arrow-left"></i> Назад</a>
+  <h2>💬 {{ ticket.subject }}</h2>
+</div>
+
+<div class="ticket-messages">
+  {% for msg in ticket.messages %}
+  <div class="msg {% if msg.is_admin %}msg-admin{% else %}msg-user{% endif %}">
+    <div class="msg-sender">
+      {% if msg.is_admin %}Поддержка{% else %}Вы{% endif %}
+    </div>
+    <div class="msg-text">{{ msg.text }}</div>
+    <div class="msg-time">{{ msg.created_at.strftime('%d.%m.%Y %H:%M') if msg.created_at else '' }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="section">
+  <form onsubmit="return sendMessage(event, {{ ticket.id }})">
+    <textarea id="msg-text" class="form-input" rows="3" placeholder="Ваше сообщение..." required></textarea>
+    <button type="submit" class="btn-accent w-100 mt-2">Отправить</button>
+  </form>
+  <div id="msg-result" class="mt-2" style="font-size:.85rem"></div>
+</div>
+
+<script>
+async function sendMessage(event, ticketId) {
+  event.preventDefault();
+  const text = document.getElementById('msg-text').value.trim();
+  const result = document.getElementById('msg-result');
+  const fd = new FormData();
+  fd.append('text', text);
+  try {
+    const r = await fetch('/dashboard/support/' + ticketId + '/message', {method:'POST', body:fd});
+    const d = await r.json();
+    if (d.ok) { location.reload(); }
+    else { result.innerHTML = '<span class="text-danger">❌ ' + d.message + '</span>'; }
+  } catch(e) { result.innerHTML = '<span class="text-danger">❌ Ошибка сети</span>'; }
+}
+</script>
+{% endblock %}

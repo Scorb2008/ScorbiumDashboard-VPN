@@ -45,9 +45,7 @@ templates = Jinja2Templates(directory=str(_tpl_path))
 
 SESSION_COOKIE = "vpn_session"
 
-# Mini App tokens stored in memory: {token: expiry_timestamp}
 import time as _time
-_mini_app_tokens: dict[str, float] = {}
 
 _ALL_BUTTONS = [
     {"id": "my_keys", "label": "🔑 Мои подписки", "callback": "my_keys"},
@@ -63,7 +61,6 @@ _ALL_BUTTONS = [
     {"id": "status", "label": "📊 Статус", "callback": "status_cmd"},
     {"id": "language", "label": "🌐 Язык", "callback": "language"},
     {"id": "trial", "label": "🎁 Пробный период", "callback": "trial"},
-    {"id": "miniapp", "label": "📱 Открыть", "callback": "miniapp"},
 ]
 
 _DEFAULT_LAYOUT = [

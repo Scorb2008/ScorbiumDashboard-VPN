@@ -41,7 +41,6 @@
   <button class="tab-btn" onclick="switchTab('buttons')"><i class="bi bi-grid me-1"></i>Кнопки</button>
   <button class="tab-btn" onclick="switchTab('photos')"><i class="bi bi-image me-1"></i>Фото</button>
   <button class="tab-btn" onclick="switchTab('languages')"><i class="bi bi-translate me-1"></i>Языки</button>
-  <button class="tab-btn" onclick="switchTab('miniapp')"><i class="bi bi-grid-3x3-gap me-1"></i>Mini App</button>
   <button class="tab-btn" onclick="switchTab('channel')"><i class="bi bi-broadcast me-1"></i>Канал</button>
   <button class="tab-btn" onclick="switchTab('payments')"><i class="bi bi-credit-card me-1"></i>Платёжные системы</button>
 </div>
@@ -628,33 +627,6 @@
     </div>
   </div>
 
-</div>
-</div>
-
-<!-- ══ TAB: MINI APP ════════════════════════════════════════════════════════ -->
-<div id="tab-miniapp" class="tab-pane">
-<div class="row g-3">
-  <div class="col-lg-6">
-    <div class="card p-3">
-      <div class="fw-semibold" style="color:var(--text)" mb-2"><i class="bi bi-grid-3x3-gap-fill me-2 text-muted"></i>Mini App для администраторов</div>
-      <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:.75rem">
-        Укажи HTTPS URL — в <code>/admin</code> появится кнопка <b>«🖥 Открыть панель»</b>.
-        Видна только администраторам. Требует HTTPS.
-      </div>
-      <form hx-post="/panel/telegram/miniapp" hx-swap="none">
-        <label class="form-label">HTTPS URL (без /panel/)</label>
-        <input type="url" name="panel_url" class="form-control mb-2"
-          placeholder="https://your-domain.com"
-          value="{{ bot_settings.get('panel_url','') }}" />
-        {% if bot_settings.get('panel_url') %}
-        <div class="mb-2" style="font-size:.75rem;color:#22c55e">
-          <i class="bi bi-check-circle-fill me-1"></i>Активно: <code>{{ bot_settings.get('panel_url') }}/panel/</code>
-        </div>
-        {% endif %}
-        <button type="submit" class="btn btn-accent w-100"><i class="bi bi-floppy me-1"></i>Сохранить</button>
-      </form>
-    </div>
-  </div>
 </div>
 </div>
 

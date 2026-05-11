@@ -1,0 +1,98 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Главная — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h2>👋 Привет, {{ user.full_name or user.id }}!</h2>
+  <p class="dash-subtitle">Добро пожаловать в личный кабинет</p>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ "%.2f"|format(user.balance) }} ₽</div>
+      <div class="stat-label">Баланс</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon"><i class="bi bi-key"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ keys|length }}</div>
+      <div class="stat-label">Подписки</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon"><i class="bi bi-people"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ user.referral_code or '—' }}</div>
+      <div class="stat-label">Реферальный код</div>
+    </div>
+  </div>
+</div>
+
+{% if keys %}
+<div class="section">
+  <h3 class="section-title">🔑 Активные подписки</h3>
+  {% for key in keys %}
+  <div class="key-card {% if key.status == 'expired' %}expired{% endif %}">
+    <div class="key-info">
+      <div class="key-name">{{ key.name or 'VPN' }}</div>
+      <div class="key-meta">
+        {% if key.expires_at %}
+        {% set remaining = (key.expires_at - now).days %}
+        <span class="{% if remaining < 3 %}text-danger{% else %}text-muted{% endif %}">
+          {{ remaining }} дн.
+        </span>
+        {% endif %}
+        {% if key.status == 'active' %}
+        <span class="badge-active">Активен</span>
+        {% else %}
+        <span class="badge-expired">Истёк</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="key-traffic">
+      {% set total = key.download + key.upload %}
+      {% if total > 1073741824 %}
+      {{ "%.1f"|format(total / 1073741824) }} GB
+      {% elif total > 1048576 %}
+      {{ "%.0f"|format(total / 1048576) }} MB
+      {% else %}
+      {{ "%.0f"|format(total / 1024) }} KB
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="section">
+  <h3 class="section-title">💳 Тарифы</h3>
+  <div class="plans-grid">
+    {% for plan in plans %}
+    <div class="plan-card" onclick="payBalance({{ plan.id }})">
+      <div class="plan-name">{{ plan.name }}</div>
+      <div class="plan-price">{{ "%.0f"|format(plan.price) }} ₽</div>
+      <div class="plan-duration">{{ plan.duration_days }} дн.</div>
+      {% if plan.description %}
+      <div class="plan-desc">{{ plan.description }}</div>
+      {% endif %}
+      <button class="btn-accent w-100 mt-2">Купить</button>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+async function payBalance(planId) {
+  const fd = new FormData();
+  fd.append('plan_id', planId);
+  try {
+    const r = await fetch('/dashboard/pay/balance', {method:'POST', body:fd});
+    const d = await r.json();
+    if (d.ok) { showToast(d.message, 'success'); setTimeout(() => location.reload(), 1000); }
+    else showToast(d.message, 'error');
+  } catch(e) { showToast('Ошибка сети', 'error'); }
+}
+</script>
+{% endblock %}

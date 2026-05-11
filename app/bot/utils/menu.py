@@ -19,7 +19,6 @@ _BUTTON_IDS = [
     "status",
     "language",
     "trial",
-    "miniapp",
 ]
 
 # Переводы лейблов кнопок по умолчанию
@@ -38,7 +37,6 @@ _BTN_LABELS: dict[str, dict[str, str]] = {
         "status": "📊 Статус",
         "language": "🌐 Язык",
         "trial": "🎁 Пробный период",
-        "miniapp": "🌐 Mini App",
     },
     "en": {
         "my_keys": "🔑 My subscriptions",
@@ -54,7 +52,6 @@ _BTN_LABELS: dict[str, dict[str, str]] = {
         "status": "📊 Status",
         "language": "🌐 Language",
         "trial": "🎁 Trial period",
-        "miniapp": "🌐 Mini App",
     },
     "fa": {
         "my_keys": "🔑 اشتراک‌های من",
@@ -70,7 +67,6 @@ _BTN_LABELS: dict[str, dict[str, str]] = {
         "status": "📊 وضعیت",
         "language": "🌐 زبان",
         "trial": "🎁 دوره آزمایشی",
-        "miniapp": "🌐 Mini App",
     },
 }
 
@@ -129,28 +125,8 @@ async def get_main_menu_kb(
 
     return main_menu_kb(
         support_url=s.get("support_url", ""),
-        miniapp_url=_build_miniapp_url(s),
         layout=layout,
         styles=styles,
         emojis=emojis,
         is_admin=is_admin,
     )
-
-
-def _build_miniapp_url(settings: dict) -> str:
-    """Build miniapp URL from settings or env."""
-    # First check database settings
-    db_url = settings.get("panel_url", "").strip()
-    if db_url:
-        return db_url.rstrip("/") + "/app/"
-
-    # Then check environment variable
-    try:
-        from app.core.config import config
-        env_url = config.pasarguard.pasarguard_admin_panel
-        if env_url:
-            return str(env_url).rstrip("/") + "/app/"
-    except Exception:
-        pass
-
-    return ""

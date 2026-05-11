@@ -321,11 +321,10 @@ def create_app() -> FastAPI:
 
             path = request.url.path
             is_panel = path.startswith("/panel")
-            is_miniapp = path.startswith("/app")
+            is_dashboard = path.startswith("/dashboard")
             is_docs = path in ("/docs", "/redoc", "/openapi.json")
 
-            if is_miniapp:
-                # MiniApp runs in Telegram WebView iframe — must allow framing
+            if is_dashboard:
                 resp.headers["X-Frame-Options"] = "ALLOWALL"
             elif is_panel:
                 resp.headers["X-Frame-Options"] = "SAMEORIGIN"
@@ -368,21 +367,6 @@ def create_app() -> FastAPI:
                     "base-uri 'self'; "
                     "form-action 'self'"
                 )
-            elif is_miniapp:
-                # MiniApp — inline styles + Telegram CDN + external APIs
-                resp.headers["Content-Security-Policy"] = (
-                    "default-src 'self'; "
-                    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://telegram.org; "
-                    "style-src 'self' 'unsafe-inline'; "
-                    "font-src 'self' data:; "
-                    "img-src 'self' data: https:; "
-                    "connect-src 'self' https:; "
-                    "frame-src 'self' https://t.me; "
-                    "object-src 'none'; "
-                    "base-uri 'self'; "
-                    "form-action 'self'"
-                )
-
             if "server" in resp.headers:
                 del resp.headers["server"]
 
@@ -398,10 +382,8 @@ def create_app() -> FastAPI:
 
     app.include_router(get_router())
     app.include_router(get_panel_router())
-    from app.api.miniapp import get_miniapp_router
-    app.include_router(get_miniapp_router())
-
-
+    from app.api.dashboard import get_dashboard_router
+    app.include_router(get_dashboard_router())
     static_path = Path(__file__).resolve().parent.parent / "static"
     static_path.mkdir(exist_ok=True)
     app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
@@ -474,11 +456,6 @@ def create_app() -> FastAPI:
     async def panel_redirect():
         from fastapi.responses import RedirectResponse
         return RedirectResponse(url="/panel/")
-
-    @app.get("/app", include_in_schema=False)
-    async def app_redirect():
-        from fastapi.responses import RedirectResponse
-        return RedirectResponse(url="/app/")
 
     @app.get("/panel-root", include_in_schema=False)
     async def panel_root():

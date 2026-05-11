@@ -23,13 +23,11 @@ _DEFAULT_LAYOUT = [
     ],
     [{"id": "top_referrers", "label": "🏆 Топ рефереров", "callback": "top_referrers"}],
     [{"id": "support", "label": "💬 Поддержка", "callback": "support"}],
-    [{"id": "miniapp", "label": "📱 Mini App", "web_app": True}, {"id": "admin_panel", "label": "🖥 Админ панель", "web_app": True}],
 ]
 
 
 def main_menu_kb(
     support_url: str = "",
-    miniapp_url: str = "",
     layout: list = None,
     styles: dict = None,
     emojis: dict = None,
@@ -58,14 +56,6 @@ def main_menu_kb(
             if bid == "support" and support_url:
                 row_btns.append(
                     btn(label, url=support_url, style=style, emoji_id=emoji_id)
-                )
-            elif bid == "miniapp" and miniapp_url:
-                from aiogram.types import WebAppInfo
-
-                row_btns.append(
-                    InlineKeyboardButton(
-                        text=label, web_app=WebAppInfo(url=miniapp_url)
-                    )
                 )
             else:
                 row_btns.append(

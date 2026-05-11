@@ -1,0 +1,29 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Серверы — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h2>🌐 Серверы</h2>
+</div>
+
+{% if hosts %}
+<div class="servers-list">
+  {% for host in hosts %}
+  <div class="server-card">
+    <div class="server-info">
+      <div class="server-name">{{ host.get('name', 'Сервер') }}</div>
+      <div class="server-location">{{ host.get('location', '') }}</div>
+    </div>
+    {% set online = host.get('status', '') == 'active' %}
+    <span class="server-status {% if online %}online{% else %}offline{% endif %}">
+      {{ 'Online' if online else 'Offline' }}
+    </span>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <i class="bi bi-server" style="font-size:3rem;opacity:.3"></i>
+  <p>Информация о серверах недоступна</p>
+</div>
+{% endif %}
+{% endblock %}

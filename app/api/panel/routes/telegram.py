@@ -580,20 +580,6 @@ async def upload_photo(
     return JSONResponse({"ok": True, "message": "Photo uploaded"})
 
 
-@router.post("/miniapp", response_class=HTMLResponse)
-async def save_miniapp_settings(
-    request: Request,
-    panel_url: str = Form(""),
-    db: AsyncSession = Depends(get_db),
-):
-    _require_permission(request, "system")
-    await BotSettingsService(db).set("panel_url", panel_url.strip())
-    await db.commit()
-    resp = Response(status_code=200)
-    _toast(resp, "Настройки Mini App сохранены")
-    return resp
-
-
 @router.post("/photo/clear")
 async def clear_photo(
     request: Request,

@@ -1,0 +1,45 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Пробный период — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h2>🎁 Пробный период</h2>
+</div>
+
+{% if trial_enabled and not has_keys %}
+<div class="trial-card">
+  <div class="trial-icon"><i class="bi bi-gift-fill"></i></div>
+  <h3 class="trial-title">Попробуйте бесплатно!</h3>
+  <p class="trial-text">Получите доступ на {{ trial_days }} дней без оплаты</p>
+  <button class="btn-accent" onclick="activateTrial()">Активировать</button>
+  <div id="trial-result" class="mt-2" style="font-size:.85rem"></div>
+</div>
+{% elif has_keys %}
+<div class="info-card">
+  <i class="bi bi-check-circle text-success"></i>
+  <span>Пробный период недоступен — у вас уже есть подписки</span>
+</div>
+{% else %}
+<div class="info-card">
+  <i class="bi bi-x-circle text-danger"></i>
+  <span>Пробный период временно отключён</span>
+</div>
+{% endif %}
+
+<script>
+async function activateTrial() {
+  const result = document.getElementById('trial-result');
+  try {
+    const r = await fetch('/dashboard/trial/activate', {method:'POST'});
+    const d = await r.json();
+    if (d.ok) {
+      result.innerHTML = '<span class="text-success">✅ ' + d.message + '</span>';
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      result.innerHTML = '<span class="text-danger">❌ ' + d.message + '</span>';
+    }
+  } catch(e) {
+    result.innerHTML = '<span class="text-danger">❌ Ошибка сети</span>';
+  }
+}
+</script>
+{% endblock %}

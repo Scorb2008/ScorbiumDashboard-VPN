@@ -1,0 +1,60 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Тарифы — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h2>💳 Выберите тариф</h2>
+  <p class="dash-subtitle">Оплата с баланса или через платёжную систему</p>
+</div>
+
+<div class="plans-list">
+  {% for plan in plans %}
+  <div class="plan-full-card">
+    <div class="plan-full-header">
+      <h3>{{ plan.name }}</h3>
+      <div class="plan-full-price">{{ "%.0f"|format(plan.price) }} ₽</div>
+      <div class="plan-full-duration">{{ plan.duration_days }} дней</div>
+    </div>
+    {% if plan.description %}
+    <div class="plan-full-desc">{{ plan.description }}</div>
+    {% endif %}
+    <div class="plan-full-actions">
+      <button class="btn-accent" onclick="payBalance({{ plan.id }})">
+        <i class="bi bi-wallet2 me-1"></i>Оплатить с баланса
+      </button>
+      <button class="btn-outline" onclick="payYooKassa({{ plan.id }})">
+        <i class="bi bi-credit-card me-1"></i>Картой
+      </button>
+    </div>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <i class="bi bi-emoji-frown" style="font-size:3rem;opacity:.3"></i>
+    <p>Тарифы временно недоступны</p>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="section mt-3">
+  <div class="info-card">
+    <i class="bi bi-info-circle"></i>
+    <span>Пополнить баланс можно через <a href="/dashboard/balance">страницу баланса</a></span>
+  </div>
+</div>
+
+<script>
+async function payBalance(planId) {
+  const fd = new FormData();
+  fd.append('plan_id', planId);
+  try {
+    const r = await fetch('/dashboard/pay/balance', {method:'POST', body:fd});
+    const d = await r.json();
+    if (d.ok) { showToast(d.message, 'success'); setTimeout(() => location.reload(), 1000); }
+    else showToast(d.message, 'error');
+  } catch(e) { showToast('Ошибка сети', 'error'); }
+}
+
+function payYooKassa(planId) {
+  showToast('Оплата картой будет доступна в следующем обновлении', 'info');
+}
+</script>
+{% endblock %}

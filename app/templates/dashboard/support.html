@@ -1,0 +1,52 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Поддержка — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h2>💬 Поддержка</h2>
+</div>
+
+{% if tickets %}
+<div class="section">
+  <h3 class="section-title">Мои обращения</h3>
+  {% for t in tickets %}
+  <a href="/dashboard/support/{{ t.id }}" class="ticket-row">
+    <div class="ticket-info">
+      <span class="ticket-subject">{{ t.subject }}</span>
+      <span class="ticket-date">{{ t.created_at.strftime('%d.%m.%Y') }}</span>
+    </div>
+    <span class="ticket-status status-{{ t.status.value if t.status else 'open' }}">{{ t.status.value if t.status else 'open' }}</span>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="section">
+  <h3 class="section-title">Новое обращение</h3>
+  <form onsubmit="return createTicket(event)">
+    <input type="text" id="ticket-subject" class="form-input" placeholder="Тема" required>
+    <textarea id="ticket-text" class="form-input mt-2" rows="4" placeholder="Опишите вашу проблему" required></textarea>
+    <button type="submit" class="btn-accent w-100 mt-2">Отправить</button>
+  </form>
+  <div id="ticket-result" class="mt-2" style="font-size:.85rem"></div>
+</div>
+
+<script>
+async function createTicket(event) {
+  event.preventDefault();
+  const subject = document.getElementById('ticket-subject').value.trim();
+  const text = document.getElementById('ticket-text').value.trim();
+  const result = document.getElementById('ticket-result');
+  const fd = new FormData();
+  fd.append('subject', subject);
+  fd.append('text', text);
+  try {
+    const r = await fetch('/dashboard/support/create', {method:'POST', body:fd});
+    const d = await r.json();
+    if (d.ok) {
+      result.innerHTML = '<span class="text-success">✅ Обращение создано!</span>';
+      setTimeout(() => window.location.href = '/dashboard/support/' + d.ticket_id, 1000);
+    } else { result.innerHTML = '<span class="text-danger">❌ ' + d.message + '</span>'; }
+  } catch(e) { result.innerHTML = '<span class="text-danger">❌ Ошибка сети</span>'; }
+}
+</script>
+{% endblock %}

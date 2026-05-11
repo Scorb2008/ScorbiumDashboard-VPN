@@ -1,0 +1,47 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Баланс — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h2>💰 Баланс</h2>
+</div>
+
+<div class="balance-hero">
+  <div class="balance-amount">{{ "%.2f"|format(user.balance) }} ₽</div>
+  <div class="balance-label">Текущий баланс</div>
+</div>
+
+<div class="section">
+  <h3 class="section-title">Пополнить баланс</h3>
+  <div class="topup-presets">
+    {% for amt in [100, 200, 500, 1000, 2000, 5000] %}
+    <button class="topup-btn" onclick="topupBalance({{ amt }})">{{ amt }} ₽</button>
+    {% endfor %}
+  </div>
+</div>
+
+{% if payments %}
+<div class="section">
+  <h3 class="section-title">История</h3>
+  {% for p in payments %}
+  <div class="payment-row">
+    <div class="payment-info">
+      <span class="payment-amount {% if p.status == 'succeeded' %}text-success{% elif p.status == 'failed' %}text-danger{% endif %}">
+        {{ "+" if p.payment_type == 'topup' else "" }}{{ "%.2f"|format(p.amount) }} ₽
+      </span>
+      <span class="payment-date">{{ p.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+    </div>
+    <div>
+      <span class="payment-status status-{{ p.status }}">{{ p.status }}</span>
+      <span class="payment-provider">{{ p.provider }}</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<script>
+function topupBalance(amount) {
+  showToast('Пополнение будет доступно в следующем обновлении', 'info');
+}
+</script>
+{% endblock %}

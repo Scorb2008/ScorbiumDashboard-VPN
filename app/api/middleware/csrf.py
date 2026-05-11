@@ -15,8 +15,6 @@ _SAFE_PATHS = {
     "/panel/login-2fa",
     "/panel/logout",
     "/panel/2fa-login",
-    "/panel/miniapp-login",
-    "/panel/miniapp-token",
     "/panel/ws-token",
     "/panel/ws-token/",
     "/health",
@@ -33,9 +31,9 @@ def _should_skip(request: Request) -> bool:
         return True
     if path.startswith("/api/v1/"):
         return True
-    if path.startswith("/webhook/"):
+    if path.startswith("/dashboard/"):
         return True
-    if path.startswith("/app/"):
+    if path.startswith("/webhook/"):
         return True
     if path.startswith("/static/"):
         return True

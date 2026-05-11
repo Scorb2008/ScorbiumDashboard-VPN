@@ -1,4 +1,4 @@
-"""Authentication, 2FA, and Mini App login routes."""
+"""Authentication and 2FA routes."""
 import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -18,14 +18,13 @@ from app.utils.security import create_access_token, decode_access_token_full
 from app.core.permissions import has_permission
 
 from .shared import (
-    SESSION_COOKIE, _mini_app_tokens, _time,
-    _toast, _get_admin_info, _require_auth, _require_permission,
+    SESSION_COOKIE, _toast, _get_admin_info, _require_auth, _require_permission,
     _redirect, _base_ctx, _check_session, templates,
 )
 
 router = APIRouter()
 
-import secrets as _secrets
+
 import pyotp
 import hashlib
 import json
@@ -45,34 +44,6 @@ async def ws_token(request: Request):
         expires_delta=timedelta(minutes=1),
     )
     return {"token": token}
-
-
-@router.get("/miniapp-token")
-async def get_miniapp_token(request: Request):
-    _check_session(request) or _redirect("/panel/login")
-    token = _secrets.token_urlsafe(32)
-    _mini_app_tokens[token] = _time.time() + 300
-    return {"token": token}
-
-
-@router.get("/miniapp-login")
-async def miniapp_login(request: Request, token: str = ""):
-    now = _time.time()
-    expired = [k for k, v in _mini_app_tokens.items() if v < now]
-    for k in expired:
-        del _mini_app_tokens[k]
-
-    if not token or token not in _mini_app_tokens or _mini_app_tokens[token] < now:
-        return RedirectResponse(url="/panel/login", status_code=302)
-
-    del _mini_app_tokens[token]
-    session_token = create_access_token(subject=config.web.web_superadmin_username)
-    resp = RedirectResponse(url="/panel/", status_code=302)
-    resp.set_cookie(
-        SESSION_COOKIE, session_token,
-        httponly=True, samesite="none", secure=True, max_age=3600,
-    )
-    return resp
 
 
 @router.get("/login", response_class=HTMLResponse)

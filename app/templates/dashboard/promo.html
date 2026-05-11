@@ -1,0 +1,32 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Промокод — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h2>🎁 Промокод</h2>
+</div>
+
+<div class="promo-card">
+  <p class="promo-text">Введите промокод для получения скидки или бонуса</p>
+  <form onsubmit="return applyPromo(event)">
+    <input type="text" id="promo-code" class="form-input" placeholder="Введите промокод" required autocomplete="off">
+    <button type="submit" class="btn-accent w-100 mt-2">Активировать</button>
+  </form>
+  <div id="promo-result" class="mt-2" style="font-size:.85rem"></div>
+</div>
+
+<script>
+async function applyPromo(event) {
+  event.preventDefault();
+  const code = document.getElementById('promo-code').value.trim();
+  const result = document.getElementById('promo-result');
+  const fd = new FormData();
+  fd.append('code', code);
+  try {
+    const r = await fetch('/dashboard/promo/apply', {method:'POST', body:fd});
+    const d = await r.json();
+    if (d.ok) { result.innerHTML = '<span class="text-success">✅ ' + d.message + '</span>'; }
+    else { result.innerHTML = '<span class="text-danger">❌ ' + d.message + '</span>'; }
+  } catch(e) { result.innerHTML = '<span class="text-danger">❌ Ошибка сети</span>'; }
+}
+</script>
+{% endblock %}

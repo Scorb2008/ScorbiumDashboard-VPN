@@ -1,0 +1,52 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Рефералы — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h2>🏆 Реферальная программа</h2>
+</div>
+
+<div class="referral-card">
+  <p class="referral-text">Приглашайте друзей и получайте бонусы!</p>
+  {% if user.referral_code %}
+  <div class="referral-code-box">
+    <input type="text" id="ref-link" class="form-input" value="https://t.me/{{ settings.get('bot_username', 'bot') }}?start={{ user.referral_code }}" readonly>
+    <button class="btn-accent" onclick="copyRefLink()">Копировать</button>
+  </div>
+  {% endif %}
+</div>
+
+<div class="section">
+  <h3 class="section-title">Мои рефералы</h3>
+  {% if referrals %}
+  {% for r in referrals %}
+  <div class="referral-row">
+    <span>Пользователь #{{ r.referred_id }}</span>
+    <span class="text-muted">{{ r.created_at.strftime('%d.%m.%Y') if r.created_at else '' }}</span>
+  </div>
+  {% endfor %}
+  {% else %}
+  <p class="text-muted">У вас пока нет рефералов</p>
+  {% endif %}
+</div>
+
+{% if top_referrers %}
+<div class="section">
+  <h3 class="section-title">Топ рефереров</h3>
+  {% for r in top_referrers %}
+  <div class="top-row">
+    <span class="top-pos">{{ loop.index }}</span>
+    <span>{{ r.username or '#' + r.user_id|string }}</span>
+    <span class="top-count">{{ r.referral_count }}</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<script>
+function copyRefLink() {
+  const input = document.getElementById('ref-link');
+  input.select();
+  navigator.clipboard.writeText(input.value).then(() => showToast('Ссылка скопирована', 'success'));
+}
+</script>
+{% endblock %}

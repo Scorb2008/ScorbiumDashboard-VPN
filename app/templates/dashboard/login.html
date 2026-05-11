@@ -1,0 +1,64 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Вход — {{ app_name }}{% endblock %}
+{% block head %}
+{% if not is_mini_app and settings.get('bot_username') %}
+<script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="{{ settings.get('bot_username') }}" data-size="large" data-radius="12" data-onauth="onTelegramAuth(user)" data-request-access="write"></script>
+{% endif %}
+{% endblock %}
+{% block content %}
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-logo"><i class="bi bi-shield-lock-fill"></i></div>
+    <h1 class="login-title">{{ app_name }}</h1>
+    <p class="login-subtitle">Войдите через Telegram для доступа к кабинету</p>
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+    {% if is_mini_app %}
+    <p class="login-loading"><i class="bi bi-arrow-repeat spin"></i> Авторизация...</p>
+    {% else %}
+    <div id="telegram-login"></div>
+    <p class="login-hint">Нажмите кнопку выше, чтобы войти</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{% if is_mini_app %}
+<script>
+(async function() {
+  try {
+    const tg = window.Telegram.WebApp;
+    if (!tg || !tg.initData) {
+      document.querySelector('.login-loading').textContent = 'Ошибка: нет данных Telegram';
+      return;
+    }
+    const r = await fetch('/dashboard/auth', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({initData: tg.initData})
+    });
+    if (r.redirected) window.location.href = r.url;
+    else if (r.ok) window.location.href = '/dashboard/';
+    else document.querySelector('.login-loading').textContent = 'Ошибка авторизации';
+  } catch(e) {
+    document.querySelector('.login-loading').textContent = 'Ошибка сети';
+  }
+})();
+</script>
+{% else %}
+<script>
+function onTelegramAuth(user) {
+  fetch('/dashboard/auth', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(user)
+  }).then(r => {
+    if (r.redirected) window.location.href = r.url;
+    else if (r.ok) window.location.href = '/dashboard/';
+    else r.json().then(d => showToast(d.message || 'Ошибка', 'error'));
+  }).catch(() => showToast('Ошибка сети', 'error'));
+}
+</script>
+{% endif %}
+{% endblock %}

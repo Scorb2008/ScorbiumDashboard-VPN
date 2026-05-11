@@ -1,0 +1,39 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Язык — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h2>🌐 Язык</h2>
+</div>
+
+<div class="lang-list">
+  <button class="lang-btn {% if user.language in (None, 'ru') %}active{% endif %}" onclick="setLang('ru')">
+    <span class="lang-emoji">🇷🇺</span>
+    <span class="lang-name">Русский</span>
+  </button>
+  <button class="lang-btn {% if user.language == 'en' %}active{% endif %}" onclick="setLang('en')">
+    <span class="lang-emoji">🇬🇧</span>
+    <span class="lang-name">English</span>
+  </button>
+  <button class="lang-btn {% if user.language == 'fa' %}active{% endif %}" onclick="setLang('fa')">
+    <span class="lang-emoji">🇮🇷</span>
+    <span class="lang-name">فارسی</span>
+  </button>
+</div>
+<div id="lang-result" class="mt-2" style="font-size:.85rem;text-align:center"></div>
+
+<script>
+async function setLang(lang) {
+  const fd = new FormData();
+  fd.append('lang', lang);
+  try {
+    const r = await fetch('/dashboard/language', {method:'POST', body:fd});
+    const d = await r.json();
+    if (d.ok) {
+      document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+      event.target.closest('.lang-btn').classList.add('active');
+      document.getElementById('lang-result').innerHTML = '<span class="text-success">✅ Язык изменён</span>';
+    }
+  } catch(e) {}
+}
+</script>
+{% endblock %}
