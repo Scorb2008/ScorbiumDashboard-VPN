@@ -19,7 +19,7 @@
     <p id="login-hint" class="login-hint">Нажмите кнопку выше, чтобы войти</p>
     {% else %}
     <div id="telegram-login">
-      <script async src="https://telegram.org/js/telegram-widget.js?22"
+      <script async src="/static/js/telegram-widget.js"
         data-telegram-login="{{ settings.get('bot_username', '') }}"
         data-size="large" data-radius="12"
         data-onauth="onTelegramAuth(user)"
