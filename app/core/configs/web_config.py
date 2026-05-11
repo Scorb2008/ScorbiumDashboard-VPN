@@ -86,8 +86,9 @@ class _WebConfig(BaseSettings):
     def derive_site_url(self) -> "_WebConfig":
         if not self.site_url and self.domain:
             port_str = f":{self.https_port}" if self.https_port != 443 else ""
-            self.site_url = f"https://{self.domain}{port_str}"
-            log.info(f"Auto-derived SITE_URL from DOMAIN+HTTPS_PORT: {self.site_url}")
+            derived = f"https://{self.domain}{port_str}"
+            object.__setattr__(self, "site_url", derived)
+            log.info(f"Auto-derived SITE_URL from DOMAIN+HTTPS_PORT: {derived}")
         return self
     
 @lru_cache()
