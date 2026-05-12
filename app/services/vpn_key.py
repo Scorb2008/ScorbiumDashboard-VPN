@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 import asyncio
 
-from sqlalchemy import func, select
+from sqlalchemy import func, inspect, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import config
@@ -22,12 +22,26 @@ class VpnKeyService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self._marzban: Optional[VpnPanelInterface] = None
+        self._traffic_columns_supported: Optional[bool] = None
 
     def _get_panel(self) -> VpnPanelInterface:
         """Lazy init VPN panel — не падает при старте если панель не сконфигурирована."""
         if self._marzban is None:
             self._marzban = get_vpn_panel()
         return self._marzban
+
+    async def _supports_traffic_columns(self) -> bool:
+        if self._traffic_columns_supported is not None:
+            return self._traffic_columns_supported
+
+        conn = await self.session.connection()
+
+        def _inspect_columns(sync_conn) -> bool:
+            columns = {col["name"] for col in inspect(sync_conn).get_columns("vpn_keys")}
+            return {"download", "upload"}.issubset(columns)
+
+        self._traffic_columns_supported = await conn.run_sync(_inspect_columns)
+        return self._traffic_columns_supported
 
     async def get_by_id(self, key_id: int) -> Optional[VpnKey]:
         result = await self.session.execute(select(VpnKey).where(VpnKey.id == key_id))
@@ -252,6 +266,7 @@ class VpnKeyService:
 
     async def sync_from_marzban(self) -> dict:
         synced, errors = 0, 0
+        traffic_columns_supported = await self._supports_traffic_columns()
         result = await self.session.execute(
             select(VpnKey).where(
                 VpnKey.status == VpnKeyStatus.ACTIVE.value,
@@ -270,10 +285,11 @@ class VpnKeyService:
                     ).lower()
                     if raw_status in ("expired", "limited", "disabled"):
                         key.status = VpnKeyStatus.EXPIRED.value
-                    download = marz_user.get("download", 0) or 0
-                    upload = marz_user.get("upload", 0) or 0
-                    key.download = download if isinstance(download, int) else int(download)
-                    key.upload = upload if isinstance(upload, int) else int(upload)
+                    if traffic_columns_supported:
+                        download = marz_user.get("download", 0) or 0
+                        upload = marz_user.get("upload", 0) or 0
+                        key.download = download if isinstance(download, int) else int(download)
+                        key.upload = upload if isinstance(upload, int) else int(upload)
                 synced += 1
             except Exception as e:
                 log.warning(f"Sync error key {key.id}: {e}")

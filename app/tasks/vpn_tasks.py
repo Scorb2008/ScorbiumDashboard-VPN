@@ -45,7 +45,7 @@ async def expire_loop() -> None:
             await notify_expiring_soon()
             await auto_renew_keys()
         except Exception as e:
-            log.error("expire_loop error: %s", e, exc_info=True)
+            log.error(f"expire_loop error: {e}")
             await asyncio.sleep(EXPIRE_CHECK_INTERVAL)
 
 
@@ -57,7 +57,7 @@ async def sync_loop() -> None:
             await sync_keys_from_marzban()
             await asyncio.sleep(SYNC_INTERVAL)
         except Exception as e:
-            log.error("sync_loop error: %s", e, exc_info=True)
+            log.error(f"sync_loop error: {e}")
             await asyncio.sleep(SYNC_INTERVAL)
 
 
@@ -161,7 +161,7 @@ async def notify_expiring_soon() -> None:
             log.info("[vpn_tasks] Sent %d expiry notifications", total_sent)
 
     except Exception as e:
-        log.error("[vpn_tasks] notify_expiring_soon error: %s", e, exc_info=True)
+        log.error(f"[vpn_tasks] notify_expiring_soon error: {e}")
 
 
 async def auto_renew_keys() -> None:

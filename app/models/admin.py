@@ -20,7 +20,7 @@ class Admin(Base):
     role = Column(String(32), nullable=False, default=AdminRole.OPERATOR.value)
     is_active = Column(Boolean, default=True, nullable=False)
     totp_secret = Column(String(32), nullable=True)
-    backup_codes = Column(Text, nullable=True)  # JSON list of hashed backup codes
+    backup_codes = Column(Text, nullable=True)
 
     def __repr__(self) -> str:
         return f"<Admin id={self.id} username={self.username} role={self.role}>"

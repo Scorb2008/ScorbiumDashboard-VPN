@@ -12,27 +12,25 @@
     <div id="login-status" class="login-loading" style="display:none">
       <i class="bi bi-arrow-repeat spin"></i> <span id="login-status-text">Авторизация...</span>
     </div>
-    {% if telegram_client_id %}
-    <button id="login-btn" class="btn-accent w-100" onclick="handleLoginClick()">
-      <i class="bi bi-telegram"></i> Войти через Telegram
-    </button>
-    <p id="login-hint" class="login-hint">Нажмите кнопку выше, чтобы войти</p>
-    {% else %}
     {% set bu = settings.get('bot_username', '') %}
     {% if bu %}
     <div id="telegram-login">
       <script async src="/static/js/telegram-widget.js"
         data-telegram-login="{{ bu }}"
         data-size="large" data-radius="12"
+        data-onauth="onTelegramAuth(user)"
         data-request-access="write"></script>
     </div>
+    {% elif telegram_client_id %}
+    <button id="login-btn" class="btn-accent w-100" onclick="handleLoginClick()">
+      <i class="bi bi-telegram"></i> Войти через Telegram
+    </button>
     {% else %}
     <div class="alert alert-warning">
       Виджет входа недоступен — bot_username не настроен. Попробуйте позже или войдите через Mini App.
     </div>
     {% endif %}
     <p id="login-hint" class="login-hint">Нажмите кнопку выше, чтобы войти</p>
-    {% endif %}
   </div>
 </div>
 {% endblock %}
@@ -42,7 +40,6 @@
 {% endif %}
 {% endblock %}
 {% block scripts %}
-<script>
 (function() {
   var tg = null;
   try { tg = window.Telegram.WebApp; } catch(e) {}
@@ -77,15 +74,53 @@
 
 function showFallbackLogin() {
   document.getElementById('login-status').style.display = 'none';
-  var loginEl = document.getElementById('login-btn') || document.getElementById('telegram-login');
-  if (loginEl) loginEl.style.display = '';
+  ['login-btn', 'telegram-login'].forEach(function(id) {
+    var loginEl = document.getElementById(id);
+    if (loginEl) loginEl.style.display = '';
+  });
   var hint = document.getElementById('login-hint');
   if (hint) hint.style.display = '';
 }
 
+function onTelegramAuth(user) {
+  var st = document.getElementById('login-status');
+  st.style.display = '';
+  document.getElementById('login-status-text').textContent = 'Авторизация...';
+  var lg = document.getElementById('telegram-login');
+  if (lg) lg.style.display = 'none';
+  var btn = document.getElementById('login-btn');
+  if (btn) btn.style.display = 'none';
+  document.getElementById('login-hint').style.display = 'none';
+
+  fetch('/cabinet/auth', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(user)
+  }).then(function(r) {
+    return r.json();
+  }).then(function(d) {
+    if (d.ok) { window.location.href = d.redirect || '/cabinet/'; return; }
+    showToast(d.message || 'Ошибка', 'error');
+    showFallbackLogin();
+  }).catch(function() {
+    showToast('Ошибка сети', 'error');
+    showFallbackLogin();
+  });
+}
+
+(function listenWidgetAuth() {
+  var origin = 'https://oauth.telegram.org';
+  window.addEventListener('message', function(e) {
+    if (e.origin !== origin) return;
+    try { var d = JSON.parse(e.data); } catch(e) { return; }
+    if (d.event === 'auth_user' && d.auth_data) {
+      onTelegramAuth(d.auth_data);
+    }
+  });
+})();
+
 {% if telegram_client_id %}
 var oidcInitialized = false;
-
 function handleLoginClick() {
   if (!oidcInitialized) {
     Telegram.Login.init({
@@ -129,46 +164,4 @@ function onOidcCallback(data) {
 
 var TG_CLIENT_ID = {{ telegram_client_id }};
 {% endif %}
-
-{% if not telegram_client_id %}
-function onTelegramAuth(user) {
-  var st = document.getElementById('login-status');
-  st.style.display = '';
-  document.getElementById('login-status-text').textContent = 'Авторизация...';
-  var lg = document.getElementById('telegram-login');
-  if (lg) lg.style.display = 'none';
-  document.getElementById('login-hint').style.display = 'none';
-
-  fetch('/cabinet/auth', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(user)
-  }).then(function(r) {
-    return r.json();
-  }).then(function(d) {
-    if (d.ok) { window.location.href = d.redirect || '/cabinet/'; return; }
-    showToast(d.message || 'Ошибка', 'error');
-    st.style.display = 'none';
-    if (lg) lg.style.display = '';
-    document.getElementById('login-hint').style.display = '';
-  }).catch(function() {
-    showToast('Ошибка сети', 'error');
-    st.style.display = 'none';
-    if (lg) lg.style.display = '';
-    document.getElementById('login-hint').style.display = '';
-  });
-}
-
-(function listenWidgetAuth() {
-  var origin = 'https://oauth.telegram.org';
-  window.addEventListener('message', function(e) {
-    if (e.origin !== origin) return;
-    try { var d = JSON.parse(e.data); } catch(e) { return; }
-    if (d.event === 'auth_user' && d.auth_data) {
-      onTelegramAuth(d.auth_data);
-    }
-  });
-})();
-{% endif %}
-</script>
 {% endblock %}

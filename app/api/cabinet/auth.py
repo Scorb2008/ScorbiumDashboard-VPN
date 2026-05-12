@@ -22,6 +22,13 @@ COOKIE_NAME = "cabinet_session"
 CABINET_COOKIE_MAX_AGE = 86400 * 30
 
 
+def _is_secure_request(request: Request) -> bool:
+    forwarded_proto = request.headers.get("x-forwarded-proto", "")
+    if forwarded_proto:
+        return forwarded_proto.split(",")[0].strip().lower() == "https"
+    return request.url.scheme == "https"
+
+
 def _verify_telegram_init_data(init_data: str) -> dict | None:
     try:
         bot_token = config.telegram.telegram_bot_token.get_secret_value()
@@ -122,11 +129,11 @@ async def try_miniapp_auth(request: Request, db: AsyncSession):
         return None
 
 
-def set_session_cookie(resp, user_id: int):
+def set_session_cookie(resp, user_id: int, *, secure: bool):
     token = create_access_token(subject=str(user_id), role="user", expires_delta=timedelta(days=30))
     resp.set_cookie(
         COOKIE_NAME, token,
-        httponly=True, samesite="lax", secure=True, max_age=CABINET_COOKIE_MAX_AGE,
+        httponly=True, samesite="lax", secure=secure, max_age=CABINET_COOKIE_MAX_AGE,
     )
 
 
@@ -159,7 +166,7 @@ async def cabinet_auth(request: Request, db: AsyncSession = Depends(get_db)):
         if user.is_banned:
             return JSONResponse({"ok": False, "message": "Account is banned"}, status_code=403)
         resp = JSONResponse({"ok": True, "redirect": "/cabinet/"})
-        set_session_cookie(resp, user.id)
+        set_session_cookie(resp, user.id, secure=_is_secure_request(request))
         return resp
 
     init_data = body.get("initData", "") if isinstance(body, dict) else ""
@@ -192,5 +199,5 @@ async def cabinet_auth(request: Request, db: AsyncSession = Depends(get_db)):
         return JSONResponse({"ok": False, "message": "Account is banned"}, status_code=403)
 
     resp = JSONResponse({"ok": True, "redirect": "/cabinet/"})
-    set_session_cookie(resp, user.id)
+    set_session_cookie(resp, user.id, secure=_is_secure_request(request))
     return resp
