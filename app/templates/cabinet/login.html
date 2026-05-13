@@ -132,10 +132,12 @@ function onTelegramAuth(user) {
 
 {% if telegram_client_id %}
 var oidcInitialized = false;
+var TG_REDIRECT_URI = window.location.origin + '/cabinet/';
 function handleLoginClick() {
   if (!oidcInitialized) {
     Telegram.Login.init({
       client_id: TG_CLIENT_ID,
+      redirect_uri: TG_REDIRECT_URI,
       request_access: ['write']
     }, onOidcCallback);
     oidcInitialized = true;
