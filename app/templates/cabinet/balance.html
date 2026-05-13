@@ -1,38 +1,99 @@
 {% extends "cabinet/base.html" %}
 {% block title %}Баланс — {{ app_name }}{% endblock %}
+
+{% block head %}
+<style>{% include "cabinet/_premium_section_styles.html" %}</style>
+{% endblock %}
+
 {% block content %}
-<div class="sl">
-  <div class="cd bc">
-    <div class="ba">{{ "%.2f"|format(user.balance) }} ₽</div>
-    <div class="bl">Текущий баланс</div>
-  </div>
-
-  <div class="cd">
-    <h3 style="margin:0 0 12px;font-size:.95rem">Пополнить</h3>
-    <div class="tg">
-      {% for amt in [100, 200, 500, 1000, 2000, 5000] %}
-      <button class="btn btn-o" onclick="topupBalance({{ amt }})">{{ amt }} ₽</button>
-      {% endfor %}
-    </div>
-  </div>
-
-  {% if payments %}
-  <div class="ttl"><h2>История</h2></div>
-  <div class="s">
-    {% for p in payments %}
-    <div class="pay">
-      <div class="pay-l">
-        <span class="pay-a {% if p.status == 'succeeded' %}cg{% elif p.status == 'failed' %}cr{% endif %}">{{ "+" if p.payment_type == 'topup' else "" }}{{ "%.2f"|format(p.amount) }} ₽</span>
-        <span class="pay-d">{{ p.created_at.strftime('%d.%m.%Y') }}</span>
+<div class="cab-premium">
+  <section class="cab-premium-shell">
+    <div class="cab-premium-top">
+      <div class="cab-premium-copy">
+        <div class="cab-premium-kicker">Баланс</div>
+        <h1 class="cab-premium-title">Пополнение и история платежей без перегруженных блоков</h1>
+        <p class="cab-premium-subtitle">На одном экране видно текущий остаток, быстрые суммы пополнения и все последние операции по кабинету.</p>
       </div>
-      <div class="r"><span class="bdg bdg-{{ 'g' if p.status == 'succeeded' else 'b' if p.status == 'failed' else 'w' }}">{{ p.status }}</span><span class="cm" style="font-size:.75rem">{{ p.provider }}</span></div>
+      <span class="cab-premium-badge">{{ payments|length if payments else 0 }} платеж{{ 'а' if payments and payments|length in (2, 3, 4) else 'ей' }}</span>
     </div>
-    {% endfor %}
-  </div>
-  {% endif %}
-</div>
 
-<script>
+    <div class="cab-premium-hero" style="margin-top:24px">
+      <article class="cab-premium-card cab-premium-balance-card">
+        <div>
+          <div class="cab-premium-stat-label">Текущий баланс</div>
+          <div class="cab-premium-balance-value">{{ "%.2f"|format(user.balance) }} ₽</div>
+        </div>
+        <div class="cab-premium-note">
+          <i class="bi bi-wallet2"></i>
+          <div>
+            <strong>Деньги на месте</strong>
+            <span>Используйте баланс для покупки подписок без лишних переходов на внешние сценарии оплаты.</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="cab-premium-card">
+        <div class="cab-premium-kicker" style="margin-bottom:10px">Быстрое пополнение</div>
+        <h2 style="margin:0;font-family:'Space Grotesk','Manrope',sans-serif;font-size:1.5rem;letter-spacing:-.04em">Выберите готовую сумму</h2>
+        <p class="cab-premium-subtitle" style="margin-top:12px">Пока платежный сценарий заглушен, но сама сетка уже готова для чистого и понятного UX.</p>
+      </article>
+    </div>
+
+    <section class="cab-premium-panel" style="margin-top:18px">
+      <div class="cab-premium-panel-head">
+        <div>
+          <h2>Пополнить</h2>
+          <p>Часто используемые суммы вынесены в отдельную удобную сетку.</p>
+        </div>
+      </div>
+
+      <div class="cab-premium-chip-grid">
+        {% for amt in [100, 200, 500, 1000, 2000, 5000] %}
+        <button class="btn btn-o cab-premium-chip-btn" onclick="topupBalance({{ amt }})">{{ amt }} ₽</button>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="cab-premium-panel" style="margin-top:18px">
+      <div class="cab-premium-panel-head">
+        <div>
+          <h2>История операций</h2>
+          <p>Последние пополнения и списания по кабинету.</p>
+        </div>
+      </div>
+
+      {% if payments %}
+      <div class="cab-premium-list">
+        {% for p in payments %}
+        {% if p.status == 'succeeded' %}
+        {% set pay_class = 'is-active' %}
+        {% elif p.status == 'failed' %}
+        {% set pay_class = 'is-expired' %}
+        {% else %}
+        {% set pay_class = 'is-pending' %}
+        {% endif %}
+        <article class="cab-premium-row">
+          <div class="cab-premium-row-top">
+            <div>
+              <h3 class="cab-premium-row-title">{{ "+" if p.payment_type == 'topup' else "" }}{{ "%.2f"|format(p.amount) }} ₽</h3>
+              <div class="cab-premium-row-subtitle">{{ p.created_at.strftime('%d.%m.%Y') }} · {{ p.provider }}</div>
+            </div>
+            <span class="cab-premium-pill {{ pay_class }}">{{ p.status }}</span>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="cab-premium-empty">
+        <div class="cab-premium-empty-icon"><i class="bi bi-receipt"></i></div>
+        <p>История платежей пока пуста. Как только появятся операции, они будут собраны здесь.</p>
+      </div>
+      {% endif %}
+    </section>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
 function topupBalance(amount) { showToast('Пополнение будет позже', 'info'); }
-</script>
 {% endblock %}
