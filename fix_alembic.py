@@ -80,6 +80,7 @@ async def main():
         await _column_exists(conn, 'vpn_keys', 'download')
         and await _column_exists(conn, 'vpn_keys', 'upload')
     )
+    has_blacklisted_tokens = await _table_exists(conn, 'blacklisted_tokens')
 
     print(f"3. Schema state:")
     print(f"   - users.language   : {has_language}")
@@ -87,6 +88,7 @@ async def main():
     print(f"   - payments.payment_type: {has_payment_type}")
     print(f"   - admins table     : {has_admins}")
     print(f"   - vpn_keys traffic : {has_vpn_traffic}")
+    print(f"   - blacklisted_tokens: {has_blacklisted_tokens}")
 
     # 3. Determine target version
     has_any_tables = await _table_exists(conn, 'users') or await _table_exists(conn, 'plans')
@@ -96,7 +98,9 @@ async def main():
         print("   Skipping alembic_version stamp.")
     else:
         target = '4d5f8377eff0'  # initial
-        if has_vpn_traffic:
+        if has_blacklisted_tokens:
+            target = 'c6d7e8f9a0b1'
+        elif has_vpn_traffic:
             target = 'b2c3d4e5f6a7'
         elif has_admins:
             target = 'd5e6f7a8b9c0'

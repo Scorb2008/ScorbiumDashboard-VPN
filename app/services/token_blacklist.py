@@ -2,48 +2,85 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import delete, select
+from sqlalchemy.exc import DBAPIError, ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.token_blacklist import BlacklistedToken
+from app.utils.log import log
 
 
 class TokenBlacklistService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
+    async def _swallow_missing_table(self, exc: Exception, *, action: str) -> bool:
+        message = f"{exc} {getattr(exc, 'orig', '')}".lower()
+        if "blacklisted_tokens" not in message:
+            return False
+        if not any(marker in message for marker in ("does not exist", "undefinedtable", "no such table")):
+            return False
+
+        try:
+            await self.session.rollback()
+        except Exception:
+            pass
+
+        log.warning(
+            "Token blacklist table is missing during %s. "
+            "Skipping blacklist check until migrations are applied: %s",
+            action,
+            exc,
+        )
+        return True
+
     async def blacklist_jti(self, jti: str, sub: str, expires_at: Optional[datetime] = None) -> None:
         """Blacklist a specific JWT by its jti."""
-        entry = BlacklistedToken(
-            jti=jti,
-            sub=sub,
-            blacklist_all=False,
-            expires_at=expires_at,
-        )
-        self.session.add(entry)
-        await self.session.flush()
+        try:
+            entry = BlacklistedToken(
+                jti=jti,
+                sub=sub,
+                blacklist_all=False,
+                expires_at=expires_at,
+            )
+            self.session.add(entry)
+            await self.session.flush()
+        except (ProgrammingError, DBAPIError) as exc:
+            if await self._swallow_missing_table(exc, action="blacklist_jti"):
+                return
+            raise
 
     async def blacklist_all_for_user(self, sub: str, expires_at: Optional[datetime] = None) -> None:
         """Blacklist ALL tokens for a user (used on password change)."""
         if expires_at is None:
             expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-        entry = BlacklistedToken(
-            jti=None,
-            sub=sub,
-            blacklist_all=True,
-            expires_at=expires_at,
-        )
-        self.session.add(entry)
-        await self.session.flush()
+        try:
+            entry = BlacklistedToken(
+                jti=None,
+                sub=sub,
+                blacklist_all=True,
+                expires_at=expires_at,
+            )
+            self.session.add(entry)
+            await self.session.flush()
+        except (ProgrammingError, DBAPIError) as exc:
+            if await self._swallow_missing_table(exc, action="blacklist_all_for_user"):
+                return
+            raise
 
     async def is_blacklisted(self, jti: str, sub: str) -> bool:
         """Check if a token (identified by jti + sub) is blacklisted."""
         now = datetime.now(timezone.utc)
-        result = await self.session.execute(
-            select(BlacklistedToken).where(
-                BlacklistedToken.sub == sub,
-                (BlacklistedToken.expires_at > now) | (BlacklistedToken.expires_at.is_(None)),
+        try:
+            result = await self.session.execute(
+                select(BlacklistedToken).where(
+                    BlacklistedToken.sub == sub,
+                    (BlacklistedToken.expires_at > now) | (BlacklistedToken.expires_at.is_(None)),
+                )
             )
-        )
+        except (ProgrammingError, DBAPIError) as exc:
+            if await self._swallow_missing_table(exc, action="is_blacklisted"):
+                return False
+            raise
         entries = result.scalars().all()
         for entry in entries:
             if entry.blacklist_all:
@@ -54,12 +91,17 @@ class TokenBlacklistService:
 
     async def cleanup_expired(self) -> int:
         """Remove expired blacklist entries. Returns count removed."""
-        result = await self.session.execute(
-            delete(BlacklistedToken).where(
-                BlacklistedToken.expires_at < datetime.now(timezone.utc),
-                BlacklistedToken.expires_at.isnot(None),
+        try:
+            result = await self.session.execute(
+                delete(BlacklistedToken).where(
+                    BlacklistedToken.expires_at < datetime.now(timezone.utc),
+                    BlacklistedToken.expires_at.isnot(None),
+                )
             )
-        )
+        except (ProgrammingError, DBAPIError) as exc:
+            if await self._swallow_missing_table(exc, action="cleanup_expired"):
+                return 0
+            raise
         return result.rowcount
 
     @staticmethod
