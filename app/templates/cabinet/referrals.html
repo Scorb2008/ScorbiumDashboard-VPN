@@ -15,10 +15,12 @@
       <div class="st-i"><i class="bi bi-code"></i></div>
       <div><div class="st-v">{{ user.referral_code or '—' }}</div><div class="st-l">Код</div></div>
     </div>
-    <div class="cd-sm" style="display:flex;align-items:center;padding:10px 14px">
-      {% if rl %}
-      <button class="btn btn-p btn-w" onclick="copyText({{ rl|tojson }}, 'Ссылка скопирована')"><i class="bi bi-copy"></i> Копировать</button>
-      {% endif %}
+    <div class="cd-sm st" {% if rl %}onclick="copyText({{ rl|tojson }}, 'Ссылка скопирована')" style="cursor:pointer"{% endif %}>
+      <div class="st-i"><i class="bi bi-link-45deg"></i></div>
+      <div style="min-width:0">
+        <div class="st-v st-t">{{ rl or '—' }}</div>
+        <div class="st-l">{% if rl %}Нажмите, чтобы скопировать{% else %}Ссылка{% endif %}</div>
+      </div>
     </div>
   </div>
 

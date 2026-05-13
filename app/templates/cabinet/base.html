@@ -13,7 +13,7 @@
 </head>
 {% set cp = request.url.path %}
 {% set is_log = cp in ('/cabinet', '/cabinet/') and user is not defined %}
-<body data-page="{{ cp }}" data-mini-app="{{ 'true' if is_mini_app else 'false' }}">
+<body data-page="{{ cp }}" data-mini-app="{{ 'true' if is_mini_app else 'false' }}"{% if is_log %} class="login-page"{% endif %}>
   <div id="app-shell">
     <header class="nav">
       <div class="nav-inner">
