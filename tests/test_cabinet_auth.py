@@ -1,7 +1,14 @@
+from unittest.mock import AsyncMock, patch
+
 from fastapi import Request
 from fastapi.responses import Response
 
-from app.api.cabinet.auth import _is_secure_request, set_session_cookie
+from app.api.cabinet.auth import (
+    _extract_telegram_oidc_user_id,
+    _is_secure_request,
+    cabinet_auth,
+    set_session_cookie,
+)
 
 
 def _make_request(*, scheme: str = "http", forwarded_proto: str | None = None) -> Request:
@@ -50,3 +57,44 @@ def test_set_session_cookie_sets_secure_flag():
 
     cookie_header = response.headers["set-cookie"]
     assert "Secure" in cookie_header
+
+
+def test_extract_telegram_oidc_user_id_uses_id_claim():
+    payload = {"sub": "13693577412216818782", "id": 1980894188}
+    assert _extract_telegram_oidc_user_id(payload) == 1980894188
+
+
+def test_extract_telegram_oidc_user_id_rejects_out_of_range():
+    payload = {"id": "13693577412216818782"}
+    try:
+        _extract_telegram_oidc_user_id(payload)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Expected ValueError for out-of-range Telegram user id")
+
+
+async def test_cabinet_auth_oidc_uses_numeric_telegram_id(session):
+    request = _make_request(scheme="https")
+    request._json = {"id_token": "test-token"}
+
+    async def _json():
+        return request._json
+
+    request.json = _json
+
+    with patch(
+        "app.api.cabinet.auth.verify_telegram_id_token",
+        AsyncMock(
+            return_value={
+                "sub": "13693577412216818782",
+                "id": 1980894188,
+                "preferred_username": "scorb_user",
+                "name": "Scorb Dev",
+            }
+        ),
+    ):
+        response = await cabinet_auth(request, db=session)
+
+    assert response.status_code == 200
+    assert b'"ok":true' in response.body

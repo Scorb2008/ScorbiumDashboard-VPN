@@ -20,6 +20,7 @@ router = APIRouter()
 
 COOKIE_NAME = "cabinet_session"
 CABINET_COOKIE_MAX_AGE = 86400 * 30
+INT64_MAX = 2**63 - 1
 
 
 def _is_secure_request(request: Request) -> bool:
@@ -137,6 +138,19 @@ def set_session_cookie(resp, user_id: int, *, secure: bool):
     )
 
 
+def _extract_telegram_oidc_user_id(payload: dict) -> int:
+    """Extract Telegram numeric user id from OIDC payload.
+
+    Telegram OIDC exposes the chat user id in `id`, while `sub` is the OIDC
+    subject and may exceed BIGINT. Persist only the Telegram numeric id.
+    """
+    raw_user_id = payload.get("id", 0)
+    user_id = int(raw_user_id)
+    if user_id <= 0 or user_id > INT64_MAX:
+        raise ValueError("Invalid Telegram user id")
+    return user_id
+
+
 @router.post("/cabinet/auth")
 async def cabinet_auth(request: Request, db: AsyncSession = Depends(get_db)):
     try:
@@ -150,8 +164,9 @@ async def cabinet_auth(request: Request, db: AsyncSession = Depends(get_db)):
         payload = await verify_telegram_id_token(id_token)
         if not payload:
             return JSONResponse({"ok": False, "message": "Auth verification failed"}, status_code=401)
-        user_id = int(payload.get("sub", 0))
-        if not user_id:
+        try:
+            user_id = _extract_telegram_oidc_user_id(payload)
+        except (TypeError, ValueError):
             return JSONResponse({"ok": False, "message": "Invalid user ID"}, status_code=401)
         user_info = {
             "username": payload.get("preferred_username", ""),
