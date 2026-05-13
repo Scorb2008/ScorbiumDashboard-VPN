@@ -53,6 +53,14 @@ async def _ensure_bot_username(db: AsyncSession, settings: dict) -> str:
     bu = settings.get("bot_username", "")
     if bu:
         return bu
+    env_bu = (config.telegram.telegram_bot_username or "").strip()
+    if env_bu:
+        try:
+            await BotSettingsService(db).set("bot_username", env_bu)
+            await db.commit()
+        except Exception as e:
+            log.warning("Failed to persist TELEGRAM_BOT_USERNAME: {}", e)
+        return env_bu
     log.info("bot_username not in DB — fetching from Telegram API...")
     try:
         import httpx

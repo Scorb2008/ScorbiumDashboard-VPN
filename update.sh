@@ -115,6 +115,8 @@ if [[ -z "$DOMAIN" || "$DOMAIN" == "localhost" ]]; then
     error "DOMAIN не задан в .env (этот скрипт только для продакшена). Для локального обновления используйте: docker compose up -d --build app"
 fi
 
+USE_SSL=true
+
 info "Домен: ${DOMAIN}, HTTPS порт: ${HTTPS_PORT}"
 
 # Ensure JWT_SECRET_KEY exists
@@ -241,16 +243,19 @@ if [[ ! -f "$CERT_PATH" ]]; then
         warn "Попробуйте: certbot certonly --standalone -d ${DOMAIN}"
         read -rp "Продолжить без SSL? [y/N]: " CONFIRM; CONFIRM=${CONFIRM:-N}
         [[ ! "$CONFIRM" =~ ^[Yy]$ ]] && exit 1
+        USE_SSL=false
+        warn "Продолжаю в HTTP-only режиме. Telegram webhook и HTTPS-вход будут недоступны, пока сертификат не появится."
     fi
 fi
 
-if [[ "$HTTPS_PORT" == "443" ]]; then
-    REDIR='return 301 https://$host$request_uri;'
-else
-    REDIR="return 301 https://\$host:${HTTPS_PORT}\$request_uri;"
-fi
+if [[ "$USE_SSL" == "true" ]]; then
+    if [[ "$HTTPS_PORT" == "443" ]]; then
+        REDIR='return 301 https://$host$request_uri;'
+    else
+        REDIR="return 301 https://\$host:${HTTPS_PORT}\$request_uri;"
+    fi
 
-cat > nginx/nginx.conf << NGINXEOF
+    cat > nginx/nginx.conf << NGINXEOF
 worker_processes auto;
 error_log /var/log/nginx/error.log warn;
 pid /var/run/nginx.pid;
@@ -402,7 +407,136 @@ http {
     }
 }
 NGINXEOF
-success "nginx.conf готов"
+    success "nginx.conf готов (HTTPS)"
+else
+    cat > nginx/nginx.conf << NGINXEOF
+worker_processes auto;
+error_log /var/log/nginx/error.log warn;
+pid /var/run/nginx.pid;
+
+events { worker_connections 1024; }
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+    sendfile on;
+    keepalive_timeout 65;
+    client_max_body_size 20M;
+    gzip on;
+    gzip_vary on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
+
+    limit_req_zone \$binary_remote_addr zone=panel:10m   rate=30r/m;
+    limit_req_zone \$binary_remote_addr zone=api:10m     rate=60r/m;
+    limit_req_zone \$binary_remote_addr zone=webhook:10m rate=120r/m;
+    limit_req_zone \$binary_remote_addr zone=cabinet:10m rate=30r/m;
+
+    upstream vpn_app {
+        server app:8000;
+        keepalive 32;
+    }
+
+    server {
+        listen 80;
+        server_name ${DOMAIN};
+
+        proxy_connect_timeout 10s;
+        proxy_read_timeout    60s;
+        proxy_send_timeout    60s;
+        proxy_next_upstream   error timeout http_502 http_503;
+        proxy_next_upstream_tries 2;
+
+        location = /cabinet { return 301 /cabinet/; }
+        location /cabinet/ {
+            limit_req zone=cabinet burst=20 nodelay;
+            proxy_pass http://vpn_app/cabinet/;
+            proxy_set_header Host              \$host;
+            proxy_set_header X-Real-IP         \$remote_addr;
+            proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_set_header X-Telegram-Init-Data \$http_x_telegram_init_data;
+        }
+
+        location = /panel { return 301 /panel/; }
+        location /panel/ {
+            limit_req zone=panel burst=20 nodelay;
+            proxy_pass http://vpn_app;
+            proxy_set_header Host              \$host;
+            proxy_set_header X-Real-IP         \$remote_addr;
+            proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+        }
+        location /app/ {
+            proxy_pass http://vpn_app;
+            proxy_set_header Host              \$host;
+            proxy_set_header X-Real-IP         \$remote_addr;
+            proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+        }
+        location /api/ {
+            limit_req zone=api burst=30 nodelay;
+            proxy_pass http://vpn_app;
+            proxy_set_header Host              \$host;
+            proxy_set_header X-Real-IP         \$remote_addr;
+            proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+        }
+        location /webhook/ {
+            limit_req zone=webhook burst=50 nodelay;
+            proxy_pass http://vpn_app;
+            proxy_set_header Host              \$host;
+            proxy_set_header X-Real-IP         \$remote_addr;
+            proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+        }
+        location /static/ {
+            proxy_pass http://vpn_app;
+            proxy_set_header Host \$host;
+            expires 7d;
+            add_header Cache-Control "public, immutable";
+        }
+        location ~ ^/(docs|redoc|openapi\.json) {
+            proxy_pass http://vpn_app;
+            proxy_set_header Host              \$host;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+        }
+        location /ws/notifications {
+            proxy_pass http://vpn_app;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host              \$host;
+            proxy_set_header X-Real-IP         \$remote_addr;
+            proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+        }
+        location /ws/metrics {
+            proxy_pass http://vpn_app;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host              \$host;
+            proxy_set_header X-Real-IP         \$remote_addr;
+            proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+        }
+        location = / { return 301 /panel/; }
+        location / {
+            proxy_pass http://vpn_app;
+            proxy_set_header Host              \$host;
+            proxy_set_header X-Real-IP         \$remote_addr;
+            proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+        }
+    }
+}
+NGINXEOF
+    success "nginx.conf готов (HTTP-only fallback)"
+fi
 
 # ── [4/6] Build & deploy ─────────────────────────────────────────────────────
 info "[4/6] Собираю и запускаю app..."
@@ -476,27 +610,8 @@ fi
 # ── [6/6] Nginx ──────────────────────────────────────────────────────────────
 info "[6/6] Обновляю nginx..."
 
-NGINX_EXISTS=$(docker inspect vpn_nginx 2>/dev/null && echo "yes" || echo "no")
-
-if [[ "$NGINX_EXISTS" == "no" ]]; then
-    warn "nginx контейнер не найден — создаю..."
-    docker compose -f "$COMPOSE_FILE" up -d nginx
-    sleep 3
-elif docker compose -f "$COMPOSE_FILE" exec nginx nginx -t 2>&1; then
-    # Config is valid — try graceful reload
-    if docker compose -f "$COMPOSE_FILE" exec nginx nginx -s reload 2>/dev/null; then
-        success "nginx reload выполнен (graceful)"
-    else
-        warn "nginx reload failed, делаю restart..."
-        docker compose -f "$COMPOSE_FILE" restart nginx
-        sleep 3
-    fi
-else
-    warn "nginx config невалидный — перезапускаю со старым конфигом..."
-    docker compose -f "$COMPOSE_FILE" restart nginx 2>/dev/null || \
-        docker compose -f "$COMPOSE_FILE" up -d nginx
-    sleep 3
-fi
+docker compose -f "$COMPOSE_FILE" up -d --force-recreate --no-deps nginx || \
+    error "Не удалось пересоздать nginx"
 
 sleep 2
 NGINX_STATUS=$(docker inspect --format='{{.State.Status}}' vpn_nginx 2>/dev/null || echo "unknown")
@@ -511,10 +626,15 @@ fi
 info "Проверяю работоспособность..."
 
 # Test health endpoint
-if curl -sk "https://${DOMAIN}:${HTTPS_PORT}/health" 2>/dev/null | grep -q '"status":"ok"\|"status": "ok"'; then
+if [[ "$USE_SSL" == "true" ]]; then
+    HEALTHCHECK_URL="https://${DOMAIN}:${HTTPS_PORT}/health"
+else
+    HEALTHCHECK_URL="http://${DOMAIN}/health"
+fi
+if curl -sk "$HEALTHCHECK_URL" 2>/dev/null | grep -q '"status":"ok"\|"status": "ok"'; then
     success "Health check: OK"
 else
-    warn "Health check не ответил. Проверьте: curl -sk https://${DOMAIN}:${HTTPS_PORT}/health"
+    warn "Health check не ответил. Проверьте: curl -sk ${HEALTHCHECK_URL}"
 fi
 
 # Clean up old docker images
@@ -541,7 +661,9 @@ echo -e "${GREEN}║  ✅  Обновление завершено              
 echo -e "${GREEN}╚══════════════════════════════════════════════════╝${RESET}"
 echo ""
 echo -e "  Версия: ${BOLD}${OLD_VER}${RESET} → ${BOLD}${NEW_VER:-$OLD_VER}${RESET}"
-if [[ "$HTTPS_PORT" == "443" ]]; then
+if [[ "$USE_SSL" != "true" ]]; then
+    echo -e "  Панель: ${CYAN}http://${DOMAIN}/panel/${RESET}"
+elif [[ "$HTTPS_PORT" == "443" ]]; then
     echo -e "  Панель: ${CYAN}https://${DOMAIN}/panel/${RESET}"
 else
     echo -e "  Панель: ${CYAN}https://${DOMAIN}:${HTTPS_PORT}/panel/${RESET}"

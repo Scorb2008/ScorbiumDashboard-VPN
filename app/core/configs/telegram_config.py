@@ -68,6 +68,11 @@ class _TelegramConfig(BaseSettings):
         description="Telegram OIDC Client Secret from @BotFather",
         validation_alias="TELEGRAM_CLIENT_SECRET",
     )
+    telegram_bot_username: str = Field(
+        default="",
+        description="Bot username for legacy Telegram login widget, without @",
+        validation_alias="TELEGRAM_BOT_USERNAME",
+    )
 
     @field_validator("telegram_bot_token")
     @classmethod
@@ -95,6 +100,16 @@ class _TelegramConfig(BaseSettings):
     def parse_client_id(cls, value):
         if isinstance(value, str) and not value.strip():
             return 0
+        return value
+
+    @field_validator("telegram_bot_username", mode="before")
+    @classmethod
+    def parse_bot_username(cls, value):
+        if value is None:
+            return ""
+        value = str(value).strip()
+        if value.startswith("@"):
+            value = value[1:]
         return value
     
     
