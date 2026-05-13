@@ -3,69 +3,313 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>{% block title %}{{ app_name }}{% endblock %} — Кабинет</title>
+<title>{% block title %}{{ app_name }}{% endblock %} - Кабинет</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/bootstrap-icons.min.css">
 <link rel="stylesheet" href="/static/css/cabinet.css">
 {% block head %}{% endblock %}
 </head>
-<body class="{% if not is_mini_app %}web-mode{% else %}mini-mode{% endif %}">
-<div id="app">
-  <nav class="dash-nav">
+{% set current_path = request.url.path %}
+{% set is_login_page = current_path in ('/cabinet', '/cabinet/') and user is not defined %}
+<body
+  class="{% if not is_mini_app %}web-mode{% else %}mini-mode{% endif %}"
+  data-page="{{ current_path }}"
+  data-mini-app="{{ 'true' if is_mini_app else 'false' }}"
+  data-authenticated="{{ 'true' if user is defined and user else 'false' }}"
+>
+<div class="app-backdrop">
+  <div class="orb orb-a"></div>
+  <div class="orb orb-b"></div>
+  <div class="orb orb-c"></div>
+</div>
+
+<div id="app-shell">
+  <header class="dash-nav">
     <div class="dash-nav-inner">
-      <a href="/cabinet/" class="dash-logo">{{ app_name }}</a>
-      <div class="dash-nav-links">
-        <a href="/cabinet/" class="nav-link"><i class="bi bi-house-door"></i><span>Главная</span></a>
-        <a href="/cabinet/plans" class="nav-link"><i class="bi bi-cart"></i><span>Купить</span></a>
-        <a href="/cabinet/keys" class="nav-link"><i class="bi bi-key"></i><span>Подписки</span></a>
-        <a href="/cabinet/profile" class="nav-link"><i class="bi bi-person"></i><span>Профиль</span></a>
-        <a href="/cabinet/support" class="nav-link"><i class="bi bi-chat-dots"></i><span>Поддержка</span></a>
+      <a href="/cabinet/" class="dash-logo">
+        <span class="dash-logo-mark"><i class="bi bi-shield-check"></i></span>
+        <span class="dash-logo-text">
+          <strong>{{ app_name }}</strong>
+          <small>Telegram cabinet</small>
+        </span>
+      </a>
+
+      {% if not is_login_page %}
+      <nav class="dash-nav-links" aria-label="Основная навигация">
+        <a href="/cabinet/" class="nav-link {% if current_path in ('/cabinet', '/cabinet/') %}active{% endif %}">
+          <i class="bi bi-grid-1x2"></i><span>Обзор</span>
+        </a>
+        <a href="/cabinet/plans" class="nav-link {% if current_path.startswith('/cabinet/plans') %}active{% endif %}">
+          <i class="bi bi-stars"></i><span>Тарифы</span>
+        </a>
+        <a href="/cabinet/keys" class="nav-link {% if current_path.startswith('/cabinet/keys') %}active{% endif %}">
+          <i class="bi bi-key"></i><span>Подписки</span>
+        </a>
+        <a href="/cabinet/balance" class="nav-link {% if current_path.startswith('/cabinet/balance') %}active{% endif %}">
+          <i class="bi bi-wallet2"></i><span>Баланс</span>
+        </a>
+        <a href="/cabinet/support" class="nav-link {% if current_path.startswith('/cabinet/support') %}active{% endif %}">
+          <i class="bi bi-chat-left-dots"></i><span>Поддержка</span>
+        </a>
+        <a href="/cabinet/profile" class="nav-link {% if current_path.startswith('/cabinet/profile') %}active{% endif %}">
+          <i class="bi bi-person-circle"></i><span>Профиль</span>
+        </a>
         {% if user is defined and is_admin_user(user) %}
-        <a href="/panel/" class="nav-link"><i class="bi bi-shield-lock"></i><span>Админ панель</span></a>
+        <a href="/panel/" class="nav-link nav-link-admin">
+          <i class="bi bi-shield-lock"></i><span>Админ</span>
+        </a>
         {% endif %}
+      </nav>
+
+      <div class="dash-nav-side">
+        {% if user is defined and user %}
+        <div class="dash-user-chip">
+          <span class="dash-user-avatar">{{ (user.full_name or user.username or 'U')[:1]|upper }}</span>
+          <span class="dash-user-meta">
+            <strong>{{ user.full_name or 'Пользователь' }}</strong>
+            <small>{% if user.username %}@{{ user.username }}{% else %}ID {{ user.id }}{% endif %}</small>
+          </span>
+        </div>
+        {% endif %}
+        <a href="/cabinet/logout" class="dash-logout" aria-label="Выйти">
+          <i class="bi bi-box-arrow-right"></i>
+          <span>Выйти</span>
+        </a>
       </div>
-      <a href="/cabinet/logout" class="dash-logout"><i class="bi bi-box-arrow-right"></i></a>
+      {% endif %}
     </div>
-  </nav>
+  </header>
+
   <main class="dash-main">
     {% block content %}{% endblock %}
   </main>
-  <nav class="mini-nav">
-    <a href="/cabinet/" class="mini-nav-link"><i class="bi bi-house-door"></i><span>Главная</span></a>
-    <a href="/cabinet/plans" class="mini-nav-link"><i class="bi bi-cart"></i><span>Купить</span></a>
-    <a href="/cabinet/keys" class="mini-nav-link"><i class="bi bi-key"></i><span>Ключи</span></a>
-    <a href="/cabinet/profile" class="mini-nav-link"><i class="bi bi-person"></i><span>Я</span></a>
-    <a href="/cabinet/support" class="mini-nav-link"><i class="bi bi-chat-dots"></i><span>Чат</span></a>
-    {% if user is defined and is_admin_user(user) %}
-    <a href="/panel/" class="mini-nav-link"><i class="bi bi-shield-lock"></i><span>Админ</span></a>
-    {% endif %}
+
+  {% if not is_login_page %}
+  <nav class="mini-nav" aria-label="Нижняя навигация">
+    <a href="/cabinet/" class="mini-nav-link {% if current_path in ('/cabinet', '/cabinet/') %}active{% endif %}">
+      <i class="bi bi-grid-1x2"></i><span>Обзор</span>
+    </a>
+    <a href="/cabinet/plans" class="mini-nav-link {% if current_path.startswith('/cabinet/plans') %}active{% endif %}">
+      <i class="bi bi-stars"></i><span>Тарифы</span>
+    </a>
+    <a href="/cabinet/keys" class="mini-nav-link {% if current_path.startswith('/cabinet/keys') %}active{% endif %}">
+      <i class="bi bi-key"></i><span>Ключи</span>
+    </a>
+    <a href="/cabinet/support" class="mini-nav-link {% if current_path.startswith('/cabinet/support') %}active{% endif %}">
+      <i class="bi bi-chat-left-dots"></i><span>Чат</span>
+    </a>
+    <a href="/cabinet/profile" class="mini-nav-link {% if current_path.startswith('/cabinet/profile') %}active{% endif %}">
+      <i class="bi bi-person"></i><span>Я</span>
+    </a>
   </nav>
+  {% endif %}
 </div>
+
 <script>
-(function detectMode() {
-  var tg = null;
-  try { tg = window.Telegram.WebApp; } catch(e) {}
+window.CABINET_BOOT = {
+  currentPath: {{ current_path|tojson }},
+  isMiniApp: {{ is_mini_app|tojson }},
+  isAuthenticated: {{ ((user is defined) and (user is not none))|tojson }},
+  initDataParam: "tg_init_data"
+};
+
+function getTelegramWebApp() {
+  try {
+    return window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function getMiniAppInitData() {
+  var tg = getTelegramWebApp();
+  if (tg && tg.initData) return tg.initData;
+  try {
+    return new URL(window.location.href).searchParams.get(window.CABINET_BOOT.initDataParam) || "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function cabinetUrl(path) {
+  var initData = getMiniAppInitData();
+  var target = new URL(path, window.location.origin);
+  if (initData && target.origin === window.location.origin && target.pathname.startsWith('/cabinet')) {
+    target.searchParams.set(window.CABINET_BOOT.initDataParam, initData);
+  }
+  return target.pathname + target.search + target.hash;
+}
+
+function decorateCabinetLinks() {
+  var initData = getMiniAppInitData();
+  if (!initData) return;
+  document.querySelectorAll('a[href]').forEach(function(link) {
+    var href = link.getAttribute('href');
+    if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+    var target;
+    try {
+      target = new URL(href, window.location.origin);
+    } catch (error) {
+      return;
+    }
+    if (target.origin !== window.location.origin || !target.pathname.startsWith('/cabinet')) return;
+    target.searchParams.set(window.CABINET_BOOT.initDataParam, initData);
+    link.setAttribute('href', target.pathname + target.search + target.hash);
+  });
+}
+
+function cleanMiniAppParamFromAddress() {
+  var tg = getTelegramWebApp();
+  if (!tg || !tg.initData) return;
+  var current = new URL(window.location.href);
+  if (!current.searchParams.has(window.CABINET_BOOT.initDataParam)) return;
+  current.searchParams.delete(window.CABINET_BOOT.initDataParam);
+  window.history.replaceState({}, "", current.pathname + current.search + current.hash);
+}
+
+async function cabinetFetch(url, options) {
+  var opts = Object.assign({}, options || {});
+  opts.credentials = opts.credentials || 'same-origin';
+
+  var headers = new Headers(opts.headers || {});
+  var initData = getMiniAppInitData();
+  if (initData && !headers.has('X-Telegram-Init-Data')) {
+    headers.set('X-Telegram-Init-Data', initData);
+  }
+  if (opts.body && !(opts.body instanceof FormData) && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+  opts.headers = headers;
+  return fetch(url, opts);
+}
+
+async function cabinetJson(url, options) {
+  var response = await cabinetFetch(url, options);
+  var contentType = response.headers.get('content-type') || '';
+  var data;
+  try {
+    if (contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      data = { ok: response.ok, message: await response.text() };
+    }
+  } catch (error) {
+    data = { ok: false, message: 'Сервер вернул некорректный ответ' };
+  }
+
+  if (!response.ok && typeof data.ok === 'undefined') {
+    data.ok = false;
+  }
+  return { response: response, data: data };
+}
+
+async function syncMiniAppSession(options) {
+  var opts = Object.assign({
+    force: false,
+    silent: true
+  }, options || {});
+
+  var initData = getMiniAppInitData();
+  if (!initData) {
+    return { ok: false, skipped: true };
+  }
+
+  var lastSyncedAt = Number(sessionStorage.getItem('cabinetMiniAppSyncedAt') || 0);
+  if (!opts.force && Date.now() - lastSyncedAt < 15000) {
+    return { ok: true, skipped: true };
+  }
+
+  if (window.__cabinetMiniAppAuthPromise && !opts.force) {
+    return window.__cabinetMiniAppAuthPromise;
+  }
+
+  window.__cabinetMiniAppAuthPromise = (async function() {
+    var result = await cabinetJson('/cabinet/auth', {
+      method: 'POST',
+      body: JSON.stringify({ initData: initData })
+    });
+
+    if (result.data && result.data.ok) {
+      sessionStorage.setItem('cabinetMiniAppSyncedAt', String(Date.now()));
+      sessionStorage.setItem('cabinetMiniAppReady', '1');
+    } else if (!opts.silent) {
+      showToast((result.data && result.data.message) || 'Не удалось восстановить сессию', 'error');
+    }
+    return result.data || { ok: false };
+  })().finally(function() {
+    window.__cabinetMiniAppAuthPromise = null;
+  });
+
+  return window.__cabinetMiniAppAuthPromise;
+}
+
+function showToast(message, type) {
+  var toast = document.createElement('div');
+  var title = document.createElement('strong');
+  var body = document.createElement('span');
+  toast.className = 'toast toast-' + (type || 'info');
+  title.textContent = ((type === 'success' && 'Готово') || (type === 'error' && 'Ошибка') || 'Сообщение');
+  body.textContent = message;
+  toast.appendChild(title);
+  toast.appendChild(body);
+  document.body.appendChild(toast);
+  requestAnimationFrame(function() {
+    toast.classList.add('toast-visible');
+  });
+  setTimeout(function() {
+    toast.classList.remove('toast-visible');
+    setTimeout(function() { toast.remove(); }, 200);
+  }, 3200);
+}
+
+function setMsg(element, ok, message) {
+  if (!element) return;
+  element.className = ok ? 'inline-message success' : 'inline-message error';
+  element.textContent = message;
+}
+
+async function copyText(value, successText) {
+  try {
+    await navigator.clipboard.writeText(value);
+    showToast(successText || 'Скопировано в буфер обмена', 'success');
+    return true;
+  } catch (error) {
+    showToast('Не удалось скопировать текст', 'error');
+    return false;
+  }
+}
+
+function openExternal(url) {
+  var tg = getTelegramWebApp();
+  if (tg && typeof tg.openLink === 'function') {
+    tg.openLink(url);
+    return;
+  }
+  window.open(url, '_blank', 'noopener');
+}
+
+(function bootstrapCabinet() {
+  var tg = getTelegramWebApp();
   if (tg && tg.initData) {
     document.body.classList.remove('web-mode');
     document.body.classList.add('mini-mode');
-    tg.ready();
-    tg.expand();
+    try {
+      tg.ready();
+      tg.expand();
+      if (typeof tg.disableVerticalSwipes === 'function') tg.disableVerticalSwipes();
+    } catch (error) {}
+  }
+
+  cleanMiniAppParamFromAddress();
+  decorateCabinetLinks();
+
+  if (window.CABINET_BOOT.isAuthenticated && getMiniAppInitData()) {
+    syncMiniAppSession({ silent: true }).catch(function() {});
   }
 })();
 
-function showToast(msg, type) {
-  var t = document.createElement('div');
-  t.className = 'toast toast-' + (type || 'info');
-  t.textContent = msg;
-  document.body.appendChild(t);
-  setTimeout(function() { t.remove(); }, 3000);
-}
-function setMsg(el, ok, msg) {
-  el.innerHTML = '';
-  var s = document.createElement('span');
-  s.className = ok ? 'text-success' : 'text-danger';
-  s.textContent = (ok ? '✅ ' : '❌ ') + msg;
-  el.appendChild(s);
-}
 {% block scripts %}{% endblock %}
 </script>
 </body>

@@ -1,1 +1,121 @@
+{% extends "cabinet/base.html" %}
+{% block title %}Рефералы - {{ app_name }}{% endblock %}
+{% block content %}
+{% set bot_username = settings.get('bot_username', '') %}
+{% set referral_link = 'https://t.me/' ~ bot_username ~ '?start=' ~ user.referral_code if bot_username and user.referral_code else '' %}
+<div class="dash-stack">
+  <section class="hero-panel">
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <div class="eyebrow">
+          <i class="bi bi-people"></i>
+          <span>Приглашайте друзей и получайте бонусы</span>
+        </div>
+        <div class="dash-header">
+          <div>
+            <h1>Реферальная программа</h1>
+            <p class="dash-subtitle">Делитесь ссылкой на бота, отслеживайте подключения и следите за топом рефереров.</p>
+          </div>
+        </div>
+      </div>
+      <div class="hero-aside">
+        <div class="summary-card">
+          <small>Всего приглашено</small>
+          <strong>{{ referrals|length }}</strong>
+          <span>Каждый новый пользователь может принести бонус</span>
+        </div>
+        <div class="summary-card">
+          <small>Ваш код</small>
+          <strong>{{ user.referral_code or '—' }}</strong>
+          <span>{% if referral_link %}Ссылка готова к отправке{% else %}Добавьте bot_username в настройки{% endif %}</span>
+        </div>
+      </div>
+    </div>
+  </section>
 
+  <section class="referral-card">
+    <div class="section-header">
+      <div>
+        <h2>Личная ссылка</h2>
+        <p class="section-note">Скопируйте ссылку и отправьте ее другу прямо сейчас.</p>
+      </div>
+    </div>
+
+    {% if referral_link %}
+    <div class="copy-row">
+      <input type="text" class="form-input" value="{{ referral_link }}" readonly>
+      <button type="button" class="btn-accent" onclick="copyText({{ referral_link|tojson }}, 'Реферальная ссылка скопирована')">
+        <i class="bi bi-copy"></i> Скопировать
+      </button>
+      <button type="button" class="btn-outline" onclick="openExternal({{ referral_link|tojson }})">
+        <i class="bi bi-box-arrow-up-right"></i> Открыть
+      </button>
+    </div>
+    {% else %}
+    <div class="alert alert-warning">Ссылка пока недоступна: в настройках бота не сохранен `bot_username`.</div>
+    {% endif %}
+  </section>
+
+  <section class="section-panel">
+    <div class="section-header">
+      <div>
+        <h2>Мои приглашения</h2>
+        <p class="section-note">Здесь видно, кто пришел по вашей ссылке и начислен ли бонус.</p>
+      </div>
+    </div>
+
+    {% if referrals %}
+    <div class="dash-stack">
+      {% for ref in referrals %}
+      <div class="referral-row">
+        <div>
+          <strong>ID {{ ref.referred_id }}</strong>
+          <div class="muted">{{ ref.created_at.strftime('%d.%m.%Y %H:%M') if ref.created_at else '—' }}</div>
+        </div>
+        <div class="cluster">
+          <span class="status-chip {% if ref.is_paid %}status-active{% else %}status-pending{% endif %}">
+            {% if ref.is_paid %}Бонус начислен{% else %}Ожидает{% endif %}
+          </span>
+          <span class="muted">{{ ref.bonus_type or 'bonus' }}: {{ ref.bonus_value or 0 }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-illustration"><i class="bi bi-megaphone"></i></div>
+      <p>Пока никто не подключился по вашей ссылке. Отправьте ее друзьям и команде.</p>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="section-panel">
+    <div class="section-header">
+      <div>
+        <h2>Топ рефереров</h2>
+        <p class="section-note">Лучшие пользователи по количеству приглашений.</p>
+      </div>
+    </div>
+
+    {% if top_referrers %}
+    <div class="dash-stack">
+      {% for ref in top_referrers %}
+      <div class="top-row">
+        <div class="top-pos">{{ loop.index }}</div>
+        <div>
+          <strong>{{ ref.full_name or ref.username or ('ID ' ~ ref.user_id) }}</strong>
+          <div class="muted">{% if ref.username %}@{{ ref.username }}{% else %}Telegram ID {{ ref.user_id }}{% endif %}</div>
+        </div>
+        <div class="top-count">{{ ref.referral_count }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-illustration"><i class="bi bi-trophy"></i></div>
+      <p>Топ пока пуст. Станьте первым в списке.</p>
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

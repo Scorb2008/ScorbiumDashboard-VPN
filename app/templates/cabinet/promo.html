@@ -22,9 +22,8 @@ async function applyPromo(event) {
   const fd = new FormData();
   fd.append('code', code);
   try {
-    const r = await fetch('/cabinet/promo/apply', {method:'POST', body:fd});
-    const d = await r.json();
-    setMsg(result, d.ok, d.message || 'Ошибка');
+    const response = await cabinetJson('/cabinet/promo/apply', {method:'POST', body:fd});
+    setMsg(result, response.data.ok, response.data.message || 'Ошибка');
   } catch(e) { setMsg(result, false, 'Ошибка сети'); }
 }
 </script>

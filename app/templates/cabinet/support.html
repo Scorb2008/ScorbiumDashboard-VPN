@@ -1,52 +1,121 @@
 {% extends "cabinet/base.html" %}
-{% block title %}Поддержка — {{ app_name }}{% endblock %}
+{% block title %}Поддержка - {{ app_name }}{% endblock %}
 {% block content %}
-<div class="dash-header">
-  <h2>💬 Поддержка</h2>
-</div>
+<div class="dash-stack">
+  <section class="hero-panel">
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <div class="eyebrow">
+          <i class="bi bi-headset"></i>
+          <span>Поддержка без потери переписки</span>
+        </div>
+        <div class="dash-header">
+          <div>
+            <h1>Свяжитесь с поддержкой</h1>
+            <p class="dash-subtitle">Создайте обращение, следите за статусом и продолжайте диалог в одном месте.</p>
+          </div>
+        </div>
+      </div>
 
-{% if tickets %}
-<div class="section">
-  <h3 class="section-title">Мои обращения</h3>
-  {% for t in tickets %}
-  <a href="/cabinet/support/{{ t.id }}" class="ticket-row">
-    <div class="ticket-info">
-      <span class="ticket-subject">{{ t.subject }}</span>
-      <span class="ticket-date">{{ t.created_at.strftime('%d.%m.%Y') }}</span>
+      <div class="hero-aside">
+        <div class="summary-card">
+          <small>Всего обращений</small>
+          <strong>{{ tickets|length }}</strong>
+          <span>{% if tickets %}Вся история уже сохранена{% else %}Пока без тикетов{% endif %}</span>
+        </div>
+      </div>
     </div>
-    <span class="ticket-status status-{{ t.status.value if t.status else 'open' }}">{{ t.status.value if t.status else 'open' }}</span>
-  </a>
-  {% endfor %}
-</div>
-{% endif %}
+  </section>
 
-<div class="section">
-  <h3 class="section-title">Новое обращение</h3>
-  <form onsubmit="return createTicket(event)">
-    <input type="text" id="ticket-subject" class="form-input" placeholder="Тема" required>
-    <textarea id="ticket-text" class="form-input mt-2" rows="4" placeholder="Опишите вашу проблему" required></textarea>
-    <button type="submit" class="btn-accent w-100 mt-2">Отправить</button>
-  </form>
-  <div id="ticket-result" class="mt-2" style="font-size:.85rem"></div>
-</div>
+  <section class="section-panel">
+    <div class="section-header">
+      <div>
+        <h2>Новое обращение</h2>
+        <p class="section-note">Опишите проблему как можно точнее, чтобы ответ был быстрее и полезнее.</p>
+      </div>
+    </div>
 
-<script>
+    <form onsubmit="return createTicket(event)" class="cards-grid">
+      <div class="card">
+        <label class="detail-label" for="ticket-subject">Тема</label>
+        <input type="text" id="ticket-subject" class="form-input mt-2" placeholder="Например: подписка не подключается" required>
+      </div>
+      <div class="card" style="grid-column: 1 / -1;">
+        <label class="detail-label" for="ticket-text">Сообщение</label>
+        <textarea id="ticket-text" class="form-input mt-2" rows="5" placeholder="Опишите, что произошло, и что вы уже попробовали." required></textarea>
+      </div>
+      <div style="grid-column: 1 / -1;" class="action-row">
+        <button type="submit" class="btn-accent"><i class="bi bi-send"></i> Отправить обращение</button>
+        <div id="ticket-result"></div>
+      </div>
+    </form>
+  </section>
+
+  <section class="section-panel">
+    <div class="section-header">
+      <div>
+        <h2>Мои обращения</h2>
+        <p class="section-note">Откройте тикет, чтобы посмотреть всю переписку или продолжить разговор.</p>
+      </div>
+    </div>
+
+    {% if tickets %}
+    <div class="dash-stack">
+      {% for t in tickets %}
+      <a href="/cabinet/support/{{ t.id }}" class="ticket-row">
+        <div>
+          <div class="ticket-subject">{{ t.subject }}</div>
+          <div class="ticket-info">
+            <span class="ticket-date">{{ t.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+            <span class="muted">{{ t.messages|length }} сообщений</span>
+          </div>
+        </div>
+        <span class="status-chip status-{{ t.status if t.status else 'open' }}">
+          {{ t.status if t.status else 'open' }}
+        </span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-illustration"><i class="bi bi-chat-left-text"></i></div>
+      <p>У вас пока нет обращений. Создайте первое тикет-сообщение выше.</p>
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
 async function createTicket(event) {
   event.preventDefault();
-  const subject = document.getElementById('ticket-subject').value.trim();
-  const text = document.getElementById('ticket-text').value.trim();
-  const result = document.getElementById('ticket-result');
-  const fd = new FormData();
-  fd.append('subject', subject);
-  fd.append('text', text);
+
+  var subject = document.getElementById('ticket-subject').value.trim();
+  var text = document.getElementById('ticket-text').value.trim();
+  var resultBox = document.getElementById('ticket-result');
+  var formData = new FormData();
+  formData.append('subject', subject);
+  formData.append('text', text);
+
   try {
-    const r = await fetch('/cabinet/support/create', {method:'POST', body:fd});
-    const d = await r.json();
-    if (d.ok) {
-      setMsg(result, true, 'Обращение создано!');
-      setTimeout(function() { window.location.href = '/cabinet/support/' + d.ticket_id; }, 1000);
-    } else { setMsg(result, false, d.message || 'Ошибка'); }
-  } catch(e) { setMsg(result, false, 'Ошибка сети'); }
+    var result = await cabinetJson('/cabinet/support/create', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (result.data.ok) {
+      setMsg(resultBox, true, 'Обращение создано. Открываем переписку...');
+      setTimeout(function() {
+        window.location.href = cabinetUrl('/cabinet/support/' + result.data.ticket_id);
+      }, 700);
+      return false;
+    }
+
+    setMsg(resultBox, false, result.data.message || 'Не удалось создать обращение');
+  } catch (error) {
+    setMsg(resultBox, false, 'Ошибка сети');
+  }
+
+  return false;
 }
-</script>
 {% endblock %}

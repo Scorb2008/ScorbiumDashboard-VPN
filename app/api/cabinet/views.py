@@ -19,7 +19,13 @@ from app.services.bot_settings import BotSettingsService
 from app.models.payment import PaymentProvider
 from app.utils.log import log
 
-from .auth import get_cabinet_user, try_miniapp_auth, set_session_cookie, _is_secure_request
+from .auth import (
+    _is_secure_request,
+    get_cabinet_user,
+    get_telegram_init_data,
+    set_session_cookie,
+    try_miniapp_auth,
+)
 
 router = APIRouter()
 
@@ -46,7 +52,7 @@ async def _require_active_user(request: Request, db: AsyncSession):
 
 
 def _is_mini_app(request: Request) -> bool:
-    return bool(request.headers.get("X-Telegram-Init-Data", ""))
+    return bool(get_telegram_init_data(request))
 
 
 def _persist_cabinet_session(request: Request, response, user) -> None:
@@ -118,7 +124,7 @@ async def cabinet_index(request: Request, db: AsyncSession = Depends(get_db)):
         svc["bot_username"] = bot_username
     return templates.TemplateResponse("cabinet/login.html", {
         "request": request, "app_name": config.web.app_name, "settings": svc,
-        "error": None, "is_mini_app": bool(request.headers.get("X-Telegram-Init-Data", "")),
+        "error": None, "is_mini_app": _is_mini_app(request),
         "telegram_client_id": config.telegram.telegram_client_id,
     })
 

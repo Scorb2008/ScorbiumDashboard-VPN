@@ -8,11 +8,12 @@ from app.api.cabinet.auth import (
     _extract_telegram_oidc_user_id,
     _is_secure_request,
     cabinet_auth,
+    get_telegram_init_data,
     set_session_cookie,
 )
 
 
-def _make_request(*, scheme: str = "http", forwarded_proto: str | None = None) -> Request:
+def _make_request(*, scheme: str = "http", forwarded_proto: str | None = None, query_string: bytes = b"") -> Request:
     headers = []
     if forwarded_proto is not None:
         headers.append((b"x-forwarded-proto", forwarded_proto.encode()))
@@ -23,7 +24,7 @@ def _make_request(*, scheme: str = "http", forwarded_proto: str | None = None) -
         "scheme": scheme,
         "path": "/cabinet/",
         "raw_path": b"/cabinet/",
-        "query_string": b"",
+        "query_string": query_string,
         "headers": headers,
         "client": ("127.0.0.1", 12345),
         "server": ("testserver", 80),
@@ -81,6 +82,11 @@ def test_build_telegram_full_name_prefers_split_names():
 
 def test_build_telegram_full_name_uses_fallback_name():
     assert _build_telegram_full_name("", "", "Fallback User") == "Fallback User"
+
+
+def test_get_telegram_init_data_uses_query_fallback():
+    request = _make_request(query_string=b"tg_init_data=test-init-data")
+    assert get_telegram_init_data(request) == "test-init-data"
 
 
 async def test_cabinet_auth_oidc_uses_numeric_telegram_id(session):

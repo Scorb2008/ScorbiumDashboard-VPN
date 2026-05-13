@@ -26,9 +26,8 @@ async function setLang(lang, evt) {
   const fd = new FormData();
   fd.append('lang', lang);
   try {
-    const r = await fetch('/cabinet/language', {method:'POST', body:fd});
-    const d = await r.json();
-    if (d.ok) {
+    const response = await cabinetJson('/cabinet/language', {method:'POST', body:fd});
+    if (response.data.ok) {
       document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
       (evt.target.closest('.lang-btn') || evt.target).classList.add('active');
       document.getElementById('lang-result').innerHTML = '<span class="text-success">✅ Язык изменён</span>';

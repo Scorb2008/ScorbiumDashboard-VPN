@@ -29,13 +29,12 @@
 async function activateTrial() {
   const result = document.getElementById('trial-result');
   try {
-    const r = await fetch('/cabinet/trial/activate', {method:'POST'});
-    const d = await r.json();
-    if (d.ok) {
-      setMsg(result, true, d.message || 'OK');
+    const response = await cabinetJson('/cabinet/trial/activate', {method:'POST'});
+    if (response.data.ok) {
+      setMsg(result, true, response.data.message || 'OK');
       setTimeout(function() { location.reload(); }, 1500);
     } else {
-      setMsg(result, false, d.message || 'Ошибка');
+      setMsg(result, false, response.data.message || 'Ошибка');
     }
   } catch(e) {
     setMsg(result, false, 'Ошибка сети');

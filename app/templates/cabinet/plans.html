@@ -1,60 +1,107 @@
 {% extends "cabinet/base.html" %}
-{% block title %}Тарифы — {{ app_name }}{% endblock %}
+{% block title %}Тарифы - {{ app_name }}{% endblock %}
 {% block content %}
-<div class="dash-header">
-  <h2>💳 Выберите тариф</h2>
-  <p class="dash-subtitle">Оплата с баланса или через платёжную систему</p>
-</div>
+<div class="dash-stack">
+  <section class="hero-panel">
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <div class="eyebrow">
+          <i class="bi bi-stars"></i>
+          <span>Подключение без лишних шагов</span>
+        </div>
+        <div class="dash-header">
+          <div>
+            <h1>Выберите тариф</h1>
+            <p class="dash-subtitle">После оплаты ключ появится в разделе «Подписки», а доступ можно будет сразу скопировать или открыть.</p>
+          </div>
+        </div>
+      </div>
 
-<div class="plans-list">
-  {% for plan in plans %}
-  <div class="plan-full-card">
-    <div class="plan-full-header">
-      <h3>{{ plan.name }}</h3>
-      <div class="plan-full-price">{{ "%.0f"|format(plan.price) }} ₽</div>
-      <div class="plan-full-duration">{{ plan.duration_days }} дней</div>
+      <div class="hero-aside">
+        <div class="summary-card">
+          <small>Баланс</small>
+          <strong>{{ "%.2f"|format(user.balance) }} ₽</strong>
+          <span>Можно оплатить сразу с баланса</span>
+        </div>
+        <div class="summary-card">
+          <small>Оплата картой</small>
+          <strong>Скоро</strong>
+          <span>Сейчас доступна оплата с внутреннего баланса</span>
+        </div>
+      </div>
     </div>
-    {% if plan.description %}
-    <div class="plan-full-desc">{{ plan.description }}</div>
-    {% endif %}
-    <div class="plan-full-actions">
-      <button class="btn-accent" onclick="payBalance({{ plan.id }})">
-        <i class="bi bi-wallet2 me-1"></i>Оплатить с баланса
-      </button>
-      <button class="btn-outline" onclick="payYooKassa({{ plan.id }})">
-        <i class="bi bi-credit-card me-1"></i>Картой
-      </button>
+  </section>
+
+  <section class="plans-list">
+    {% for plan in plans %}
+    <article class="plan-full-card">
+      <div class="eyebrow">
+        <i class="bi bi-lightning-charge"></i>
+        <span>{{ plan.duration_days }} дней доступа</span>
+      </div>
+      <div class="plan-full-header">
+        <h3>{{ plan.name }}</h3>
+        <div class="plan-full-price">{{ "%.0f"|format(plan.price) }} ₽</div>
+        <div class="plan-full-duration">Подходит для стабильного ежедневного использования</div>
+      </div>
+      {% if plan.description %}
+      <div class="plan-full-desc">{{ plan.description }}</div>
+      {% endif %}
+      <div class="plan-full-actions">
+        <button type="button" class="btn-accent" onclick="payBalance({{ plan.id }})">
+          <i class="bi bi-wallet2"></i> Оплатить с баланса
+        </button>
+        <button type="button" class="btn-outline" onclick="payYooKassa({{ plan.id }})">
+          <i class="bi bi-credit-card-2-front"></i> Оплатить картой
+        </button>
+      </div>
+    </article>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-illustration"><i class="bi bi-emoji-frown"></i></div>
+      <p>Тарифы временно недоступны. Попробуйте позже.</p>
     </div>
-  </div>
-  {% else %}
-  <div class="empty-state">
-    <i class="bi bi-emoji-frown" style="font-size:3rem;opacity:.3"></i>
-    <p>Тарифы временно недоступны</p>
-  </div>
-  {% endfor %}
-</div>
+    {% endfor %}
+  </section>
 
-<div class="section mt-3">
-  <div class="info-card">
-    <i class="bi bi-info-circle"></i>
-    <span>Пополнить баланс можно через <a href="/cabinet/balance">страницу баланса</a></span>
-  </div>
+  <section class="section-panel">
+    <div class="info-card">
+      <i class="bi bi-info-circle text-success"></i>
+      <div>
+        <strong>Нужно пополнить баланс?</strong>
+        <div class="muted">Перейдите в раздел <a href="/cabinet/balance">«Баланс»</a>, чтобы увидеть историю пополнений и подготовить оплату.</div>
+      </div>
+    </div>
+  </section>
 </div>
+{% endblock %}
 
-<script>
+{% block scripts %}
 async function payBalance(planId) {
-  const fd = new FormData();
-  fd.append('plan_id', planId);
+  var formData = new FormData();
+  formData.append('plan_id', planId);
+
   try {
-    const r = await fetch('/cabinet/pay/balance', {method:'POST', body:fd});
-    const d = await r.json();
-    if (d.ok) { showToast(d.message, 'success'); setTimeout(() => location.reload(), 1000); }
-    else showToast(d.message, 'error');
-  } catch(e) { showToast('Ошибка сети', 'error'); }
+    var result = await cabinetJson('/cabinet/pay/balance', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (result.data.ok) {
+      showToast(result.data.message || 'Подписка оформлена', 'success');
+      setTimeout(function() {
+        window.location.href = cabinetUrl('/cabinet/keys');
+      }, 900);
+      return;
+    }
+
+    showToast(result.data.message || 'Не удалось оформить подписку', 'error');
+  } catch (error) {
+    showToast('Ошибка сети', 'error');
+  }
 }
 
-function payYooKassa(planId) {
-  showToast('Оплата картой будет доступна в следующем обновлении', 'info');
+function payYooKassa() {
+  showToast('Оплата картой будет подключена в ближайшем обновлении', 'info');
 }
-</script>
 {% endblock %}

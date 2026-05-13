@@ -1,98 +1,183 @@
 {% extends "cabinet/base.html" %}
-{% block title %}Главная — {{ app_name }}{% endblock %}
+{% block title %}Главная - {{ app_name }}{% endblock %}
 {% block content %}
-<div class="dash-header">
-  <h2>👋 Привет, {{ user.full_name or user.id }}!</h2>
-  <p class="dash-subtitle">Добро пожаловать в личный кабинет</p>
-</div>
+<div class="dash-stack">
+  <section class="hero-panel">
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <div class="eyebrow">
+          <i class="bi bi-stars"></i>
+          <span>Ваш VPN-кабинет готов к работе</span>
+        </div>
+        <div class="dash-header">
+          <div>
+            <h1>{{ user.full_name or ('ID ' ~ user.id) }}</h1>
+            <p class="dash-subtitle">Управляйте подписками, балансом и поддержкой без лишней путаницы.</p>
+          </div>
+        </div>
+        <div class="hero-actions">
+          <a href="/cabinet/plans" class="btn-accent"><i class="bi bi-stars"></i> Выбрать тариф</a>
+          <a href="/cabinet/keys" class="btn-outline"><i class="bi bi-key"></i> Мои подписки</a>
+          <a href="/cabinet/guides" class="btn-ghost"><i class="bi bi-phone"></i> Инструкции</a>
+        </div>
+      </div>
 
-<div class="stats-row">
-  <div class="stat-card">
-    <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
-    <div class="stat-info">
-      <div class="stat-value">{{ "%.2f"|format(user.balance) }} ₽</div>
-      <div class="stat-label">Баланс</div>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon"><i class="bi bi-key"></i></div>
-    <div class="stat-info">
-      <div class="stat-value">{{ keys|length }}</div>
-      <div class="stat-label">Подписки</div>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon"><i class="bi bi-people"></i></div>
-    <div class="stat-info">
-      <div class="stat-value">{{ user.referral_code or '—' }}</div>
-      <div class="stat-label">Реферальный код</div>
-    </div>
-  </div>
-</div>
-
-{% if keys %}
-<div class="section">
-  <h3 class="section-title">🔑 Активные подписки</h3>
-  {% for key in keys %}
-  <div class="key-card {% if key.status == 'expired' %}expired{% endif %}">
-    <div class="key-info">
-      <div class="key-name">{{ key.name or 'VPN' }}</div>
-      <div class="key-meta">
-        {% if key.expires_at %}
-        {% set remaining = (key.expires_at - now).days %}
-        <span class="{% if remaining < 3 %}text-danger{% else %}text-muted{% endif %}">
-          {{ remaining }} дн.
-        </span>
-        {% endif %}
-        {% if key.status == 'active' %}
-        <span class="badge-active">Активен</span>
-        {% else %}
-        <span class="badge-expired">Истёк</span>
-        {% endif %}
+      <div class="hero-aside">
+        <div class="summary-card">
+          <small>Баланс</small>
+          <strong>{{ "%.2f"|format(user.balance) }} ₽</strong>
+          <span>{% if user.username %}@{{ user.username }}{% else %}Telegram ID {{ user.id }}{% endif %}</span>
+        </div>
+        <div class="summary-card">
+          <small>Активные подписки</small>
+          <strong>{{ keys|length }}</strong>
+          <span>{% if keys %}Есть доступ к VPN{% else %}Пока без активных ключей{% endif %}</span>
+        </div>
+        <div class="summary-card">
+          <small>Реферальный код</small>
+          <strong>{{ user.referral_code or '—' }}</strong>
+          <span>Делитесь ботом и получайте бонусы</span>
+        </div>
       </div>
     </div>
-    <div class="key-traffic">
-      {% set total = key.download + key.upload %}
-      {% if total > 1073741824 %}
-      {{ "%.1f"|format(total / 1073741824) }} GB
-      {% elif total > 1048576 %}
-      {{ "%.0f"|format(total / 1048576) }} MB
+  </section>
+
+  <section class="stats-row">
+    <article class="stat-card">
+      <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
+      <div>
+        <div class="stat-value">{{ "%.2f"|format(user.balance) }} ₽</div>
+        <div class="stat-label">Доступно на балансе</div>
+      </div>
+    </article>
+    <article class="stat-card">
+      <div class="stat-icon"><i class="bi bi-key"></i></div>
+      <div>
+        <div class="stat-value">{{ keys|length }}</div>
+        <div class="stat-label">Активных подписок</div>
+      </div>
+    </article>
+    <article class="stat-card">
+      <div class="stat-icon"><i class="bi bi-gift"></i></div>
+      <div>
+        <div class="stat-value">{{ user.referral_code or '—' }}</div>
+        <div class="stat-label">Ваш реферальный код</div>
+      </div>
+    </article>
+  </section>
+
+  {% if keys %}
+  <section class="section-panel">
+    <div class="section-header">
+      <div>
+        <h2>Активные подписки</h2>
+        <p class="section-note">Быстрый обзор ваших текущих ключей и срока действия.</p>
+      </div>
+      <a href="/cabinet/keys" class="btn-outline">Открыть все</a>
+    </div>
+
+    <div class="cards-grid">
+      {% for key in keys %}
+      {% set traffic_total = (key.download or 0) + (key.upload or 0) %}
+      <article class="key-detail-card">
+        <div class="key-detail-header">
+          <div>
+            <div class="key-detail-name">{{ key.name or 'VPN ключ' }}</div>
+            <div class="key-detail-id">{{ key.pasarguard_key_id or 'Подписка' }}</div>
+          </div>
+          {% if key.status == 'active' %}
+          <span class="badge-active">Активна</span>
+          {% else %}
+          <span class="badge-expired">Истекла</span>
+          {% endif %}
+        </div>
+        <div class="key-detail-body">
+          <div class="key-detail-row">
+            <span class="detail-label">Срок действия</span>
+            <span class="detail-value">{% if key.expires_at %}{{ key.expires_at.strftime('%d.%m.%Y %H:%M') }}{% else %}Без ограничения{% endif %}</span>
+          </div>
+          <div class="key-detail-row">
+            <span class="detail-label">Трафик</span>
+            <span class="detail-value">
+              {% if traffic_total >= 1073741824 %}
+              {{ "%.1f"|format(traffic_total / 1073741824) }} GB
+              {% elif traffic_total >= 1048576 %}
+              {{ "%.0f"|format(traffic_total / 1048576) }} MB
+              {% else %}
+              {{ "%.0f"|format(traffic_total / 1024) }} KB
+              {% endif %}
+            </span>
+          </div>
+        </div>
+        <div class="key-detail-footer">
+          <button type="button" class="btn-outline w-100" onclick="copyText({{ key.access_url|tojson }}, 'Ссылка подписки скопирована')">
+            <i class="bi bi-copy"></i> Скопировать ссылку
+          </button>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="section-panel">
+    <div class="section-header">
+      <div>
+        <h2>Тарифы</h2>
+        <p class="section-note">Выберите подходящий план. После оплаты ключ появится в разделе «Подписки».</p>
+      </div>
+      <a href="/cabinet/plans" class="btn-outline">Все тарифы</a>
+    </div>
+
+    <div class="plans-grid">
+      {% for plan in plans %}
+      <article class="plan-card">
+        <div class="eyebrow">
+          <i class="bi bi-lightning-charge"></i>
+          <span>{{ plan.duration_days }} дней</span>
+        </div>
+        <div class="plan-name">{{ plan.name }}</div>
+        <div class="plan-price">{{ "%.0f"|format(plan.price) }} ₽</div>
+        {% if plan.description %}
+        <div class="plan-desc">{{ plan.description }}</div>
+        {% endif %}
+        <button type="button" class="btn-accent w-100 mt-2" onclick="buyPlan({{ plan.id }})">
+          <i class="bi bi-bag-check"></i> Купить
+        </button>
+      </article>
       {% else %}
-      {{ "%.0f"|format(total / 1024) }} KB
-      {% endif %}
+      <div class="empty-state">
+        <div class="empty-illustration"><i class="bi bi-stars"></i></div>
+        <p>Сейчас нет доступных тарифов. Попробуйте чуть позже.</p>
+      </div>
+      {% endfor %}
     </div>
-  </div>
-  {% endfor %}
+  </section>
 </div>
-{% endif %}
+{% endblock %}
 
-<div class="section">
-  <h3 class="section-title">💳 Тарифы</h3>
-  <div class="plans-grid">
-    {% for plan in plans %}
-    <div class="plan-card" onclick="payBalance({{ plan.id }})">
-      <div class="plan-name">{{ plan.name }}</div>
-      <div class="plan-price">{{ "%.0f"|format(plan.price) }} ₽</div>
-      <div class="plan-duration">{{ plan.duration_days }} дн.</div>
-      {% if plan.description %}
-      <div class="plan-desc">{{ plan.description }}</div>
-      {% endif %}
-      <button class="btn-accent w-100 mt-2">Купить</button>
-    </div>
-    {% endfor %}
-  </div>
-</div>
+{% block scripts %}
+async function buyPlan(planId) {
+  var formData = new FormData();
+  formData.append('plan_id', planId);
 
-<script>
-async function payBalance(planId) {
-  const fd = new FormData();
-  fd.append('plan_id', planId);
   try {
-    const r = await fetch('/cabinet/pay/balance', {method:'POST', body:fd});
-    const d = await r.json();
-    if (d.ok) { showToast(d.message, 'success'); setTimeout(() => location.reload(), 1000); }
-    else showToast(d.message, 'error');
-  } catch(e) { showToast('Ошибка сети', 'error'); }
+    var result = await cabinetJson('/cabinet/pay/balance', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (result.data.ok) {
+      showToast(result.data.message || 'Подписка успешно оформлена', 'success');
+      setTimeout(function() {
+        window.location.href = cabinetUrl('/cabinet/keys');
+      }, 900);
+      return;
+    }
+
+    showToast(result.data.message || 'Не удалось оформить подписку', 'error');
+  } catch (error) {
+    showToast('Ошибка сети', 'error');
+  }
 }
-</script>
 {% endblock %}

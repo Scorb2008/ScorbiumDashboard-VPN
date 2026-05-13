@@ -1,1 +1,93 @@
+{% extends "cabinet/base.html" %}
+{% block title %}Тикет #{{ ticket.id }} - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="dash-stack">
+  <section class="section-panel">
+    <a href="/cabinet/support" class="back-link"><i class="bi bi-arrow-left"></i> Назад к списку обращений</a>
+    <div class="section-header">
+      <div>
+        <h2>{{ ticket.subject }}</h2>
+        <p class="section-note">Тикет #{{ ticket.id }} создан {{ ticket.created_at.strftime('%d.%m.%Y %H:%M') if ticket.created_at else '—' }}</p>
+      </div>
+      <span class="status-chip status-{{ ticket.status if ticket.status else 'open' }}">
+        {{ ticket.status if ticket.status else 'open' }}
+      </span>
+    </div>
+  </section>
 
+  <section class="section-panel">
+    <div class="section-header">
+      <div>
+        <h2>Переписка</h2>
+        <p class="section-note">Все сообщения сохраняются, поэтому можно спокойно продолжить диалог позже.</p>
+      </div>
+    </div>
+
+    {% if ticket.messages %}
+    <div class="ticket-thread">
+      {% for msg in ticket.messages %}
+      <article class="msg {% if msg.is_admin %}msg-admin{% else %}msg-user{% endif %}">
+        <div class="msg-sender">{% if msg.is_admin %}Поддержка{% else %}Вы{% endif %}</div>
+        <div class="msg-text">{{ msg.text }}</div>
+        <div class="msg-time">{{ msg.created_at.strftime('%d.%m.%Y %H:%M') if msg.created_at else '—' }}</div>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-illustration"><i class="bi bi-chat-left-dots"></i></div>
+      <p>В этом тикете пока нет сообщений.</p>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="section-panel">
+    <div class="section-header">
+      <div>
+        <h2>Ответить в тикет</h2>
+        <p class="section-note">Напишите уточнение, лог ошибки или вопрос по текущей проблеме.</p>
+      </div>
+    </div>
+
+    <form onsubmit="return sendTicketMessage(event)">
+      <textarea id="ticket-message" class="form-input" rows="5" placeholder="Напишите сообщение..." required></textarea>
+      <div class="action-row mt-2">
+        <button type="submit" class="btn-accent"><i class="bi bi-send"></i> Отправить</button>
+        <div id="ticket-message-result"></div>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+async function sendTicketMessage(event) {
+  event.preventDefault();
+
+  var text = document.getElementById('ticket-message').value.trim();
+  var resultBox = document.getElementById('ticket-message-result');
+  var formData = new FormData();
+  formData.append('text', text);
+
+  try {
+    var result = await cabinetJson('/cabinet/support/{{ ticket.id }}/message', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (result.data.ok) {
+      setMsg(resultBox, true, 'Сообщение отправлено');
+      setTimeout(function() {
+        window.location.reload();
+      }, 500);
+      return false;
+    }
+
+    setMsg(resultBox, false, result.data.message || 'Не удалось отправить сообщение');
+  } catch (error) {
+    setMsg(resultBox, false, 'Ошибка сети');
+  }
+
+  return false;
+}
+{% endblock %}

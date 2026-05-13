@@ -21,6 +21,7 @@ router = APIRouter()
 COOKIE_NAME = "cabinet_session"
 CABINET_COOKIE_MAX_AGE = 86400 * 30
 INT64_MAX = 2**63 - 1
+MINIAPP_INIT_DATA_PARAM = "tg_init_data"
 
 
 def _is_secure_request(request: Request) -> bool:
@@ -28,6 +29,14 @@ def _is_secure_request(request: Request) -> bool:
     if forwarded_proto:
         return forwarded_proto.split(",")[0].strip().lower() == "https"
     return request.url.scheme == "https"
+
+
+def get_telegram_init_data(request: Request) -> str:
+    return (
+        request.headers.get("X-Telegram-Init-Data", "")
+        or request.query_params.get(MINIAPP_INIT_DATA_PARAM, "")
+        or request.query_params.get("initData", "")
+    )
 
 
 def _build_telegram_full_name(
@@ -120,7 +129,7 @@ async def get_cabinet_user(request: Request, db: AsyncSession):
 
 
 async def try_miniapp_auth(request: Request, db: AsyncSession):
-    init_data = request.headers.get("X-Telegram-Init-Data", "")
+    init_data = get_telegram_init_data(request)
     if not init_data:
         return None
     tg_data = _verify_telegram_init_data(init_data)
