@@ -30,6 +30,17 @@ def _is_secure_request(request: Request) -> bool:
     return request.url.scheme == "https"
 
 
+def _build_telegram_full_name(
+    first_name: str | None = None,
+    last_name: str | None = None,
+    fallback_name: str | None = None,
+) -> str:
+    full_name = " ".join(filter(None, [(first_name or "").strip(), (last_name or "").strip()])).strip()
+    if full_name:
+        return full_name
+    return (fallback_name or "").strip() or "Telegram User"
+
+
 def _verify_telegram_init_data(init_data: str) -> dict | None:
     try:
         bot_token = config.telegram.telegram_bot_token.get_secret_value()
@@ -119,10 +130,14 @@ async def try_miniapp_auth(request: Request, db: AsyncSession):
         user_info = json.loads(tg_data.get("user", "{}"))
         if not user_info.get("id"):
             return None
-        user, _ = await UserService(db).get_or_create(UserCreate(
+        user, _ = await UserService(db).sync_telegram_profile(UserCreate(
             id=user_info["id"],
             username=user_info.get("username", ""),
-            full_name=" ".join(filter(None, [user_info.get("first_name", ""), user_info.get("last_name", "")])),
+            full_name=_build_telegram_full_name(
+                user_info.get("first_name", ""),
+                user_info.get("last_name", ""),
+                user_info.get("name", ""),
+            ),
         ))
         return user
     except Exception as e:
@@ -173,10 +188,14 @@ async def cabinet_auth(request: Request, db: AsyncSession = Depends(get_db)):
             "first_name": (payload.get("name", "") or "").split(" ", 1)[0],
             "last_name": (payload.get("name", "") or "").split(" ", 1)[1] if " " in (payload.get("name", "") or "") else "",
         }
-        user, _ = await UserService(db).get_or_create(UserCreate(
+        user, _ = await UserService(db).sync_telegram_profile(UserCreate(
             id=user_id,
             username=user_info["username"],
-            full_name=" ".join(filter(None, [user_info["first_name"], user_info["last_name"]])),
+            full_name=_build_telegram_full_name(
+                user_info["first_name"],
+                user_info["last_name"],
+                payload.get("name", ""),
+            ),
         ))
         if user.is_banned:
             return JSONResponse({"ok": False, "message": "Account is banned"}, status_code=403)
@@ -205,10 +224,14 @@ async def cabinet_auth(request: Request, db: AsyncSession = Depends(get_db)):
     if not user_id:
         return JSONResponse({"ok": False, "message": "Invalid user ID"}, status_code=401)
 
-    user, _ = await UserService(db).get_or_create(UserCreate(
+    user, _ = await UserService(db).sync_telegram_profile(UserCreate(
         id=user_id,
         username=user_info.get("username", ""),
-        full_name=" ".join(filter(None, [user_info.get("first_name", ""), user_info.get("last_name", "")])),
+        full_name=_build_telegram_full_name(
+            user_info.get("first_name", ""),
+            user_info.get("last_name", ""),
+            user_info.get("name", ""),
+        ),
     ))
     if user.is_banned:
         return JSONResponse({"ok": False, "message": "Account is banned"}, status_code=403)

@@ -37,6 +37,23 @@ class UserService:
         user = await self.create(data)
         return user, True
 
+    async def sync_telegram_profile(self, data: UserCreate) -> tuple[User, bool]:
+        user = await self.get_by_id(data.id)
+        if not user:
+            user = await self.create(data)
+            return user, True
+
+        username = (data.username or "").strip() or user.username
+        full_name = data.full_name.strip() or user.full_name
+
+        if user.username != username:
+            user.username = username
+        if user.full_name != full_name:
+            user.full_name = full_name
+
+        await self.session.flush()
+        return user, False
+
     async def update(self, user_id: int, data: UserUpdate) -> Optional[User]:
         user = await self.get_by_id(user_id)
         if not user:

@@ -4,6 +4,7 @@ from fastapi import Request
 from fastapi.responses import Response
 
 from app.api.cabinet.auth import (
+    _build_telegram_full_name,
     _extract_telegram_oidc_user_id,
     _is_secure_request,
     cabinet_auth,
@@ -72,6 +73,14 @@ def test_extract_telegram_oidc_user_id_rejects_out_of_range():
         pass
     else:
         raise AssertionError("Expected ValueError for out-of-range Telegram user id")
+
+
+def test_build_telegram_full_name_prefers_split_names():
+    assert _build_telegram_full_name("Scorb", "Dev", "Ignored Name") == "Scorb Dev"
+
+
+def test_build_telegram_full_name_uses_fallback_name():
+    assert _build_telegram_full_name("", "", "Fallback User") == "Fallback User"
 
 
 async def test_cabinet_auth_oidc_uses_numeric_telegram_id(session):

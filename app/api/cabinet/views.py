@@ -19,7 +19,7 @@ from app.services.bot_settings import BotSettingsService
 from app.models.payment import PaymentProvider
 from app.utils.log import log
 
-from .auth import get_cabinet_user, try_miniapp_auth, set_session_cookie
+from .auth import get_cabinet_user, try_miniapp_auth, set_session_cookie, _is_secure_request
 
 router = APIRouter()
 
@@ -47,6 +47,11 @@ async def _require_active_user(request: Request, db: AsyncSession):
 
 def _is_mini_app(request: Request) -> bool:
     return bool(request.headers.get("X-Telegram-Init-Data", ""))
+
+
+def _persist_cabinet_session(request: Request, response, user) -> None:
+    if user and not request.cookies.get("cabinet_session"):
+        set_session_cookie(response, user.id, secure=_is_secure_request(request))
 
 
 async def _ensure_bot_username(db: AsyncSession, settings: dict) -> str:
@@ -97,13 +102,15 @@ async def cabinet_index(request: Request, db: AsyncSession = Depends(get_db)):
         svc = await BotSettingsService(db).get_all()
         plans = await PlanService(db).get_all(only_active=True)
         keys = await VpnKeyService(db).get_active_for_user(user.id)
-        return templates.TemplateResponse("cabinet/index.html", {
+        response = templates.TemplateResponse("cabinet/index.html", {
             "request": request, "app_name": config.web.app_name,
             "app_version": config.web.app_version,
             "user": user, "plans": plans, "keys": keys,
             "settings": svc, "now": datetime.now(timezone.utc),
             "is_mini_app": _is_mini_app(request),
         })
+        _persist_cabinet_session(request, response, user)
+        return response
 
     svc = await BotSettingsService(db).get_all()
     bot_username = await _ensure_bot_username(db, svc)
@@ -124,12 +131,14 @@ async def cabinet_profile(request: Request, db: AsyncSession = Depends(get_db)):
     keys = await VpnKeyService(db).get_all_for_user(user.id)
     payments = await PaymentService(db).get_all(user_id=user.id, limit=50)
     referrals = await ReferralService(db).count_referrals(user.id)
-    return templates.TemplateResponse("cabinet/profile.html", {
+    response = templates.TemplateResponse("cabinet/profile.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "keys": keys, "payments": payments,
         "referrals_count": referrals, "now": datetime.now(timezone.utc),
         "is_mini_app": _is_mini_app(request),
     })
+    _persist_cabinet_session(request, response, user)
+    return response
 
 
 @router.get("/cabinet/keys", response_class=HTMLResponse)
@@ -138,11 +147,13 @@ async def cabinet_keys(request: Request, db: AsyncSession = Depends(get_db)):
     if not user:
         return RedirectResponse(url="/cabinet/", status_code=302)
     keys = await VpnKeyService(db).get_all_for_user(user.id)
-    return templates.TemplateResponse("cabinet/keys.html", {
+    response = templates.TemplateResponse("cabinet/keys.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "keys": keys, "now": datetime.now(timezone.utc),
         "is_mini_app": _is_mini_app(request),
     })
+    _persist_cabinet_session(request, response, user)
+    return response
 
 
 @router.get("/cabinet/plans", response_class=HTMLResponse)
@@ -152,11 +163,13 @@ async def cabinet_plans(request: Request, db: AsyncSession = Depends(get_db)):
         return RedirectResponse(url="/cabinet/", status_code=302)
     plans = await PlanService(db).get_all(only_active=True)
     settings = await BotSettingsService(db).get_all()
-    return templates.TemplateResponse("cabinet/plans.html", {
+    response = templates.TemplateResponse("cabinet/plans.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "plans": plans, "settings": settings,
         "is_mini_app": _is_mini_app(request),
     })
+    _persist_cabinet_session(request, response, user)
+    return response
 
 
 @router.get("/cabinet/balance", response_class=HTMLResponse)
@@ -166,11 +179,13 @@ async def cabinet_balance(request: Request, db: AsyncSession = Depends(get_db)):
         return RedirectResponse(url="/cabinet/", status_code=302)
     payments = await PaymentService(db).get_all(user_id=user.id, limit=100)
     settings = await BotSettingsService(db).get_all()
-    return templates.TemplateResponse("cabinet/balance.html", {
+    response = templates.TemplateResponse("cabinet/balance.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "payments": payments, "settings": settings,
         "is_mini_app": _is_mini_app(request),
     })
+    _persist_cabinet_session(request, response, user)
+    return response
 
 
 @router.get("/cabinet/promo", response_class=HTMLResponse)
@@ -178,10 +193,12 @@ async def cabinet_promo(request: Request, db: AsyncSession = Depends(get_db)):
     user = await _require_active_user(request, db)
     if not user:
         return RedirectResponse(url="/cabinet/", status_code=302)
-    return templates.TemplateResponse("cabinet/promo.html", {
+    response = templates.TemplateResponse("cabinet/promo.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "is_mini_app": _is_mini_app(request),
     })
+    _persist_cabinet_session(request, response, user)
+    return response
 
 
 @router.post("/cabinet/promo/apply")
@@ -206,10 +223,12 @@ async def cabinet_support(request: Request, db: AsyncSession = Depends(get_db)):
     if not user:
         return RedirectResponse(url="/cabinet/", status_code=302)
     tickets = await SupportService(db).get_for_user(user.id)
-    return templates.TemplateResponse("cabinet/support.html", {
+    response = templates.TemplateResponse("cabinet/support.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "tickets": tickets, "is_mini_app": _is_mini_app(request),
     })
+    _persist_cabinet_session(request, response, user)
+    return response
 
 
 @router.post("/cabinet/support/create")
@@ -236,10 +255,12 @@ async def cabinet_support_ticket(
     ticket = await SupportService(db).get_by_id(ticket_id)
     if not ticket or ticket.user_id != user.id:
         return RedirectResponse(url="/cabinet/support", status_code=302)
-    return templates.TemplateResponse("cabinet/support_ticket.html", {
+    response = templates.TemplateResponse("cabinet/support_ticket.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "ticket": ticket, "is_mini_app": _is_mini_app(request),
     })
+    _persist_cabinet_session(request, response, user)
+    return response
 
 
 @router.post("/cabinet/support/{ticket_id}/message")
@@ -270,11 +291,13 @@ async def cabinet_referrals(request: Request, db: AsyncSession = Depends(get_db)
     bot_username = await _ensure_bot_username(db, settings)
     if bot_username:
         settings["bot_username"] = bot_username
-    return templates.TemplateResponse("cabinet/referrals.html", {
+    response = templates.TemplateResponse("cabinet/referrals.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "referrals": refs, "top_referrers": top,
         "settings": settings, "is_mini_app": _is_mini_app(request),
     })
+    _persist_cabinet_session(request, response, user)
+    return response
 
 
 @router.get("/cabinet/servers", response_class=HTMLResponse)
@@ -287,10 +310,12 @@ async def cabinet_servers(request: Request, db: AsyncSession = Depends(get_db)):
         hosts = await get_vpn_panel().get_hosts()
     except Exception:
         hosts = []
-    return templates.TemplateResponse("cabinet/servers.html", {
+    response = templates.TemplateResponse("cabinet/servers.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "hosts": hosts, "is_mini_app": _is_mini_app(request),
     })
+    _persist_cabinet_session(request, response, user)
+    return response
 
 
 @router.get("/cabinet/guides", response_class=HTMLResponse)
@@ -299,10 +324,12 @@ async def cabinet_guides(request: Request, db: AsyncSession = Depends(get_db)):
     if not user:
         return RedirectResponse(url="/cabinet/", status_code=302)
     settings = await BotSettingsService(db).get_all()
-    return templates.TemplateResponse("cabinet/guides.html", {
+    response = templates.TemplateResponse("cabinet/guides.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "settings": settings, "is_mini_app": _is_mini_app(request),
     })
+    _persist_cabinet_session(request, response, user)
+    return response
 
 
 @router.get("/cabinet/language", response_class=HTMLResponse)
@@ -310,10 +337,12 @@ async def cabinet_language(request: Request, db: AsyncSession = Depends(get_db))
     user = await _require_active_user(request, db)
     if not user:
         return RedirectResponse(url="/cabinet/", status_code=302)
-    return templates.TemplateResponse("cabinet/language.html", {
+    response = templates.TemplateResponse("cabinet/language.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "is_mini_app": _is_mini_app(request),
     })
+    _persist_cabinet_session(request, response, user)
+    return response
 
 
 @router.post("/cabinet/language")
@@ -339,12 +368,14 @@ async def cabinet_trial(request: Request, db: AsyncSession = Depends(get_db)):
     trial_enabled = settings.get("trial_enabled", "0") == "1"
     trial_days = int(settings.get("trial_days", "3"))
     has_keys = len(await VpnKeyService(db).get_all_for_user(user.id)) > 0
-    return templates.TemplateResponse("cabinet/trial.html", {
+    response = templates.TemplateResponse("cabinet/trial.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "trial_enabled": trial_enabled,
         "trial_days": trial_days, "has_keys": has_keys,
         "is_mini_app": _is_mini_app(request),
     })
+    _persist_cabinet_session(request, response, user)
+    return response
 
 
 @router.post("/cabinet/trial/activate")

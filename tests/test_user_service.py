@@ -1,10 +1,7 @@
 """Tests for UserService: atomic balance operations, race conditions."""
-import pytest
 from decimal import Decimal
-from sqlalchemy import select
 
-from app.models.user import User
-from app.schemas.user import UserCreate, UserUpdate
+from app.schemas.user import UserCreate
 from app.services.user import UserService
 
 
@@ -20,7 +17,6 @@ class TestUserService:
         user = await svc.deduct_balance(sample_user.id, Decimal("200.00"))
         assert user is None
 
-        # Balance should remain unchanged
         user = await svc.get_by_id(sample_user.id)
         assert user.balance == Decimal("100.00")
 
@@ -32,7 +28,6 @@ class TestUserService:
 
     async def test_deduct_balance_atomic(self, session, sample_user):
         svc = UserService(session)
-        from sqlalchemy import update
         user = await svc.deduct_balance(sample_user.id, Decimal("10.00"))
         assert user is not None
         assert user.balance == Decimal("90.00")
@@ -81,3 +76,33 @@ class TestUserService:
         user = await svc.get_by_referral_code("TEST123")
         assert user is not None
         assert user.id == sample_user.id
+
+    async def test_sync_telegram_profile_updates_existing_user(self, session, sample_user):
+        svc = UserService(session)
+
+        user, created = await svc.sync_telegram_profile(
+            UserCreate(
+                id=sample_user.id,
+                username="updated_user",
+                full_name="Updated User",
+            )
+        )
+
+        assert created is False
+        assert user.username == "updated_user"
+        assert user.full_name == "Updated User"
+
+    async def test_sync_telegram_profile_keeps_existing_username_when_new_one_is_empty(self, session, sample_user):
+        svc = UserService(session)
+
+        user, created = await svc.sync_telegram_profile(
+            UserCreate(
+                id=sample_user.id,
+                username="",
+                full_name="Updated User",
+            )
+        )
+
+        assert created is False
+        assert user.username == "testuser"
+        assert user.full_name == "Updated User"
