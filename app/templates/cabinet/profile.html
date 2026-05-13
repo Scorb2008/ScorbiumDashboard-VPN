@@ -1,87 +1,70 @@
 {% extends "cabinet/base.html" %}
 {% block title %}Профиль - {{ app_name }}{% endblock %}
 {% block content %}
-<div class="stack-lg">
-  <div class="card">
-    <div class="profile-row">
-      <div class="profile-avatar">{{ (user.full_name or user.username or 'U')[:1]|upper }}</div>
-      <div>
-        <div class="profile-name">{{ user.full_name or 'Пользователь' }}</div>
-        <div class="profile-sub">{% if user.username %}@{{ user.username }}{% else %}ID {{ user.id }}{% endif %}</div>
-      </div>
+<div class="sl">
+  <div class="cd pr">
+    <div class="pa">{{ (user.full_name or user.username or 'U')[:1]|upper }}</div>
+    <div>
+      <div class="pn">{{ user.full_name or 'Пользователь' }}</div>
+      <div class="ps">{% if user.username %}@{{ user.username }}{% else %}ID {{ user.id }}{% endif %}</div>
     </div>
   </div>
 
-  <div class="grid-3">
-    <div class="card-sm stat-block">
-      <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
-      <div>
-        <div class="stat-value">{{ "%.2f"|format(user.balance) }} ₽</div>
-        <div class="stat-label">Баланс</div>
-      </div>
+  <div class="r3">
+    <div class="cd-sm st">
+      <div class="st-i"><i class="bi bi-wallet2"></i></div>
+      <div><div class="st-v">{{ "%.2f"|format(user.balance) }} ₽</div><div class="st-l">Баланс</div></div>
     </div>
-    <div class="card-sm stat-block">
-      <div class="stat-icon"><i class="bi bi-key"></i></div>
-      <div>
-        <div class="stat-value">{{ keys|length }}</div>
-        <div class="stat-label">Подписки</div>
-      </div>
+    <div class="cd-sm st">
+      <div class="st-i"><i class="bi bi-key"></i></div>
+      <div><div class="st-v">{{ keys|length }}</div><div class="st-l">Подписки</div></div>
     </div>
-    <div class="card-sm stat-block">
-      <div class="stat-icon"><i class="bi bi-people"></i></div>
-      <div>
-        <div class="stat-value">{{ referrals_count }}</div>
-        <div class="stat-label">Рефералы</div>
-      </div>
+    <div class="cd-sm st">
+      <div class="st-i"><i class="bi bi-people"></i></div>
+      <div><div class="st-v">{{ referrals_count }}</div><div class="st-l">Рефералы</div></div>
     </div>
   </div>
 
-  <div class="flex gap-2" style="flex-wrap:wrap">
-    <a href="/cabinet/referrals" class="btn btn-outline"><i class="bi bi-people"></i> Рефералы</a>
-    <a href="/cabinet/language" class="btn btn-outline"><i class="bi bi-translate"></i> Язык</a>
-    <a href="/cabinet/balance" class="btn btn-primary"><i class="bi bi-wallet2"></i> Баланс</a>
+  <div class="rw">
+    <a href="/cabinet/referrals" class="btn btn-o"><i class="bi bi-people"></i> Рефералы</a>
+    <a href="/cabinet/language" class="btn btn-o"><i class="bi bi-translate"></i> Язык</a>
+    <a href="/cabinet/balance" class="btn btn-p"><i class="bi bi-wallet2"></i> Баланс</a>
   </div>
 
-  <div class="page-header"><h2>Подписки</h2><a href="/cabinet/keys" class="btn btn-outline">Все</a></div>
+  <div class="ttl"><h2>Подписки</h2><a href="/cabinet/keys" class="btn btn-o">Все</a></div>
   {% if keys %}
-  <div class="stack">
+  <div class="s">
     {% for key in keys[:4] %}
-    <div class="card-flat flex items-center justify-between gap-2" style="{% if key.status != 'active' %}opacity:.6{% endif %}">
+    <div class="cd-flat rb" {% if key.status != 'active' %}style="opacity:.6"{% endif %}>
       <div>
         <div style="font-weight:700;font-size:.88rem">{{ key.name or 'VPN подписка' }}</div>
-        <div class="text-muted" style="font-size:.78rem">
-          {% if key.expires_at %}до {{ key.expires_at.strftime('%d.%m.%Y') }}{% else %}без срока{% endif %}
-        </div>
+        <div class="cm" style="font-size:.78rem">{% if key.expires_at %}до {{ key.expires_at.strftime('%d.%m.%Y') }}{% else %}без срока{% endif %}</div>
       </div>
       {% if key.access_url and key.access_url != 'pending' %}
-      <button class="btn btn-outline" onclick="copyText({{ key.access_url|tojson }}, 'Ссылка скопирована')">
-        <i class="bi bi-copy"></i>
-      </button>
+      <button class="btn btn-o" onclick="copyText({{ key.access_url|tojson }}, 'Ссылка скопирована')"><i class="bi bi-copy"></i></button>
       {% endif %}
     </div>
     {% endfor %}
   </div>
   {% else %}
-  <div class="empty"><div class="empty-icon"><i class="bi bi-key"></i></div><p>Нет подписок</p></div>
+  <div class="ep"><div class="ei"><i class="bi bi-key"></i></div><p>Нет подписок</p></div>
   {% endif %}
 
-  <div class="page-header"><h2>Платежи</h2><a href="/cabinet/balance" class="btn btn-outline">История</a></div>
+  <div class="ttl"><h2>Платежи</h2><a href="/cabinet/balance" class="btn btn-o">История</a></div>
   {% if payments %}
-  <div class="stack">
+  <div class="s">
     {% for p in payments[:6] %}
-    <div class="payment-row">
-      <div class="payment-info">
-        <span class="payment-amount {% if p.status == 'succeeded' %}text-success{% elif p.status == 'failed' %}text-danger{% endif %}">
-          {{ "%.2f"|format(p.amount) }} ₽
-        </span>
-        <span class="payment-date">{{ p.created_at.strftime('%d.%m.%Y') }}</span>
+    <div class="pay">
+      <div class="pay-l">
+        <span class="pay-a {% if p.status == 'succeeded' %}cg{% elif p.status == 'failed' %}cr{% endif %}">{{ "%.2f"|format(p.amount) }} ₽</span>
+        <span class="pay-d">{{ p.created_at.strftime('%d.%m.%Y') }}</span>
       </div>
-      <span class="badge badge-{{ 'success' if p.status == 'succeeded' else 'danger' if p.status == 'failed' else 'warning' }}">{{ p.status }}</span>
+      <span class="bdg bdg-{{ 'g' if p.status == 'succeeded' else 'b' if p.status == 'failed' else 'w' }}">{{ p.status }}</span>
     </div>
     {% endfor %}
   </div>
   {% else %}
-  <div class="empty"><div class="empty-icon"><i class="bi bi-receipt"></i></div><p>Платежей нет</p></div>
+  <div class="ep"><div class="ei"><i class="bi bi-receipt"></i></div><p>Платежей нет</p></div>
   {% endif %}
 </div>
 {% endblock %}

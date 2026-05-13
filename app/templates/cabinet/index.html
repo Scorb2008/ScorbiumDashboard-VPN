@@ -1,119 +1,89 @@
 {% extends "cabinet/base.html" %}
 {% block title %}Главная - {{ app_name }}{% endblock %}
 {% block content %}
-<div class="stack-lg">
-  <div class="card">
-    <div class="flex items-center justify-between gap-3" style="flex-wrap:wrap">
-      <div>
-        <div class="flex items-center gap-2">
-          <span class="stat-icon" style="width:36px;height:36px;font-size:.85rem"><i class="bi bi-person"></i></span>
-          <h1 style="margin:0;font-size:1.2rem;font-family:'Space Grotesk',sans-serif">{{ user.full_name or ('ID ' ~ user.id) }}</h1>
-        </div>
-      </div>
-      <div class="flex gap-2">
-        <a href="/cabinet/plans" class="btn btn-primary"><i class="bi bi-stars"></i> Тарифы</a>
-        <a href="/cabinet/keys" class="btn btn-outline"><i class="bi bi-key"></i> Подписки</a>
-      </div>
+<div class="sl">
+  <div class="cd rb rw">
+    <div class="r">
+      <span class="st-i" style="width:34px;height:34px;border-radius:10px;font-size:.85rem"><i class="bi bi-person"></i></span>
+      <h1 style="margin:0;font-size:1.15rem">{{ user.full_name or ('ID ' ~ user.id) }}</h1>
+    </div>
+    <div class="r">
+      <a href="/cabinet/plans" class="btn btn-p"><i class="bi bi-stars"></i> Тарифы</a>
+      <a href="/cabinet/keys" class="btn btn-o"><i class="bi bi-key"></i> Подписки</a>
     </div>
   </div>
 
-  <div class="grid-3">
-    <div class="card-sm stat-block">
-      <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
+  <div class="r3">
+    <div class="cd-sm st">
+      <div class="st-i"><i class="bi bi-wallet2"></i></div>
       <div>
-        <div class="stat-value">{{ "%.2f"|format(user.balance) }} ₽</div>
-        <div class="stat-label">Баланс</div>
+        <div class="st-v">{{ "%.2f"|format(user.balance) }} ₽</div>
+        <div class="st-l">Баланс</div>
       </div>
     </div>
-    <div class="card-sm stat-block">
-      <div class="stat-icon"><i class="bi bi-key"></i></div>
+    <div class="cd-sm st">
+      <div class="st-i"><i class="bi bi-key"></i></div>
       <div>
-        <div class="stat-value">{{ keys|length }}</div>
-        <div class="stat-label">Подписки</div>
+        <div class="st-v">{{ keys|length }}</div>
+        <div class="st-l">Подписки</div>
       </div>
     </div>
-    <div class="card-sm stat-block">
-      <div class="stat-icon"><i class="bi bi-gift"></i></div>
+    <div class="cd-sm st">
+      <div class="st-i"><i class="bi bi-gift"></i></div>
       <div>
-        <div class="stat-value">{{ user.referral_code or '—' }}</div>
-        <div class="stat-label">Реферальный код</div>
+        <div class="st-v">{{ user.referral_code or '—' }}</div>
+        <div class="st-l">Код</div>
       </div>
     </div>
   </div>
 
   {% if keys %}
-  <div class="page-header"><h2>Активные подписки</h2><a href="/cabinet/keys" class="btn btn-outline">Все</a></div>
-  <div class="grid-auto">
+  <div class="ttl"><h2>Подписки</h2><a href="/cabinet/keys" class="btn btn-o">Все</a></div>
+  <div class="rf">
     {% for key in keys %}
-    {% set traffic_total = (key.download or 0) + (key.upload or 0) %}
-    <div class="key-card">
-      <div class="key-header">
+    {% set t = (key.download or 0) + (key.upload or 0) %}
+    <div class="kc">
+      <div class="kh">
         <div>
-          <div class="key-name">{{ key.name or 'VPN ключ' }}</div>
-          <div class="key-sub">{{ key.pasarguard_key_id or '' }}</div>
+          <div class="kn">{{ key.name or 'VPN ключ' }}</div>
+          <div class="ks">{{ key.pasarguard_key_id or '' }}</div>
         </div>
-        <span class="badge {% if key.status == 'active' %}badge-success{% else %}badge-danger{% endif %}">
-          {{ 'Активна' if key.status == 'active' else 'Истекла' }}
-        </span>
+        <span class="bdg {% if key.status == 'active' %}bdg-g{% else %}bdg-b{% endif %}">{{ 'Активна' if key.status == 'active' else 'Истекла' }}</span>
       </div>
-      <div class="key-body">
-        <div class="key-row">
-          <span class="key-label">Действует до</span>
-          <span class="key-value">{{ key.expires_at.strftime('%d.%m.%Y') if key.expires_at else '∞' }}</span>
-        </div>
-        <div class="key-row">
-          <span class="key-label">Трафик</span>
-          <span class="key-value">
-            {% if traffic_total >= 1073741824 %}{{ "%.1f"|format(traffic_total / 1073741824) }} GB
-            {% elif traffic_total >= 1048576 %}{{ "%.0f"|format(traffic_total / 1048576) }} MB
-            {% else %}{{ "%.0f"|format(traffic_total / 1024) }} KB{% endif %}
-          </span>
-        </div>
+      <div class="kb">
+        <div class="kr"><span class="kl">Действует до</span><span class="kv">{{ key.expires_at.strftime('%d.%m.%Y') if key.expires_at else '∞' }}</span></div>
+        <div class="kr"><span class="kl">Трафик</span><span class="kv">{% if t >= 1073741824 %}{{ "%.1f"|format(t / 1073741824) }} GB{% elif t >= 1048576 %}{{ "%.0f"|format(t / 1048576) }} MB{% else %}{{ "%.0f"|format(t / 1024) }} KB{% endif %}</span></div>
       </div>
-      <div class="key-footer">
-        <button class="btn btn-outline w-full" onclick="copyText({{ key.access_url|tojson }}, 'Ссылка скопирована')">
-          <i class="bi bi-copy"></i> Копировать
-        </button>
-      </div>
+      <div class="kf"><button class="btn btn-o btn-w" onclick="copyText({{ key.access_url|tojson }}, 'Ссылка скопирована')"><i class="bi bi-copy"></i> Копировать</button></div>
     </div>
     {% endfor %}
   </div>
   {% endif %}
 
-  <div class="page-header"><h2>Тарифы</h2><a href="/cabinet/plans" class="btn btn-outline">Все</a></div>
-  <div class="plans-grid">
+  <div class="ttl"><h2>Тарифы</h2><a href="/cabinet/plans" class="btn btn-o">Все</a></div>
+  <div class="pg">
     {% for plan in plans %}
-    <div class="plan-card">
-      <div class="plan-eyebrow"><i class="bi bi-lightning-charge"></i>{{ plan.duration_days }} дней</div>
-      <div class="plan-name">{{ plan.name }}</div>
-      <div class="plan-price">{{ "%.0f"|format(plan.price) }} ₽</div>
-      {% if plan.description %}<div class="plan-desc">{{ plan.description }}</div>{% endif %}
-      <button class="btn btn-primary w-full" onclick="buyPlan({{ plan.id }})">
-        <i class="bi bi-bag-check"></i> Купить
-      </button>
+    <div class="pc">
+      <div class="pe"><i class="bi bi-lightning-charge"></i>{{ plan.duration_days }} дн.</div>
+      <div class="pn2">{{ plan.name }}</div>
+      <div class="pp">{{ "%.0f"|format(plan.price) }} ₽</div>
+      {% if plan.description %}<div class="pd">{{ plan.description }}</div>{% endif %}
+      <button class="btn btn-p btn-w" onclick="buyPlan({{ plan.id }})"><i class="bi bi-bag-check"></i> Купить</button>
     </div>
     {% else %}
-    <div class="empty">
-      <div class="empty-icon"><i class="bi bi-stars"></i></div>
-      <p>Тарифы пока недоступны</p>
-    </div>
+    <div class="ep"><div class="ei"><i class="bi bi-stars"></i></div><p>Тарифы недоступны</p></div>
     {% endfor %}
   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-async function buyPlan(planId) {
-  var fd = new FormData();
-  fd.append('plan_id', planId);
+async function buyPlan(id) {
+  var fd = new FormData(); fd.append('plan_id', id);
   try {
     var r = await cabinetJson('/cabinet/pay/balance', {method:'POST', body:fd});
-    if (r.data.ok) {
-      showToast(r.data.message || 'Подписка оформлена', 'success');
-      setTimeout(function() { window.location.href = cabinetUrl('/cabinet/keys'); }, 900);
-    } else {
-      showToast(r.data.message || 'Ошибка', 'error');
-    }
-  } catch (e) { showToast('Ошибка сети', 'error'); }
+    if (r.data.ok) { showToast(r.data.message || 'Подписка оформлена', 'success'); setTimeout(function(){window.location.href=cabinetUrl('/cabinet/keys')},900); }
+    else { showToast(r.data.message || 'Ошибка', 'error'); }
+  } catch(e) { showToast('Ошибка сети', 'error'); }
 }
 {% endblock %}

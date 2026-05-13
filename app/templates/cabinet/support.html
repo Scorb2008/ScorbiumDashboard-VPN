@@ -1,43 +1,35 @@
 {% extends "cabinet/base.html" %}
 {% block title %}Поддержка - {{ app_name }}{% endblock %}
 {% block content %}
-<div class="stack-lg">
-  <div class="page-header"><h2>Поддержка</h2></div>
+<div class="sl">
+  <div class="ttl"><h2>Поддержка</h2></div>
 
-  <div class="card">
+  <div class="cd">
     <h3 style="margin:0 0 12px;font-size:.95rem">Новое обращение</h3>
-    <form onsubmit="return createTicket(event)" class="stack">
-      <input type="text" id="ticket-subject" class="input" placeholder="Тема" required>
-      <textarea id="ticket-text" class="input" rows="3" placeholder="Опишите проблему..." required></textarea>
-      <div class="flex items-center gap-2">
-        <button type="submit" class="btn btn-primary"><i class="bi bi-send"></i> Отправить</button>
+    <form onsubmit="return createTicket(event)" class="s">
+      <input type="text" id="ticket-subject" class="inp" placeholder="Тема" required>
+      <textarea id="ticket-text" class="inp" rows="3" placeholder="Опишите проблему..." required></textarea>
+      <div class="r">
+        <button type="submit" class="btn btn-p"><i class="bi bi-send"></i> Отправить</button>
         <div id="ticket-result"></div>
       </div>
     </form>
   </div>
 
   {% if tickets %}
-  <div class="stack">
+  <div class="s">
     {% for t in tickets %}
-    <a href="/cabinet/support/{{ t.id }}" class="ticket-row">
+    <a href="/cabinet/support/{{ t.id }}" class="tr">
       <div>
-        <div class="ticket-subject">{{ t.subject }}</div>
-        <div class="ticket-meta">
-          <span>{{ t.created_at.strftime('%d.%m.%Y') }}</span>
-          <span>{{ t.messages|length }} сообщ.</span>
-        </div>
+        <div class="ts">{{ t.subject }}</div>
+        <div class="tm"><span>{{ t.created_at.strftime('%d.%m.%Y') }}</span><span>{{ t.messages|length }} сообщ.</span></div>
       </div>
-      <span class="badge badge-{{ 'success' if t.status == 'closed' else 'warning' if t.status == 'in_progress' else 'warning' }}">
-        {{ t.status if t.status else 'open' }}
-      </span>
+      <span class="bdg bdg-{{ 'g' if t.status == 'closed' else 'w' }}">{{ t.status if t.status else 'open' }}</span>
     </a>
     {% endfor %}
   </div>
   {% else %}
-  <div class="empty">
-    <div class="empty-icon"><i class="bi bi-chat-left-text"></i></div>
-    <p>Нет обращений</p>
-  </div>
+  <div class="ep"><div class="ei"><i class="bi bi-chat-left-text"></i></div><p>Нет обращений</p></div>
   {% endif %}
 </div>
 {% endblock %}
@@ -45,21 +37,15 @@
 {% block scripts %}
 async function createTicket(event) {
   event.preventDefault();
-  var subject = document.getElementById('ticket-subject').value.trim();
-  var text = document.getElementById('ticket-text').value.trim();
-  var resultBox = document.getElementById('ticket-result');
-  var fd = new FormData();
-  fd.append('subject', subject);
-  fd.append('text', text);
+  var s = document.getElementById('ticket-subject').value.trim();
+  var t = document.getElementById('ticket-text').value.trim();
+  var r = document.getElementById('ticket-result');
+  var fd = new FormData(); fd.append('subject', s); fd.append('text', t);
   try {
-    var r = await cabinetJson('/cabinet/support/create', {method:'POST', body:fd});
-    if (r.data.ok) {
-      setMsg(resultBox, true, 'Создано');
-      setTimeout(function() { window.location.href = cabinetUrl('/cabinet/support/' + r.data.ticket_id); }, 700);
-    } else {
-      setMsg(resultBox, false, r.data.message || 'Ошибка');
-    }
-  } catch (e) { setMsg(resultBox, false, 'Ошибка сети'); }
+    var res = await cabinetJson('/cabinet/support/create', {method:'POST', body:fd});
+    if (res.data.ok) { setMsg(r, true, 'Создано'); setTimeout(function(){window.location.href=cabinetUrl('/cabinet/support/'+res.data.ticket_id)},700); }
+    else { setMsg(r, false, res.data.message || 'Ошибка'); }
+  } catch(e) { setMsg(r, false, 'Ошибка сети'); }
   return false;
 }
 {% endblock %}

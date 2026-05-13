@@ -1,36 +1,31 @@
 {% extends "cabinet/base.html" %}
 {% block title %}Баланс — {{ app_name }}{% endblock %}
 {% block content %}
-<div class="stack-lg">
-  <div class="card balance-card">
-    <div class="balance-amount">{{ "%.2f"|format(user.balance) }} ₽</div>
-    <div class="balance-label">Текущий баланс</div>
+<div class="sl">
+  <div class="cd bc">
+    <div class="ba">{{ "%.2f"|format(user.balance) }} ₽</div>
+    <div class="bl">Текущий баланс</div>
   </div>
 
-  <div class="card">
+  <div class="cd">
     <h3 style="margin:0 0 12px;font-size:.95rem">Пополнить</h3>
-    <div class="topup-grid">
+    <div class="tg">
       {% for amt in [100, 200, 500, 1000, 2000, 5000] %}
-      <button class="btn btn-outline" onclick="topupBalance({{ amt }})">{{ amt }} ₽</button>
+      <button class="btn btn-o" onclick="topupBalance({{ amt }})">{{ amt }} ₽</button>
       {% endfor %}
     </div>
   </div>
 
   {% if payments %}
-  <div class="page-header"><h2>История</h2></div>
-  <div class="stack">
+  <div class="ttl"><h2>История</h2></div>
+  <div class="s">
     {% for p in payments %}
-    <div class="payment-row">
-      <div class="payment-info">
-        <span class="payment-amount {% if p.status == 'succeeded' %}text-success{% elif p.status == 'failed' %}text-danger{% endif %}">
-          {{ "+" if p.payment_type == 'topup' else "" }}{{ "%.2f"|format(p.amount) }} ₽
-        </span>
-        <span class="payment-date">{{ p.created_at.strftime('%d.%m.%Y') }}</span>
+    <div class="pay">
+      <div class="pay-l">
+        <span class="pay-a {% if p.status == 'succeeded' %}cg{% elif p.status == 'failed' %}cr{% endif %}">{{ "+" if p.payment_type == 'topup' else "" }}{{ "%.2f"|format(p.amount) }} ₽</span>
+        <span class="pay-d">{{ p.created_at.strftime('%d.%m.%Y') }}</span>
       </div>
-      <div class="flex items-center gap-2">
-        <span class="badge badge-{{ 'success' if p.status == 'succeeded' else 'danger' if p.status == 'failed' else 'warning' }}">{{ p.status }}</span>
-        <span class="text-muted" style="font-size:.75rem">{{ p.provider }}</span>
-      </div>
+      <div class="r"><span class="bdg bdg-{{ 'g' if p.status == 'succeeded' else 'b' if p.status == 'failed' else 'w' }}">{{ p.status }}</span><span class="cm" style="font-size:.75rem">{{ p.provider }}</span></div>
     </div>
     {% endfor %}
   </div>
@@ -38,6 +33,6 @@
 </div>
 
 <script>
-function topupBalance(amount) { showToast('Пополнение будет доступно позже', 'info'); }
+function topupBalance(amount) { showToast('Пополнение будет позже', 'info'); }
 </script>
 {% endblock %}

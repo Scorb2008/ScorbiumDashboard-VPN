@@ -12,78 +12,53 @@
 {% block head %}{% endblock %}
 </head>
 {% set cp = request.url.path %}
-{% set is_login = cp in ('/cabinet', '/cabinet/') and user is not defined %}
+{% set is_log = cp in ('/cabinet', '/cabinet/') and user is not defined %}
 <body data-page="{{ cp }}" data-mini-app="{{ 'true' if is_mini_app else 'false' }}">
+  <div id="app-shell">
+    <header class="nav">
+      <div class="nav-inner">
+        <a href="/cabinet/" style="width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(88,242,200,.2),rgba(87,159,255,.24));color:var(--accent);font-size:.85rem;flex-shrink:0"><i class="bi bi-shield-check"></i></a>
 
-<div id="app-shell">
-  <header class="dash-nav">
-    <div class="dash-nav-inner">
-      <a href="/cabinet/" class="dash-logo-mark"><i class="bi bi-shield-check"></i></a>
+        {% if not is_log %}
+        <nav class="nav-links">
+          <a href="/cabinet/" class="nav-lnk {% if cp in ('/cabinet', '/cabinet/') %}on{% endif %}"><i class="bi bi-grid-1x2"></i><span>Обзор</span></a>
+          <a href="/cabinet/plans" class="nav-lnk {% if cp.startswith('/cabinet/plans') %}on{% endif %}"><i class="bi bi-stars"></i><span>Тарифы</span></a>
+          <a href="/cabinet/keys" class="nav-lnk {% if cp.startswith('/cabinet/keys') %}on{% endif %}"><i class="bi bi-key"></i><span>Подписки</span></a>
+          <a href="/cabinet/balance" class="nav-lnk {% if cp.startswith('/cabinet/balance') %}on{% endif %}"><i class="bi bi-wallet2"></i><span>Баланс</span></a>
+          <a href="/cabinet/support" class="nav-lnk {% if cp.startswith('/cabinet/support') %}on{% endif %}"><i class="bi bi-chat-left-dots"></i><span>Поддержка</span></a>
+          <a href="/cabinet/profile" class="nav-lnk {% if cp.startswith('/cabinet/profile') %}on{% endif %}"><i class="bi bi-person-circle"></i><span>Профиль</span></a>
+          {% if user is defined and is_admin_user(user) %}
+          <a href="/panel/" class="nav-lnk admin"><i class="bi bi-shield-lock"></i><span>Админ</span></a>
+          {% endif %}
+        </nav>
 
-      {% if not is_login %}
-      <nav class="dash-nav-links">
-        <a href="/cabinet/" class="nav-link {% if cp in ('/cabinet', '/cabinet/') %}active{% endif %}">
-          <i class="bi bi-grid-1x2"></i><span>Обзор</span>
-        </a>
-        <a href="/cabinet/plans" class="nav-link {% if cp.startswith('/cabinet/plans') %}active{% endif %}">
-          <i class="bi bi-stars"></i><span>Тарифы</span>
-        </a>
-        <a href="/cabinet/keys" class="nav-link {% if cp.startswith('/cabinet/keys') %}active{% endif %}">
-          <i class="bi bi-key"></i><span>Подписки</span>
-        </a>
-        <a href="/cabinet/balance" class="nav-link {% if cp.startswith('/cabinet/balance') %}active{% endif %}">
-          <i class="bi bi-wallet2"></i><span>Баланс</span>
-        </a>
-        <a href="/cabinet/support" class="nav-link {% if cp.startswith('/cabinet/support') %}active{% endif %}">
-          <i class="bi bi-chat-left-dots"></i><span>Поддержка</span>
-        </a>
-        <a href="/cabinet/profile" class="nav-link {% if cp.startswith('/cabinet/profile') %}active{% endif %}">
-          <i class="bi bi-person-circle"></i><span>Профиль</span>
-        </a>
-        {% if user is defined and is_admin_user(user) %}
-        <a href="/panel/" class="nav-link nav-link-admin">
-          <i class="bi bi-shield-lock"></i><span>Админ</span>
-        </a>
-        {% endif %}
-      </nav>
-
-      <div class="dash-nav-side">
-        {% if user is defined and user %}
-        <div class="dash-user-chip">
-          <span class="dash-user-avatar">{{ (user.full_name or user.username or 'U')[:1]|upper }}</span>
-          <span class="dash-user-meta"><strong>{{ user.full_name or 'User' }}</strong></span>
+        <div class="nav-side">
+          {% if user is defined and user %}
+          <div class="nav-user">
+            <span class="nav-av">{{ (user.full_name or user.username or 'U')[:1]|upper }}</span>
+            <span class="nav-name">{{ user.full_name or 'User' }}</span>
+          </div>
+          {% endif %}
+          <a href="/cabinet/logout" class="nav-out"><i class="bi bi-box-arrow-right"></i></a>
         </div>
         {% endif %}
-        <a href="/cabinet/logout" class="dash-logout"><i class="bi bi-box-arrow-right"></i></a>
       </div>
-      {% endif %}
-    </div>
-  </header>
+    </header>
 
-  <main class="dash-main">
-    {% block content %}{% endblock %}
-  </main>
+    <main class="wrap">
+      {% block content %}{% endblock %}
+    </main>
 
-  {% if not is_login %}
-  <nav class="mini-nav">
-    <a href="/cabinet/" class="mini-nav-link {% if cp in ('/cabinet', '/cabinet/') %}active{% endif %}">
-      <i class="bi bi-grid-1x2"></i><span>Обзор</span>
-    </a>
-    <a href="/cabinet/plans" class="mini-nav-link {% if cp.startswith('/cabinet/plans') %}active{% endif %}">
-      <i class="bi bi-stars"></i><span>Тарифы</span>
-    </a>
-    <a href="/cabinet/keys" class="mini-nav-link {% if cp.startswith('/cabinet/keys') %}active{% endif %}">
-      <i class="bi bi-key"></i><span>Ключи</span>
-    </a>
-    <a href="/cabinet/support" class="mini-nav-link {% if cp.startswith('/cabinet/support') %}active{% endif %}">
-      <i class="bi bi-chat-left-dots"></i><span>Чат</span>
-    </a>
-    <a href="/cabinet/profile" class="mini-nav-link {% if cp.startswith('/cabinet/profile') %}active{% endif %}">
-      <i class="bi bi-person"></i><span>Я</span>
-    </a>
-  </nav>
-  {% endif %}
-</div>
+    {% if not is_log %}
+    <nav class="mnav">
+      <a href="/cabinet/" class="mnl {% if cp in ('/cabinet', '/cabinet/') %}on{% endif %}"><i class="bi bi-grid-1x2"></i><span>Обзор</span></a>
+      <a href="/cabinet/plans" class="mnl {% if cp.startswith('/cabinet/plans') %}on{% endif %}"><i class="bi bi-stars"></i><span>Тарифы</span></a>
+      <a href="/cabinet/keys" class="mnl {% if cp.startswith('/cabinet/keys') %}on{% endif %}"><i class="bi bi-key"></i><span>Ключи</span></a>
+      <a href="/cabinet/support" class="mnl {% if cp.startswith('/cabinet/support') %}on{% endif %}"><i class="bi bi-chat-left-dots"></i><span>Чат</span></a>
+      <a href="/cabinet/profile" class="mnl {% if cp.startswith('/cabinet/profile') %}on{% endif %}"><i class="bi bi-person"></i><span>Я</span></a>
+    </nav>
+    {% endif %}
+  </div>
 
 <script>
 window.CABINET_BOOT = {
@@ -101,17 +76,15 @@ function getTelegramWebApp() {
 function getMiniAppInitData() {
   var tg = getTelegramWebApp();
   if (tg && tg.initData) return tg.initData;
-  try {
-    return new URL(window.location.href).searchParams.get(window.CABINET_BOOT.initDataParam) || "";
-  } catch (e) { return ""; }
+  try { return new URL(window.location.href).searchParams.get(window.CABINET_BOOT.initDataParam) || ""; }
+  catch (e) { return ""; }
 }
 
 function cabinetUrl(path) {
   var initData = getMiniAppInitData();
   var target = new URL(path, window.location.origin);
-  if (initData && target.origin === window.location.origin && target.pathname.startsWith('/cabinet')) {
+  if (initData && target.origin === window.location.origin && target.pathname.startsWith('/cabinet'))
     target.searchParams.set(window.CABINET_BOOT.initDataParam, initData);
-  }
   return target.pathname + target.search + target.hash;
 }
 
@@ -143,12 +116,10 @@ async function cabinetFetch(url, options) {
   opts.credentials = opts.credentials || 'same-origin';
   var headers = new Headers(opts.headers || {});
   var initData = getMiniAppInitData();
-  if (initData && !headers.has('X-Telegram-Init-Data')) {
+  if (initData && !headers.has('X-Telegram-Init-Data'))
     headers.set('X-Telegram-Init-Data', initData);
-  }
-  if (opts.body && !(opts.body instanceof FormData) && !headers.has('Content-Type')) {
+  if (opts.body && !(opts.body instanceof FormData) && !headers.has('Content-Type'))
     headers.set('Content-Type', 'application/json');
-  }
   opts.headers = headers;
   return fetch(url, opts);
 }
@@ -158,14 +129,9 @@ async function cabinetJson(url, options) {
   var contentType = response.headers.get('content-type') || '';
   var data;
   try {
-    if (contentType.includes('application/json')) {
-      data = await response.json();
-    } else {
-      data = { ok: response.ok, message: await response.text() };
-    }
-  } catch (e) {
-    data = { ok: false, message: 'Server error' };
-  }
+    if (contentType.includes('application/json')) data = await response.json();
+    else data = { ok: response.ok, message: await response.text() };
+  } catch (e) { data = { ok: false, message: 'Server error' }; }
   if (!response.ok && typeof data.ok === 'undefined') data.ok = false;
   return { response: response, data: data };
 }
@@ -177,21 +143,15 @@ async function syncMiniAppSession(options) {
   var lastSyncedAt = Number(sessionStorage.getItem('cabinetMiniAppSyncedAt') || 0);
   if (!opts.force && Date.now() - lastSyncedAt < 15000) return { ok: true, skipped: true };
   if (window.__cabinetMiniAppAuthPromise && !opts.force) return window.__cabinetMiniAppAuthPromise;
-
   window.__cabinetMiniAppAuthPromise = (async function() {
-    var result = await cabinetJson('/cabinet/auth', {
-      method: 'POST',
-      body: JSON.stringify({ initData: initData })
-    });
+    var result = await cabinetJson('/cabinet/auth', {method:'POST', body:JSON.stringify({initData:initData})});
     if (result.data && result.data.ok) {
       sessionStorage.setItem('cabinetMiniAppSyncedAt', String(Date.now()));
       sessionStorage.setItem('cabinetMiniAppReady', '1');
-    } else if (!opts.silent) {
+    } else if (!opts.silent)
       showToast((result.data && result.data.message) || 'Session restore failed', 'error');
-    }
     return result.data || { ok: false };
   })().finally(function() { window.__cabinetMiniAppAuthPromise = null; });
-
   return window.__cabinetMiniAppAuthPromise;
 }
 
@@ -199,34 +159,25 @@ function showToast(message, type) {
   var toast = document.createElement('div');
   var title = document.createElement('strong');
   var body = document.createElement('span');
-  toast.className = 'toast toast-' + (type || 'info');
-  title.textContent = (type === 'success' ? 'Готово' : type === 'error' ? 'Ошибка' : 'Сообщение');
+  toast.className = 'toast toast-' + (type === 'success' ? 'g' : type === 'error' ? 'r' : '');
+  title.textContent = (type === 'success' ? 'Готово' : type === 'error' ? 'Ошибка' : '');
   body.textContent = message;
   toast.appendChild(title);
   toast.appendChild(body);
   document.body.appendChild(toast);
-  requestAnimationFrame(function() { toast.classList.add('toast-visible'); });
-  setTimeout(function() {
-    toast.classList.remove('toast-visible');
-    setTimeout(function() { toast.remove(); }, 200);
-  }, 3200);
+  requestAnimationFrame(function() { toast.classList.add('toast-v'); });
+  setTimeout(function() { toast.classList.remove('toast-v'); setTimeout(function() { toast.remove(); }, 200); }, 3200);
 }
 
 function setMsg(el, ok, msg) {
   if (!el) return;
-  el.className = ok ? 'text-success' : 'text-danger';
+  el.className = ok ? 'cg' : 'cr';
   el.textContent = msg;
 }
 
 async function copyText(value, successText) {
-  try {
-    await navigator.clipboard.writeText(value);
-    showToast(successText || 'Скопировано', 'success');
-    return true;
-  } catch (e) {
-    showToast('Не удалось скопировать', 'error');
-    return false;
-  }
+  try { await navigator.clipboard.writeText(value); showToast(successText || 'Скопировано', 'success'); return true; }
+  catch (e) { showToast('Не удалось скопировать', 'error'); return false; }
 }
 
 function openExternal(url) {
@@ -235,21 +186,15 @@ function openExternal(url) {
   window.open(url, '_blank', 'noopener');
 }
 
-(function bootstrapCabinet() {
+(function() {
   var tg = getTelegramWebApp();
   if (tg && tg.initData) {
     document.body.classList.add('mini-mode');
-    try {
-      tg.ready();
-      tg.expand();
-      if (typeof tg.disableVerticalSwipes === 'function') tg.disableVerticalSwipes();
-    } catch (e) {}
+    try { tg.ready(); tg.expand(); if (typeof tg.disableVerticalSwipes === 'function') tg.disableVerticalSwipes(); } catch (e) {}
   }
   cleanMiniAppParamFromAddress();
   decorateCabinetLinks();
-  if (window.CABINET_BOOT.isAuthenticated && getMiniAppInitData()) {
-    syncMiniAppSession({ silent: true }).catch(function() {});
-  }
+  if (window.CABINET_BOOT.isAuthenticated && getMiniAppInitData()) syncMiniAppSession({silent:true}).catch(function(){});
 })();
 {% block scripts %}{% endblock %}
 </script>

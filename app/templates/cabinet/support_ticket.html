@@ -1,40 +1,40 @@
 {% extends "cabinet/base.html" %}
 {% block title %}Тикет #{{ ticket.id }} - {{ app_name }}{% endblock %}
 {% block content %}
-<div class="stack-lg">
-  <a href="/cabinet/support" class="back-link"><i class="bi bi-arrow-left"></i> Назад</a>
+<div class="sl">
+  <a href="/cabinet/support" class="bk"><i class="bi bi-arrow-left"></i> Назад</a>
 
-  <div class="card flex items-center justify-between gap-2" style="flex-wrap:wrap">
+  <div class="cd rb rw">
     <div>
       <h2 style="margin:0;font-size:1.05rem">{{ ticket.subject }}</h2>
-      <div class="text-muted" style="font-size:.78rem">#{{ ticket.id }} · {{ ticket.created_at.strftime('%d.%m.%Y') if ticket.created_at else '—' }}</div>
+      <div class="cm" style="font-size:.78rem">#{{ ticket.id }} · {{ ticket.created_at.strftime('%d.%m.%Y') if ticket.created_at else '—' }}</div>
     </div>
-    <span class="badge badge-{{ 'success' if ticket.status == 'closed' else 'warning' }}">{{ ticket.status if ticket.status else 'open' }}</span>
+    <span class="bdg bdg-{{ 'g' if ticket.status == 'closed' else 'w' }}">{{ ticket.status if ticket.status else 'open' }}</span>
   </div>
 
-  <div class="card">
+  <div class="cd">
     <h3 style="margin:0 0 12px;font-size:.9rem">Переписка</h3>
     {% if ticket.messages %}
-    <div class="thread">
+    <div class="s">
       {% for msg in ticket.messages %}
-      <div class="msg {% if msg.is_admin %}msg-admin{% else %}msg-user{% endif %}">
-        <div class="msg-sender">{{ 'Поддержка' if msg.is_admin else 'Вы' }}</div>
-        <div class="msg-text">{{ msg.text }}</div>
-        <div class="msg-time">{{ msg.created_at.strftime('%d.%m.%Y %H:%M') if msg.created_at else '—' }}</div>
+      <div class="msg {% if msg.is_admin %}msg-a{% else %}msg-u{% endif %}">
+        <div class="ms">{{ 'Поддержка' if msg.is_admin else 'Вы' }}</div>
+        <div class="mt">{{ msg.text }}</div>
+        <div class="mti">{{ msg.created_at.strftime('%d.%m.%Y %H:%M') if msg.created_at else '—' }}</div>
       </div>
       {% endfor %}
     </div>
     {% else %}
-    <div class="empty"><div class="empty-icon"><i class="bi bi-chat-left-dots"></i></div><p>Нет сообщений</p></div>
+    <div class="ep"><div class="ei"><i class="bi bi-chat-left-dots"></i></div><p>Нет сообщений</p></div>
     {% endif %}
   </div>
 
-  <div class="card">
+  <div class="cd">
     <h3 style="margin:0 0 12px;font-size:.9rem">Ответить</h3>
-    <form onsubmit="return sendTicketMessage(event)" class="stack">
-      <textarea id="ticket-message" class="input" rows="3" placeholder="Напишите сообщение..." required></textarea>
-      <div class="flex items-center gap-2">
-        <button type="submit" class="btn btn-primary"><i class="bi bi-send"></i> Отправить</button>
+    <form onsubmit="return sendTicketMessage(event)" class="s">
+      <textarea id="ticket-message" class="inp" rows="3" placeholder="Напишите сообщение..." required></textarea>
+      <div class="r">
+        <button type="submit" class="btn btn-p"><i class="bi bi-send"></i> Отправить</button>
         <div id="ticket-message-result"></div>
       </div>
     </form>
@@ -45,19 +45,14 @@
 {% block scripts %}
 async function sendTicketMessage(event) {
   event.preventDefault();
-  var text = document.getElementById('ticket-message').value.trim();
-  var resultBox = document.getElementById('ticket-message-result');
-  var fd = new FormData();
-  fd.append('text', text);
+  var t = document.getElementById('ticket-message').value.trim();
+  var r = document.getElementById('ticket-message-result');
+  var fd = new FormData(); fd.append('text', t);
   try {
-    var r = await cabinetJson('/cabinet/support/{{ ticket.id }}/message', {method:'POST', body:fd});
-    if (r.data.ok) {
-      setMsg(resultBox, true, 'Отправлено');
-      setTimeout(function() { window.location.reload(); }, 500);
-    } else {
-      setMsg(resultBox, false, r.data.message || 'Ошибка');
-    }
-  } catch (e) { setMsg(resultBox, false, 'Ошибка сети'); }
+    var res = await cabinetJson('/cabinet/support/{{ ticket.id }}/message', {method:'POST', body:fd});
+    if (res.data.ok) { setMsg(r, true, 'Отправлено'); setTimeout(function(){window.location.reload()},500); }
+    else { setMsg(r, false, res.data.message || 'Ошибка'); }
+  } catch(e) { setMsg(r, false, 'Ошибка сети'); }
   return false;
 }
 {% endblock %}

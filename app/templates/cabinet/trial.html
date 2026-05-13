@@ -1,27 +1,21 @@
 {% extends "cabinet/base.html" %}
 {% block title %}Пробный период — {{ app_name }}{% endblock %}
 {% block content %}
-<div class="stack-lg">
-  <div class="page-header"><h2>Пробный период</h2></div>
+<div class="sl">
+  <div class="ttl"><h2>Пробный период</h2></div>
 
   {% if trial_enabled and not has_keys %}
-  <div class="card" style="text-align:center;padding:32px 20px">
-    <div style="font-size:2.4rem;margin-bottom:10px;color:var(--warning)"><i class="bi bi-gift-fill"></i></div>
-    <h3 style="margin:0 0 6px;font-family:'Space Grotesk',sans-serif">{{ trial_days }} дней бесплатно</h3>
-    <div style="margin-bottom:16px;color:var(--text-muted);font-size:.88rem">Полный доступ без оплаты</div>
-    <button class="btn btn-primary" onclick="activateTrial()">Активировать</button>
+  <div class="cd" style="text-align:center;padding:32px 20px">
+    <div style="font-size:2.4rem;margin-bottom:10px;color:var(--warn)"><i class="bi bi-gift-fill"></i></div>
+    <h3 style="margin:0 0 6px;font-family:'Space Grotesk',sans-serif">{{ trial_days }} дней</h3>
+    <div style="margin-bottom:16px;color:var(--text-muted);font-size:.88rem">Бесплатный доступ</div>
+    <button class="btn btn-p" onclick="activateTrial()">Активировать</button>
     <div id="trial-result" style="margin-top:10px;font-size:.85rem"></div>
   </div>
   {% elif has_keys %}
-  <div class="info-banner">
-    <i class="bi bi-check-circle text-success"></i>
-    <span>Пробный период недоступен — у вас уже есть подписки</span>
-  </div>
+  <div class="ib"><i class="bi bi-check-circle cg"></i><span>Пробный недоступен — есть подписки</span></div>
   {% else %}
-  <div class="info-banner">
-    <i class="bi bi-x-circle text-danger"></i>
-    <span>Пробный период отключён</span>
-  </div>
+  <div class="ib"><i class="bi bi-x-circle cr"></i><span>Пробный отключён</span></div>
   {% endif %}
 </div>
 
@@ -30,12 +24,8 @@ async function activateTrial() {
   var r = document.getElementById('trial-result');
   try {
     var res = await cabinetJson('/cabinet/trial/activate', {method:'POST'});
-    if (res.data.ok) {
-      setMsg(r, true, res.data.message || 'OK');
-      setTimeout(function() { location.reload(); }, 1500);
-    } else {
-      setMsg(r, false, res.data.message || 'Ошибка');
-    }
+    if (res.data.ok) { setMsg(r, true, res.data.message||'OK'); setTimeout(function(){location.reload()},1500); }
+    else { setMsg(r, false, res.data.message||'Ошибка'); }
   } catch(e) { setMsg(r, false, 'Ошибка сети'); }
 }
 </script>

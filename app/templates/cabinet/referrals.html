@@ -1,81 +1,69 @@
 {% extends "cabinet/base.html" %}
 {% block title %}Рефералы - {{ app_name }}{% endblock %}
 {% block content %}
-{% set bot_username = settings.get('bot_username', '') %}
-{% set referral_link = 'https://t.me/' ~ bot_username ~ '?start=' ~ user.referral_code if bot_username and user.referral_code else '' %}
-<div class="stack-lg">
-  <div class="page-header"><h2>Рефералы</h2></div>
+{% set bu = settings.get('bot_username', '') %}
+{% set rl = 'https://t.me/' ~ bu ~ '?start=' ~ user.referral_code if bu and user.referral_code else '' %}
+<div class="sl">
+  <div class="ttl"><h2>Рефералы</h2></div>
 
-  <div class="grid-3">
-    <div class="card-sm stat-block">
-      <div class="stat-icon"><i class="bi bi-people"></i></div>
-      <div>
-        <div class="stat-value">{{ referrals|length }}</div>
-        <div class="stat-label">Приглашено</div>
-      </div>
+  <div class="r3">
+    <div class="cd-sm st">
+      <div class="st-i"><i class="bi bi-people"></i></div>
+      <div><div class="st-v">{{ referrals|length }}</div><div class="st-l">Приглашено</div></div>
     </div>
-    <div class="card-sm stat-block">
-      <div class="stat-icon"><i class="bi bi-code"></i></div>
-      <div>
-        <div class="stat-value">{{ user.referral_code or '—' }}</div>
-        <div class="stat-label">Ваш код</div>
-      </div>
+    <div class="cd-sm st">
+      <div class="st-i"><i class="bi bi-code"></i></div>
+      <div><div class="st-v">{{ user.referral_code or '—' }}</div><div class="st-l">Код</div></div>
     </div>
-    <div class="card-sm" style="display:flex;align-items:center;gap:8px;padding:10px 14px">
-      {% if referral_link %}
-      <button class="btn btn-primary w-full" onclick="copyText({{ referral_link|tojson }}, 'Ссылка скопирована')">
-        <i class="bi bi-copy"></i> Копировать ссылку
-      </button>
+    <div class="cd-sm" style="display:flex;align-items:center;padding:10px 14px">
+      {% if rl %}
+      <button class="btn btn-p btn-w" onclick="copyText({{ rl|tojson }}, 'Ссылка скопирована')"><i class="bi bi-copy"></i> Копировать</button>
       {% endif %}
     </div>
   </div>
 
-  {% if referral_link %}
-  <div class="copy-row">
-    <input type="text" class="input" value="{{ referral_link }}" readonly>
-    <button class="btn btn-primary" onclick="copyText({{ referral_link|tojson }}, 'Ссылка скопирована')"><i class="bi bi-copy"></i></button>
-    <button class="btn btn-outline" onclick="openExternal({{ referral_link|tojson }})"><i class="bi bi-box-arrow-up-right"></i></button>
+  {% if rl %}
+  <div class="cp">
+    <input type="text" class="inp" value="{{ rl }}" readonly>
+    <button class="btn btn-p" onclick="copyText({{ rl|tojson }}, 'Ссылка скопирована')"><i class="bi bi-copy"></i></button>
+    <button class="btn btn-o" onclick="openExternal({{ rl|tojson }})"><i class="bi bi-box-arrow-up-right"></i></button>
   </div>
   {% endif %}
 
-  <div class="card">
+  <div class="cd">
     <h3 style="margin:0 0 12px;font-size:.9rem">Приглашения</h3>
     {% if referrals %}
-    <div>
-      {% for ref in referrals %}
-      <div class="ref-row">
-        <div>
-          <strong>ID {{ ref.referred_id }}</strong>
-          <div class="text-muted" style="font-size:.75rem">{{ ref.created_at.strftime('%d.%m.%Y') if ref.created_at else '—' }}</div>
-        </div>
-        <span class="badge badge-{{ 'success' if ref.is_paid else 'warning' }}">
-          {{ 'Начислен' if ref.is_paid else 'Ожидает' }}
-        </span>
+    {% for ref in referrals %}
+    <div class="rf2">
+      <div>
+        <strong>ID {{ ref.referred_id }}</strong>
+        <div class="cm" style="font-size:.75rem">{{ ref.created_at.strftime('%d.%m.%Y') if ref.created_at else '—' }}</div>
       </div>
-      {% endfor %}
+      <span class="bdg bdg-{{ 'g' if ref.is_paid else 'w' }}">{{ 'Начислен' if ref.is_paid else 'Ожидает' }}</span>
     </div>
+    {% endfor %}
     {% else %}
-    <div class="empty"><div class="empty-icon"><i class="bi bi-megaphone"></i></div><p>Пока нет приглашений</p></div>
+    <div class="ep"><div class="ei"><i class="bi bi-megaphone"></i></div><p>Пока нет приглашений</p></div>
     {% endif %}
   </div>
 
-  <div class="card">
+  <div class="cd">
     <h3 style="margin:0 0 12px;font-size:.9rem">Топ рефереров</h3>
     {% if top_referrers %}
-    <div class="stack">
+    <div class="s">
       {% for ref in top_referrers %}
-      <div class="top-row">
-        <div class="top-pos">{{ loop.index }}</div>
+      <div class="tr2">
+        <div class="tp">{{ loop.index }}</div>
         <div>
           <strong>{{ ref.full_name or ref.username or ('ID ' ~ ref.user_id) }}</strong>
-          <div class="text-muted" style="font-size:.75rem">{% if ref.username %}@{{ ref.username }}{% endif %}</div>
+          <div class="cm" style="font-size:.75rem">{% if ref.username %}@{{ ref.username }}{% endif %}</div>
         </div>
-        <div class="top-count">{{ ref.referral_count }}</div>
+        <div class="tc">{{ ref.referral_count }}</div>
       </div>
       {% endfor %}
     </div>
     {% else %}
-    <div class="empty"><div class="empty-icon"><i class="bi bi-trophy"></i></div><p>Топ пуст</p></div>
+    <div class="ep"><div class="ei"><i class="bi bi-trophy"></i></div><p>Топ пуст</p></div>
     {% endif %}
   </div>
 </div>

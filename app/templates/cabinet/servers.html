@@ -1,29 +1,24 @@
 {% extends "cabinet/base.html" %}
 {% block title %}Серверы — {{ app_name }}{% endblock %}
 {% block content %}
-<div class="stack-lg">
-  <div class="page-header"><h2>Серверы</h2></div>
+<div class="sl">
+  <div class="ttl"><h2>Серверы</h2></div>
 
   {% if hosts %}
-  <div class="stack">
+  <div class="s">
     {% for host in hosts %}
-    <div class="server-card">
+    <div class="sc">
       <div>
-        <div class="server-name">{{ host.get('name', 'Сервер') }}</div>
-        <div class="server-location">{{ host.get('location', '') }}</div>
+        <div class="sn">{{ host.get('name', 'Сервер') }}</div>
+        <div class="sl">{{ host.get('location', '') }}</div>
       </div>
       {% set online = host.get('status', '') == 'active' %}
-      <span class="server-status {% if online %}online{% else %}offline{% endif %}">
-        {{ 'Online' if online else 'Offline' }}
-      </span>
+      <span class="ss {% if online %}on{% else %}off{% endif %}">{{ 'Online' if online else 'Offline' }}</span>
     </div>
     {% endfor %}
   </div>
   {% else %}
-  <div class="empty">
-    <div class="empty-icon"><i class="bi bi-server"></i></div>
-    <p>Информация недоступна</p>
-  </div>
+  <div class="ep"><div class="ei"><i class="bi bi-server"></i></div><p>Информация недоступна</p></div>
   {% endif %}
 </div>
 {% endblock %}
