@@ -1,79 +1,915 @@
 {% extends "cabinet/base.html" %}
 {% block title %}Главная - {{ app_name }}{% endblock %}
+
+{% block head %}
+<style>
+  .cab-home {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .cab-home-shell,
+  .cab-home-panel,
+  .cab-home-stat,
+  .cab-home-sub,
+  .cab-home-plan,
+  .cab-home-balance {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(159, 193, 255, 0.14);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
+      rgba(7, 18, 33, 0.88);
+    box-shadow:
+      0 24px 60px rgba(0, 0, 0, 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(20px);
+  }
+
+  .cab-home-shell {
+    padding: 32px;
+    border-radius: 30px;
+    background:
+      radial-gradient(circle at top right, rgba(88, 242, 200, 0.16), transparent 34%),
+      radial-gradient(circle at left center, rgba(79, 124, 255, 0.14), transparent 32%),
+      linear-gradient(145deg, rgba(10, 24, 42, 0.98), rgba(6, 16, 30, 0.92));
+  }
+
+  .cab-home-shell::before,
+  .cab-home-shell::after {
+    content: "";
+    position: absolute;
+    border-radius: 999px;
+    filter: blur(10px);
+    pointer-events: none;
+  }
+
+  .cab-home-shell::before {
+    top: -84px;
+    right: -68px;
+    width: 260px;
+    height: 260px;
+    background: radial-gradient(circle, rgba(88, 242, 200, 0.22), transparent 68%);
+  }
+
+  .cab-home-shell::after {
+    left: -90px;
+    top: 210px;
+    width: 220px;
+    height: 220px;
+    background: radial-gradient(circle, rgba(79, 124, 255, 0.18), transparent 72%);
+  }
+
+  .cab-home-topbar {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding: 18px 20px;
+    border-radius: 24px;
+    border: 1px solid rgba(159, 193, 255, 0.12);
+    background: rgba(5, 16, 29, 0.58);
+  }
+
+  .cab-home-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .cab-home-brand-mark {
+    width: 46px;
+    height: 46px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, var(--accent), #6da8ff);
+    color: #04121d;
+    font-size: 1.12rem;
+    box-shadow: 0 16px 30px rgba(88, 242, 200, 0.22);
+  }
+
+  .cab-home-brand-text {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .cab-home-brand-kicker {
+    font-size: .7rem;
+    line-height: 1;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: rgba(88, 242, 200, 0.78);
+  }
+
+  .cab-home-brand-title {
+    font-family: "Space Grotesk", "Manrope", sans-serif;
+    font-size: 1.22rem;
+    font-weight: 700;
+    letter-spacing: -.03em;
+    color: var(--text);
+  }
+
+  .cab-home-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px;
+    border-radius: 999px;
+    border: 1px solid rgba(159, 193, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .cab-home-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, rgba(88, 242, 200, 0.95), rgba(255, 209, 102, 0.92));
+    color: #04121d;
+    font-weight: 800;
+    font-size: .92rem;
+  }
+
+  .cab-home-profile-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    padding-right: 10px;
+  }
+
+  .cab-home-profile-copy strong {
+    font-size: .86rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .cab-home-profile-copy span {
+    font-size: .74rem;
+    color: var(--text-muted);
+  }
+
+  .cab-home-hero {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(320px, .92fr);
+    gap: 24px;
+    align-items: stretch;
+    margin-bottom: 24px;
+  }
+
+  .cab-home-hero-main {
+    min-width: 0;
+    padding: 34px;
+    border-radius: 32px;
+  }
+
+  .cab-home-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    font-size: .8rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: rgba(88, 242, 200, 0.84);
+  }
+
+  .cab-home-eyebrow::before {
+    content: "";
+    width: 28px;
+    height: 1px;
+    background: rgba(88, 242, 200, 0.6);
+  }
+
+  .cab-home-hero-title {
+    margin: 0;
+    max-width: 12ch;
+    font-family: "Space Grotesk", "Manrope", sans-serif;
+    font-size: clamp(2rem, 4vw, 2.8rem);
+    line-height: 1.04;
+    letter-spacing: -.05em;
+  }
+
+  .cab-home-hero-text {
+    max-width: 600px;
+    margin: 18px 0 0;
+    font-size: 1rem;
+    line-height: 1.8;
+    color: var(--text-secondary);
+  }
+
+  .cab-home-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 28px;
+  }
+
+  .cab-home-hero-btn {
+    min-width: 170px;
+    border-radius: 18px;
+    padding: 12px 18px;
+    font-size: .9rem;
+  }
+
+  .cab-home-balance {
+    padding: 30px;
+    border-radius: 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 100%;
+  }
+
+  .cab-home-balance-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .cab-home-balance-label {
+    font-size: .92rem;
+    color: var(--text-secondary);
+  }
+
+  .cab-home-balance-value {
+    margin-top: 10px;
+    font-family: "Space Grotesk", "Manrope", sans-serif;
+    font-size: clamp(2rem, 4vw, 3.1rem);
+    line-height: 1;
+    letter-spacing: -.06em;
+  }
+
+  .cab-home-balance-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(88, 242, 200, 0.12);
+    border: 1px solid rgba(88, 242, 200, 0.16);
+    color: rgba(88, 242, 200, 0.9);
+    font-size: .78rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .cab-home-balance-text {
+    margin: 18px 0 0;
+    font-size: .95rem;
+    line-height: 1.7;
+    color: var(--text-secondary);
+  }
+
+  .cab-home-balance-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 22px;
+  }
+
+  .cab-home-balance-actions .btn {
+    min-width: 140px;
+    border-radius: 16px;
+  }
+
+  .cab-home-stats {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .cab-home-stat {
+    padding: 22px;
+    border-radius: 26px;
+    min-height: 146px;
+  }
+
+  .cab-home-stat-top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .cab-home-stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 1rem;
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .cab-home-stat[data-tone="mint"] .cab-home-stat-icon {
+    color: var(--accent);
+    background: rgba(88, 242, 200, 0.12);
+  }
+
+  .cab-home-stat[data-tone="blue"] .cab-home-stat-icon {
+    color: #73a8ff;
+    background: rgba(79, 124, 255, 0.14);
+  }
+
+  .cab-home-stat[data-tone="gold"] .cab-home-stat-icon {
+    color: var(--warn);
+    background: rgba(255, 209, 102, 0.14);
+  }
+
+  .cab-home-stat[data-tone="violet"] .cab-home-stat-icon {
+    color: #b39aff;
+    background: rgba(179, 154, 255, 0.14);
+  }
+
+  .cab-home-stat-label {
+    font-size: .86rem;
+    color: var(--text-secondary);
+  }
+
+  .cab-home-stat-value {
+    margin: 0;
+    font-family: "Space Grotesk", "Manrope", sans-serif;
+    font-size: 1.75rem;
+    line-height: 1;
+    letter-spacing: -.05em;
+  }
+
+  .cab-home-stat-meta {
+    font-size: .84rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  .cab-home-grid {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(300px, .95fr);
+    gap: 24px;
+  }
+
+  .cab-home-panel {
+    padding: 28px;
+    border-radius: 30px;
+  }
+
+  .cab-home-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+
+  .cab-home-panel-copy h2 {
+    margin: 0;
+    font-family: "Space Grotesk", "Manrope", sans-serif;
+    font-size: 1.55rem;
+    letter-spacing: -.04em;
+  }
+
+  .cab-home-panel-copy p {
+    margin: 8px 0 0;
+    font-size: .92rem;
+    color: var(--text-secondary);
+  }
+
+  .cab-home-panel-link {
+    flex-shrink: 0;
+  }
+
+  .cab-home-sub-list,
+  .cab-home-plan-list {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .cab-home-sub {
+    padding: 22px 22px 20px 24px;
+    border-radius: 26px;
+  }
+
+  .cab-home-sub::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 6px;
+    border-radius: 26px;
+    background: rgba(88, 242, 200, 0.9);
+  }
+
+  .cab-home-sub[data-state="expired"]::before {
+    background: rgba(255, 111, 145, 0.9);
+  }
+
+  .cab-home-sub[data-state="pending"]::before {
+    background: rgba(255, 209, 102, 0.9);
+  }
+
+  .cab-home-sub-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .cab-home-sub-name {
+    margin: 0;
+    font-size: 1.08rem;
+    font-weight: 700;
+    letter-spacing: -.02em;
+  }
+
+  .cab-home-sub-id {
+    margin-top: 5px;
+    font-size: .76rem;
+    color: var(--text-muted);
+  }
+
+  .cab-home-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-size: .74rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .cab-home-pill.is-active {
+    background: rgba(102, 240, 174, 0.14);
+    border-color: rgba(102, 240, 174, 0.18);
+    color: var(--good);
+  }
+
+  .cab-home-pill.is-expired {
+    background: rgba(255, 111, 145, 0.14);
+    border-color: rgba(255, 111, 145, 0.16);
+    color: var(--bad);
+  }
+
+  .cab-home-pill.is-pending {
+    background: rgba(255, 209, 102, 0.14);
+    border-color: rgba(255, 209, 102, 0.16);
+    color: var(--warn);
+  }
+
+  .cab-home-sub-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 18px;
+  }
+
+  .cab-home-sub-meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+  }
+
+  .cab-home-sub-meta-item span {
+    font-size: .78rem;
+    color: var(--text-muted);
+  }
+
+  .cab-home-sub-meta-item strong {
+    font-size: .92rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .cab-home-sub-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+  }
+
+  .cab-home-sub-actions .btn {
+    min-width: 124px;
+    border-radius: 16px;
+  }
+
+  .cab-home-plan {
+    padding: 22px;
+    border-radius: 26px;
+    background:
+      radial-gradient(circle at top right, rgba(88, 242, 200, 0.1), transparent 42%),
+      linear-gradient(145deg, rgba(10, 25, 43, 0.96), rgba(7, 18, 33, 0.92));
+  }
+
+  .cab-home-plan-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 30px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-secondary);
+    font-size: .74rem;
+    font-weight: 700;
+  }
+
+  .cab-home-plan-name {
+    margin: 16px 0 0;
+    font-family: "Space Grotesk", "Manrope", sans-serif;
+    font-size: 1.34rem;
+    letter-spacing: -.04em;
+  }
+
+  .cab-home-plan-price {
+    margin-top: 10px;
+    font-family: "Space Grotesk", "Manrope", sans-serif;
+    font-size: 2rem;
+    line-height: 1;
+    letter-spacing: -.06em;
+    color: var(--text);
+  }
+
+  .cab-home-plan-desc {
+    margin: 12px 0 0;
+    font-size: .92rem;
+    line-height: 1.7;
+    color: var(--text-secondary);
+  }
+
+  .cab-home-plan .btn {
+    margin-top: 18px;
+    border-radius: 16px;
+  }
+
+  .cab-home-empty {
+    padding: 28px 22px;
+    border-radius: 24px;
+    border: 1px dashed rgba(159, 193, 255, 0.16);
+    background: rgba(255, 255, 255, 0.03);
+    text-align: center;
+  }
+
+  .cab-home-empty-icon {
+    width: 50px;
+    height: 50px;
+    margin: 0 auto 12px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(88, 242, 200, 0.14), rgba(255, 209, 102, 0.12));
+    color: var(--accent);
+    font-size: 1.18rem;
+  }
+
+  .cab-home-empty p {
+    margin: 0;
+    font-size: .94rem;
+    color: var(--text-secondary);
+  }
+
+  .cab-home-empty .btn {
+    margin-top: 14px;
+    border-radius: 16px;
+  }
+
+  @media (max-width: 980px) {
+    .cab-home-shell {
+      padding: 22px;
+      border-radius: 24px;
+    }
+
+    .cab-home-topbar,
+    .cab-home-hero,
+    .cab-home-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .cab-home-topbar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .cab-home-profile {
+      align-self: flex-start;
+    }
+
+    .cab-home-hero-main,
+    .cab-home-balance,
+    .cab-home-panel {
+      padding: 24px;
+      border-radius: 24px;
+    }
+
+    .cab-home-stats {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 640px) {
+    .cab-home-shell {
+      padding: 16px;
+      border-radius: 20px;
+    }
+
+    .cab-home-topbar {
+      padding: 14px;
+      border-radius: 18px;
+      margin-bottom: 18px;
+    }
+
+    .cab-home-brand-title {
+      font-size: 1.08rem;
+    }
+
+    .cab-home-hero-main,
+    .cab-home-balance,
+    .cab-home-panel,
+    .cab-home-stat,
+    .cab-home-sub,
+    .cab-home-plan {
+      padding: 18px;
+      border-radius: 20px;
+    }
+
+    .cab-home-hero-title {
+      max-width: none;
+      font-size: 1.9rem;
+    }
+
+    .cab-home-hero-actions,
+    .cab-home-balance-actions,
+    .cab-home-sub-actions {
+      flex-direction: column;
+    }
+
+    .cab-home-hero-actions .btn,
+    .cab-home-balance-actions .btn,
+    .cab-home-sub-actions .btn {
+      width: 100%;
+    }
+
+    .cab-home-stats,
+    .cab-home-sub-meta {
+      grid-template-columns: 1fr;
+    }
+
+    .cab-home-panel-head {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="sl">
-  <div class="cd rb rw">
-    <div class="r">
-      <span class="st-i" style="width:34px;height:34px;border-radius:10px;font-size:.85rem"><i class="bi bi-person"></i></span>
-      <h1 style="margin:0;font-size:1.15rem">{{ user.full_name or ('ID ' ~ user.id) }}</h1>
-    </div>
-    <div class="r">
-      <a href="/cabinet/plans" class="btn btn-p"><i class="bi bi-stars"></i> Тарифы</a>
-      <a href="/cabinet/keys" class="btn btn-o"><i class="bi bi-key"></i> Подписки</a>
-    </div>
-  </div>
+{% set active_keys = keys|selectattr('status', 'equalto', 'active')|list %}
+{% set featured_key = active_keys[0] if active_keys else (keys[0] if keys else none) %}
 
-  <div class="r3">
-    <div class="cd-sm st">
-      <div class="st-i"><i class="bi bi-wallet2"></i></div>
-      <div>
-        <div class="st-v">{{ "%.2f"|format(user.balance) }} ₽</div>
-        <div class="st-l">Баланс</div>
-      </div>
-    </div>
-    <div class="cd-sm st">
-      <div class="st-i"><i class="bi bi-key"></i></div>
-      <div>
-        <div class="st-v">{{ keys|length }}</div>
-        <div class="st-l">Подписки</div>
-      </div>
-    </div>
-    <div class="cd-sm st">
-      <div class="st-i"><i class="bi bi-gift"></i></div>
-      <div>
-        <div class="st-v">{{ user.referral_code or '—' }}</div>
-        <div class="st-l">Код</div>
-      </div>
-    </div>
-  </div>
-
-  {% if keys %}
-  <div class="ttl"><h2>Подписки</h2><a href="/cabinet/keys" class="btn btn-o">Все</a></div>
-  <div class="rf">
-    {% for key in keys %}
-    {% set t = (key.download or 0) + (key.upload or 0) %}
-    <div class="kc">
-      <div class="kh">
-        <div>
-          <div class="kn">{{ key.name or 'VPN ключ' }}</div>
-          <div class="ks">{{ key.pasarguard_key_id or '' }}</div>
+<div class="cab-home">
+  <section class="cab-home-shell">
+    <div class="cab-home-topbar">
+      <div class="cab-home-brand">
+        <div class="cab-home-brand-mark"><i class="bi bi-shield-check"></i></div>
+        <div class="cab-home-brand-text">
+          <span class="cab-home-brand-kicker">Scorbium VPN</span>
+          <span class="cab-home-brand-title">Панель управления подпиской</span>
         </div>
-        <span class="bdg {% if key.status == 'active' %}bdg-g{% else %}bdg-b{% endif %}">{{ 'Активна' if key.status == 'active' else 'Истекла' }}</span>
       </div>
-      <div class="kb">
-        <div class="kr"><span class="kl">Действует до</span><span class="kv">{{ key.expires_at.strftime('%d.%m.%Y') if key.expires_at else '∞' }}</span></div>
-        <div class="kr"><span class="kl">Трафик</span><span class="kv">{% if t >= 1073741824 %}{{ "%.1f"|format(t / 1073741824) }} GB{% elif t >= 1048576 %}{{ "%.0f"|format(t / 1048576) }} MB{% else %}{{ "%.0f"|format(t / 1024) }} KB{% endif %}</span></div>
-      </div>
-      <div class="kf"><button class="btn btn-o btn-w" onclick="copyText({{ key.access_url|tojson }}, 'Ссылка скопирована')"><i class="bi bi-copy"></i> Копировать</button></div>
-    </div>
-    {% endfor %}
-  </div>
-  {% endif %}
 
-  <div class="ttl"><h2>Тарифы</h2><a href="/cabinet/plans" class="btn btn-o">Все</a></div>
-  <div class="pg">
-    {% for plan in plans %}
-    <div class="pc">
-      <div class="pe"><i class="bi bi-lightning-charge"></i>{{ plan.duration_days }} дн.</div>
-      <div class="pn2">{{ plan.name }}</div>
-      <div class="pp">{{ "%.0f"|format(plan.price) }} ₽</div>
-      {% if plan.description %}<div class="pd">{{ plan.description }}</div>{% endif %}
-      <button class="btn btn-p btn-w" onclick="buyPlan({{ plan.id }})"><i class="bi bi-bag-check"></i> Купить</button>
+      <div class="cab-home-profile">
+        <span class="cab-home-avatar">{{ (user.full_name or user.username or 'U')[:1]|upper }}</span>
+        <div class="cab-home-profile-copy">
+          <strong>{{ user.full_name or ('ID ' ~ user.id) }}</strong>
+          <span>{% if active_keys %}{{ active_keys|length }} активных ключ{{ 'а' if active_keys|length in (2, 3, 4) else ('ей' if active_keys|length > 4 or active_keys|length == 0 else '') }}{% else %}Кабинет пользователя{% endif %}</span>
+        </div>
+      </div>
     </div>
-    {% else %}
-    <div class="ep"><div class="ei"><i class="bi bi-stars"></i></div><p>Тарифы недоступны</p></div>
-    {% endfor %}
-  </div>
+
+    <div class="cab-home-hero">
+      <div class="cab-home-shell cab-home-hero-main">
+        <div class="cab-home-eyebrow">Главный экран</div>
+        <h1 class="cab-home-hero-title">Ваш VPN под контролем, а все важное видно сразу</h1>
+        <p class="cab-home-hero-text">
+          {% if featured_key and featured_key.status == 'active' and featured_key.expires_at %}
+          Активная подписка уже на месте: ближайший ключ действует до {{ featured_key.expires_at.strftime('%d.%m.%Y') }}.
+          {% elif featured_key and featured_key.status == 'active' %}
+          Активная подписка уже на месте. Ключ готов к использованию и открыт для быстрого копирования.
+          {% elif featured_key %}
+          Ключ уже создан в кабинете. Проверьте статус, срок действия и перейдите к управлению подписками в один клик.
+          {% else %}
+          Здесь собраны баланс, подписки и тарифы. Можно быстро пополнить счет, выбрать план и открыть нужный ключ без лишних переходов.
+          {% endif %}
+        </p>
+        <div class="cab-home-hero-actions">
+          <a href="/cabinet/plans" class="btn btn-p cab-home-hero-btn"><i class="bi bi-stars"></i> Смотреть тарифы</a>
+          <a href="/cabinet/keys" class="btn btn-o cab-home-hero-btn"><i class="bi bi-key"></i> Открыть подписки</a>
+        </div>
+      </div>
+
+      <aside class="cab-home-balance">
+        <div class="cab-home-balance-top">
+          <div>
+            <div class="cab-home-balance-label">Текущий баланс</div>
+            <div class="cab-home-balance-value">{{ "%.2f"|format(user.balance) }} ₽</div>
+          </div>
+          <span class="cab-home-balance-chip">
+            {% if active_keys %}
+            {{ active_keys|length }} активн{{ 'ых' if active_keys|length != 1 else 'ая' }}
+            {% else %}
+            Готов к оплате
+            {% endif %}
+          </span>
+        </div>
+
+        <p class="cab-home-balance-text">
+          {% if featured_key and featured_key.status == 'active' and featured_key.expires_at %}
+          Ближайшее продление связано с ключом «{{ featured_key.name or 'VPN ключ' }}». Следите за сроком действия и оформляйте новый план прямо с баланса.
+          {% elif featured_key and featured_key.status == 'pending' %}
+          Один из ключей еще готовится. Как только он станет доступен, его можно будет открыть и скопировать отсюда без лишних действий.
+          {% else %}
+          Баланс всегда под рукой: можно пополнить счет, затем сразу оформить новый план и получить ключ в том же кабинете.
+          {% endif %}
+        </p>
+
+        <div class="cab-home-balance-actions">
+          <a href="/cabinet/balance" class="btn btn-o"><i class="bi bi-wallet2"></i> Пополнить</a>
+          <a href="/cabinet/keys" class="btn btn-p"><i class="bi bi-arrow-up-right"></i> К ключам</a>
+        </div>
+      </aside>
+    </div>
+
+    <div class="cab-home-stats">
+      <article class="cab-home-stat" data-tone="mint">
+        <div class="cab-home-stat-top">
+          <div class="cab-home-stat-icon"><i class="bi bi-wallet2"></i></div>
+          <div class="cab-home-stat-label">Баланс</div>
+        </div>
+        <p class="cab-home-stat-value">{{ "%.2f"|format(user.balance) }} ₽</p>
+        <div class="cab-home-stat-meta">Средства для продления и покупки новых планов.</div>
+      </article>
+
+      <article class="cab-home-stat" data-tone="blue">
+        <div class="cab-home-stat-top">
+          <div class="cab-home-stat-icon"><i class="bi bi-key"></i></div>
+          <div class="cab-home-stat-label">Подписки</div>
+        </div>
+        <p class="cab-home-stat-value">{{ keys|length }}</p>
+        <div class="cab-home-stat-meta">{{ active_keys|length }} сейчас активн{{ 'ы' if active_keys|length != 1 else 'а' }}.</div>
+      </article>
+
+      <article class="cab-home-stat" data-tone="gold">
+        <div class="cab-home-stat-top">
+          <div class="cab-home-stat-icon"><i class="bi bi-gift"></i></div>
+          <div class="cab-home-stat-label">Реферальный код</div>
+        </div>
+        <p class="cab-home-stat-value">{{ user.referral_code or '—' }}</p>
+        <div class="cab-home-stat-meta">Используйте код для друзей и бонусов.</div>
+      </article>
+
+      <article class="cab-home-stat" data-tone="violet">
+        <div class="cab-home-stat-top">
+          <div class="cab-home-stat-icon"><i class="bi bi-headset"></i></div>
+          <div class="cab-home-stat-label">Поддержка</div>
+        </div>
+        <p class="cab-home-stat-value">24/7</p>
+        <div class="cab-home-stat-meta">Помощь и инструкции доступны в кабинете.</div>
+      </article>
+    </div>
+
+    <div class="cab-home-grid">
+      <section class="cab-home-panel">
+        <div class="cab-home-panel-head">
+          <div class="cab-home-panel-copy">
+            <h2>Подписки</h2>
+            <p>Активные ключи и быстрые действия для управления доступом.</p>
+          </div>
+          <a href="/cabinet/keys" class="btn btn-o cab-home-panel-link">Все ключи</a>
+        </div>
+
+        {% if keys %}
+        <div class="cab-home-sub-list">
+          {% for key in keys[:3] %}
+          {% set traffic = (key.download or 0) + (key.upload or 0) %}
+          {% if key.status == 'active' %}
+          {% set key_state = 'active' %}
+          {% set key_label = 'Активна' %}
+          {% set key_class = 'is-active' %}
+          {% elif key.status == 'expired' %}
+          {% set key_state = 'expired' %}
+          {% set key_label = 'Истекла' %}
+          {% set key_class = 'is-expired' %}
+          {% else %}
+          {% set key_state = 'pending' %}
+          {% set key_label = 'Подготовка' %}
+          {% set key_class = 'is-pending' %}
+          {% endif %}
+
+          <article class="cab-home-sub" data-state="{{ key_state }}">
+            <div class="cab-home-sub-top">
+              <div>
+                <h3 class="cab-home-sub-name">{{ key.name or 'VPN ключ' }}</h3>
+                <div class="cab-home-sub-id">{{ key.pasarguard_key_id or 'Идентификатор появится позже' }}</div>
+              </div>
+              <span class="cab-home-pill {{ key_class }}">{{ key_label }}</span>
+            </div>
+
+            <div class="cab-home-sub-meta">
+              <div class="cab-home-sub-meta-item">
+                <span>Действует до</span>
+                <strong>{{ key.expires_at.strftime('%d.%m.%Y') if key.expires_at else '∞' }}</strong>
+              </div>
+              <div class="cab-home-sub-meta-item">
+                <span>Трафик</span>
+                <strong>
+                  {% if traffic >= 1073741824 %}
+                  {{ "%.1f"|format(traffic / 1073741824) }} GB
+                  {% elif traffic >= 1048576 %}
+                  {{ "%.0f"|format(traffic / 1048576) }} MB
+                  {% else %}
+                  {{ "%.0f"|format(traffic / 1024) }} KB
+                  {% endif %}
+                </strong>
+              </div>
+            </div>
+
+            <div class="cab-home-sub-actions">
+              {% if key.access_url and key.access_url != 'pending' %}
+              <button class="btn btn-o" onclick="copyText({{ key.access_url|tojson }}, 'Ссылка скопирована')"><i class="bi bi-copy"></i> Копировать</button>
+              <button class="btn btn-p" onclick="openExternal({{ key.access_url|tojson }})"><i class="bi bi-box-arrow-up-right"></i> Открыть</button>
+              {% else %}
+              <div class="ib" style="width:100%"><i class="bi bi-hourglass-split cg"></i><div><strong>Подготовка</strong><span class="muted">Ключ появится автоматически</span></div></div>
+              {% endif %}
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="cab-home-empty">
+          <div class="cab-home-empty-icon"><i class="bi bi-key"></i></div>
+          <p>Подписок пока нет. Выберите тариф, и ключ появится здесь автоматически.</p>
+          <a href="/cabinet/plans" class="btn btn-p">Выбрать тариф</a>
+        </div>
+        {% endif %}
+      </section>
+
+      <section class="cab-home-panel">
+        <div class="cab-home-panel-head">
+          <div class="cab-home-panel-copy">
+            <h2>Тарифы</h2>
+            <p>Популярные планы для быстрого продления и новых подключений.</p>
+          </div>
+          <a href="/cabinet/plans" class="btn btn-o cab-home-panel-link">Все тарифы</a>
+        </div>
+
+        <div class="cab-home-plan-list">
+          {% for plan in plans[:3] %}
+          <article class="cab-home-plan">
+            <div class="cab-home-plan-tag"><i class="bi bi-lightning-charge"></i>{{ plan.duration_days }} дн.</div>
+            <h3 class="cab-home-plan-name">{{ plan.name }}</h3>
+            <div class="cab-home-plan-price">{{ "%.0f"|format(plan.price) }} ₽</div>
+            <p class="cab-home-plan-desc">{{ plan.description or 'Сбалансированный тариф для стабильного доступа без лишних переключений.' }}</p>
+            <button class="btn btn-p btn-w" onclick="buyPlan({{ plan.id }})"><i class="bi bi-bag-check"></i> Купить</button>
+          </article>
+          {% else %}
+          <div class="cab-home-empty">
+            <div class="cab-home-empty-icon"><i class="bi bi-stars"></i></div>
+            <p>Тарифы временно недоступны. Попробуйте снова позже.</p>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+    </div>
+  </section>
 </div>
 {% endblock %}
 
