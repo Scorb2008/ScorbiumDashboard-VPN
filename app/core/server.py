@@ -43,6 +43,13 @@ def _log_task_exception(task: asyncio.Task):
         log.error(f"Background task {task.get_name() or task} failed: {exc}", exc_info=exc)
 
 
+def _is_secure_request(request: Request) -> bool:
+    forwarded_proto = request.headers.get("x-forwarded-proto", "")
+    if forwarded_proto:
+        return forwarded_proto.split(",")[0].strip().lower() == "https"
+    return request.url.scheme == "https"
+
+
 def _make_dp():
     """
     Build a fresh Dispatcher every time.
@@ -306,10 +313,20 @@ def create_app() -> FastAPI:
         async def dispatch(self, request: Request, call_next):
             resp = await call_next(request)
             path = request.url.path
-            if path.startswith("/panel") and not path.startswith("/panel/api"):
+            is_html_panel = path.startswith("/panel") and not path.startswith("/panel/api")
+            is_html_cabinet = path.startswith("/cabinet")
+            if is_html_panel or is_html_cabinet:
                 if not request.cookies.get(_CC):
                     token = _gct()
-                    resp.set_cookie(_CC, token, httponly=False, samesite="lax", max_age=86400)
+                    resp.set_cookie(
+                        _CC,
+                        token,
+                        httponly=False,
+                        samesite="lax",
+                        secure=_is_secure_request(request),
+                        max_age=86400,
+                        path="/",
+                    )
             return resp
     app.add_middleware(_CSRFInjector)
     app.add_middleware(CSRFMiddleware)
@@ -345,7 +362,7 @@ def create_app() -> FastAPI:
             is_docs = path in ("/docs", "/redoc", "/openapi.json")
 
             if is_cabinet:
-                resp.headers["X-Frame-Options"] = "ALLOWALL"
+                resp.headers.pop("X-Frame-Options", None)
             elif is_panel:
                 resp.headers["X-Frame-Options"] = "SAMEORIGIN"
             else:
@@ -382,6 +399,7 @@ def create_app() -> FastAPI:
                     "img-src 'self' data: https://telegram.org; "
                     "connect-src 'self' wss: https://telegram.org https://oauth.telegram.org; "
                     "frame-src https://telegram.org https://oauth.telegram.org; "
+                    "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org https://t.me; "
                     "object-src 'none'; "
                     "base-uri 'self'; "
                     "form-action 'self'"
@@ -426,6 +444,7 @@ def create_app() -> FastAPI:
         """Real-time notification stream for admin panel."""
         from app.services.notification import notification_manager
         from app.utils.security import decode_access_token_full
+        from app.core.permissions import has_permission
 
         token = websocket.query_params.get("token", "")
         if not token:
@@ -435,12 +454,9 @@ def create_app() -> FastAPI:
                 if part.startswith("vpn_session="):
                     token = part.split("=", 1)[1]
                     break
-                if part.startswith("cabinet_session="):
-                    token = part.split("=", 1)[1]
-                    break
         info = decode_access_token_full(token) if token else None
-        if not info:
-            await websocket.close(code=4001)
+        if not info or not has_permission(info.get("role", ""), "dashboard"):
+            await websocket.close(code=4003)
             return
 
         await notification_manager.connect(websocket)
@@ -563,4 +579,3 @@ def _start_monitoring():
             except Exception as e:
                 log.error("Monitor loop error: %s", e)
     _start_bg_task(_monitor_loop(), name="service_monitor")
-

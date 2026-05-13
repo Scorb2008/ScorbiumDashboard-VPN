@@ -29,19 +29,17 @@ def generate_csrf_token() -> str:
 
 def _should_skip(request: Request) -> bool:
     path = request.url.path
+    if request.method in {"GET", "HEAD", "OPTIONS"}:
+        return True
     if path in _SAFE_PATHS:
         return True
     if path.startswith("/api/v1/"):
-        return True
-    if path.startswith("/cabinet/"):
         return True
     if path.startswith("/webhook/"):
         return True
     if path.startswith("/static/"):
         return True
     if path.startswith("/docs") or path.startswith("/redoc") or path.startswith("/openapi"):
-        return True
-    if request.method == "GET":
         return True
     return False
 

@@ -6,7 +6,6 @@ Auth: Bearer token in Authorization header
 import os
 import json
 import http.client
-import asyncio
 from typing import Optional, Dict, Any
 
 
@@ -98,7 +97,7 @@ class PayPalychService:
         if payment_method:
             body["payment_method"] = payment_method
 
-        result = self._make_request("POST", "/api/v1/bill/create", body)
+        result = await self._make_request("POST", "/api/v1/bill/create", body)
         if result.get("success"):
             return {
                 "ok": True,
@@ -114,7 +113,7 @@ class PayPalychService:
 
     async def get_bill_status(self, bill_id: str) -> Dict[str, Any]:
         """Get bill status via GET /api/v1/bill/status"""
-        result = self._make_request("GET", f"/api/v1/bill/status?id={bill_id}")
+        result = await self._make_request("GET", f"/api/v1/bill/status?id={bill_id}")
         if result.get("success"):
             return {
                 "ok": True,
@@ -134,7 +133,7 @@ class PayPalychService:
             "id": bill_id,
             "active": "1" if active else "0"
         }
-        result = self._make_request("POST", "/api/v1/bill/toggle_activity", body)
+        result = await self._make_request("POST", "/api/v1/bill/toggle_activity", body)
         if result.get("success"):
             return {
                 "ok": True,
@@ -146,7 +145,7 @@ class PayPalychService:
 
     async def get_balance(self) -> Dict[str, Any]:
         """Get merchant balance via GET /api/v1/merchant/balance"""
-        result = self._make_request("GET", "/api/v1/merchant/balance")
+        result = await self._make_request("GET", "/api/v1/merchant/balance")
         if result.get("success"):
             balances = result.get("balances", [])
             return {"ok": True, "balances": balances}
@@ -154,7 +153,7 @@ class PayPalychService:
 
     async def get_payment_status(self, payment_id: str) -> Dict[str, Any]:
         """Get payment status via GET /api/v1/payment/status"""
-        result = self._make_request("GET", f"/api/v1/payment/status?id={payment_id}")
+        result = await self._make_request("GET", f"/api/v1/payment/status?id={payment_id}")
         if result.get("success"):
             return {
                 "ok": True,

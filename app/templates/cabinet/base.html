@@ -111,6 +111,16 @@ function cleanMiniAppParamFromAddress() {
   window.history.replaceState({}, "", current.pathname + current.search + current.hash);
 }
 
+function getCookie(name) {
+  var prefix = name + '=';
+  var parts = document.cookie ? document.cookie.split(';') : [];
+  for (var i = 0; i < parts.length; i += 1) {
+    var item = parts[i].trim();
+    if (item.indexOf(prefix) === 0) return decodeURIComponent(item.slice(prefix.length));
+  }
+  return '';
+}
+
 async function cabinetFetch(url, options) {
   var opts = Object.assign({}, options || {});
   opts.credentials = opts.credentials || 'same-origin';
@@ -118,6 +128,9 @@ async function cabinetFetch(url, options) {
   var initData = getMiniAppInitData();
   if (initData && !headers.has('X-Telegram-Init-Data'))
     headers.set('X-Telegram-Init-Data', initData);
+  var csrfToken = getCookie('csrf_token');
+  if (csrfToken && !headers.has('X-CSRF-Token'))
+    headers.set('X-CSRF-Token', csrfToken);
   if (opts.body && !(opts.body instanceof FormData) && !headers.has('Content-Type'))
     headers.set('Content-Type', 'application/json');
   opts.headers = headers;

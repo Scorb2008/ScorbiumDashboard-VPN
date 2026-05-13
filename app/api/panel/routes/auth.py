@@ -10,7 +10,6 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 import pyotp
 import qrcode
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db
@@ -18,12 +17,11 @@ from app.core.config import config
 from app.models.admin import Admin, AdminRole
 from app.services.admin import AdminService
 from app.services.bot_settings import BotSettingsService
-from app.utils.log import log
 from app.utils.security import create_access_token, decode_access_token_full
 
 from .shared import (
     SESSION_COOKIE, _require_auth, _require_permission,
-    _base_ctx, templates,
+    _base_ctx, templates, _set_cookie, _clear_cookie,
 )
 
 router = APIRouter()
@@ -160,28 +158,28 @@ async def login_submit(
             "login.html",
             await _login_template_context(request, db, show_2fa=True),
         )
-        resp.set_cookie(
+        _set_cookie(
+            resp,
+            request,
             PREAUTH_COOKIE,
             _make_preauth_token(admin),
-            httponly=True,
-            samesite="lax",
             max_age=PREAUTH_MAX_AGE,
         )
-        resp.delete_cookie(SESSION_COOKIE)
+        _clear_cookie(resp, request, SESSION_COOKIE)
         return resp
 
     token = create_access_token(subject=admin.username, role=admin.role)
     resp = RedirectResponse(url="/panel/", status_code=302)
-    resp.set_cookie(SESSION_COOKIE, token, httponly=True, samesite="lax", max_age=86400)
-    resp.delete_cookie(PREAUTH_COOKIE)
+    _set_cookie(resp, request, SESSION_COOKIE, token, max_age=86400)
+    _clear_cookie(resp, request, PREAUTH_COOKIE)
     return resp
 
 
 @router.get("/logout")
-async def logout():
+async def logout(request: Request):
     resp = RedirectResponse(url="/panel/login", status_code=302)
-    resp.delete_cookie(SESSION_COOKIE)
-    resp.delete_cookie(PREAUTH_COOKIE)
+    _clear_cookie(resp, request, SESSION_COOKIE)
+    _clear_cookie(resp, request, PREAUTH_COOKIE)
     return resp
 
 
@@ -237,8 +235,8 @@ async def twofa_login_submit(
 
     token = create_access_token(subject=admin.username, role=admin.role)
     resp = RedirectResponse(url="/panel/", status_code=302)
-    resp.set_cookie(SESSION_COOKIE, token, httponly=True, samesite="lax", max_age=86400)
-    resp.delete_cookie(PREAUTH_COOKIE)
+    _set_cookie(resp, request, SESSION_COOKIE, token, max_age=86400)
+    _clear_cookie(resp, request, PREAUTH_COOKIE)
     return resp
 
 
@@ -312,8 +310,8 @@ async def twofa_verify(request: Request, db: AsyncSession = Depends(get_db)):
 
     token = create_access_token(subject=admin.username, role=admin.role)
     resp = JSONResponse({"ok": True, "message": "OK", "backup": used_backup})
-    resp.set_cookie(SESSION_COOKIE, token, httponly=True, samesite="lax", max_age=86400)
-    resp.delete_cookie(PREAUTH_COOKIE)
+    _set_cookie(resp, request, SESSION_COOKIE, token, max_age=86400)
+    _clear_cookie(resp, request, PREAUTH_COOKIE)
     return resp
 
 

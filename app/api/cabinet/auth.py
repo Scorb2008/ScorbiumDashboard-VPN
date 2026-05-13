@@ -167,7 +167,7 @@ def set_session_cookie(resp, user_id: int, *, secure: bool):
     token = create_access_token(subject=str(user_id), role="user", expires_delta=timedelta(days=30))
     resp.set_cookie(
         COOKIE_NAME, token,
-        httponly=True, samesite="lax", secure=secure, max_age=CABINET_COOKIE_MAX_AGE,
+        httponly=True, samesite="lax", secure=secure, max_age=CABINET_COOKIE_MAX_AGE, path="/",
     )
 
 

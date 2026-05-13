@@ -23,9 +23,13 @@ def test_should_skip_cabinet_auth_post():
     assert _should_skip(_make_request("/cabinet/auth")) is True
 
 
-def test_should_skip_other_cabinet_posts():
-    assert _should_skip(_make_request("/cabinet/support/create")) is True
+def test_should_protect_other_cabinet_posts():
+    assert _should_skip(_make_request("/cabinet/support/create")) is False
 
 
 def test_should_not_skip_panel_post():
     assert _should_skip(_make_request("/panel/telegram/send")) is False
+
+
+def test_should_skip_cabinet_get():
+    assert _should_skip(_make_request("/cabinet/support", method="GET")) is True

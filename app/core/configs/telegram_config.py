@@ -1,11 +1,11 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, SecretStr, field_validator
-from typing import ClassVar, List, Literal,Optional
+from typing import ClassVar, List, Literal
 from functools import lru_cache
 import re
 
 from app.utils.path import env_file
-from app.core.exceptions import *
+from app.core.exceptions import TelegramException
 from app.utils.log import log
 
 
@@ -78,7 +78,7 @@ class _TelegramConfig(BaseSettings):
     @classmethod
     def validate_telegram_token(cls, value: SecretStr) -> SecretStr:
         if not cls.TELEGRAM_TOKEN_PATTERN.fullmatch(value.get_secret_value()):
-            raise PasarguardValueError(
+            raise TelegramException(
                 "Invalid Telegram bot token format. Expected format: '123456:ABCdef...'"
             )
         return value
@@ -92,7 +92,7 @@ class _TelegramConfig(BaseSettings):
             try:
                 return [int(id.strip()) for id in re.split(r"[,\s;]+", value) if id.strip()]
             except ValueError:
-                raise PasarguardValueError("Invalid TELEGRAM_ADMIN_IDS format")
+                raise TelegramException("Invalid TELEGRAM_ADMIN_IDS format")
         return value
 
     @field_validator("telegram_client_id", mode="before")

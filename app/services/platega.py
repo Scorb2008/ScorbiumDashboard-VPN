@@ -94,7 +94,7 @@ class PlategaService:
         if user_telegram_id and user_id:
             body["description"] = f"TgId:{user_telegram_id} UserId:{user_id} {description}".strip()
 
-        result = self._make_request("POST", "/v2/transaction/process", body)
+        result = await self._make_request("POST", "/v2/transaction/process", body)
         if "transactionId" in result:
             return {
                 "ok": True,
@@ -110,7 +110,7 @@ class PlategaService:
 
     async def get_transaction_status(self, transaction_id: str) -> Dict[str, Any]:
         """Get transaction status via GET /v2/transaction/{id}"""
-        result = self._make_request("GET", f"/v2/transaction/{transaction_id}")
+        result = await self._make_request("GET", f"/v2/transaction/{transaction_id}")
         if "id" in result or "status" in result:
             return {
                 "ok": True,
@@ -124,7 +124,7 @@ class PlategaService:
 
     async def get_qr_code(self, transaction_id: str) -> Dict[str, Any]:
         """Get QR code for H2H transaction via GET /v2/h2h/{id}"""
-        result = self._make_request("GET", f"/v2/h2h/{transaction_id}")
+        result = await self._make_request("GET", f"/v2/h2h/{transaction_id}")
         if "amount" in result:
             return {
                 "ok": True,
@@ -141,7 +141,7 @@ class PlategaService:
     ) -> Dict[str, Any]:
         """Get exchange rate via GET /v2/rates/payment_method_rate"""
         path = f"/v2/rates/payment_method_rate?paymentMethod={payment_method}&currencyFrom={currency_from}&currencyTo={currency_to}"
-        result = self._make_request("GET", path)
+        result = await self._make_request("GET", path)
         if "rate" in result:
             return {
                 "ok": True,
@@ -155,7 +155,7 @@ class PlategaService:
 
     async def get_balance(self) -> Dict[str, Any]:
         """Get merchant balances via GET /v2/balance/all"""
-        result = self._make_request("GET", "/v2/balance/all")
+        result = await self._make_request("GET", "/v2/balance/all")
         if isinstance(result, list):
             return {"ok": True, "balances": result}
         return {"ok": False, "error": result.get("error", "Unknown error")}

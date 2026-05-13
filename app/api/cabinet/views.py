@@ -22,7 +22,6 @@ from app.utils.log import log
 from .auth import (
     _is_secure_request,
     get_cabinet_user,
-    get_telegram_init_data,
     is_telegram_miniapp_request,
     set_session_cookie,
     try_miniapp_auth,
@@ -454,11 +453,10 @@ async def cabinet_logout(request: Request, db: AsyncSession = Depends(get_db)):
         payload = decode_access_token_full(token)
         if payload:
             from app.services.token_blacklist import TokenBlacklistService
-            from datetime import timedelta
             jti = payload.get("jti", "")
             sub = payload.get("sub", "")
             bk = TokenBlacklistService(db)
             await bk.blacklist_jti(jti, sub, expires_at=None)
     resp = RedirectResponse(url="/cabinet/", status_code=302)
-    resp.delete_cookie("cabinet_session")
+    resp.delete_cookie("cabinet_session", path="/", secure=_is_secure_request(request), httponly=True, samesite="lax")
     return resp

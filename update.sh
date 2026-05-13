@@ -158,15 +158,7 @@ if ! docker exec -e PGPASSWORD="${DB_PASS}" vpn_db psql -U "${DB_USER}" -d "${DB
         if docker exec -e PGPASSWORD="${DB_PASS}" vpn_db psql -U "${DB_USER}" -d "${DB_NAME}" -h localhost -c "SELECT 1" &>/dev/null 2>&1; then
             success "Пароль БД обновлён"
         else
-            warn "Не удалось сменить пароль. Пробую пересоздать volume..."
-            docker compose -f "$COMPOSE_FILE" down -v db
-            docker compose -f "$COMPOSE_FILE" up -d db
-            info "Жду готовности БД..."
-            for i in $(seq 1 12); do
-                docker inspect --format='{{.State.Health.Status}}' vpn_db 2>/dev/null | grep -q healthy && break
-                sleep 5
-            done
-            success "БД пересоздана"
+            error "Не удалось автоматически синхронизировать пароль БД. Исправьте DB_PASSWORD/POSTGRES_PASSWORD вручную и повторите запуск."
         fi
     else
         error "Не удалось исправить пароль БД. Запустите: bash setup.sh"
@@ -183,7 +175,7 @@ OLD_VER=$(grep "^APP_VERSION=" .env 2>/dev/null | cut -d= -f2- | xargs || echo "
 
 # Check for uncommitted changes
 if git diff --quiet 2>/dev/null && git diff --cached --quiet 2>/dev/null; then
-    GIT_PULL_OUTPUT=$(git pull 2>&1) || error "git pull failed:\n${GIT_PULL_OUTPUT}"
+    GIT_PULL_OUTPUT=$(git pull --ff-only 2>&1) || error "git pull failed:\n${GIT_PULL_OUTPUT}"
 
     if echo "$GIT_PULL_OUTPUT" | grep -q "Already up to date"; then
         info "Код уже актуален"
@@ -194,7 +186,7 @@ else
     warn "Есть незакоммиченные изменения. git pull может вызвать конфликт."
     read -rp "Продолжить? [y/N]: " CONFIRM; CONFIRM=${CONFIRM:-N}
     [[ ! "$CONFIRM" =~ ^[Yy]$ ]] && exit 1
-    GIT_PULL_OUTPUT=$(git pull 2>&1) || error "git pull failed:\n${GIT_PULL_OUTPUT}"
+    GIT_PULL_OUTPUT=$(git pull --ff-only 2>&1) || error "git pull failed:\n${GIT_PULL_OUTPUT}"
     success "Код обновлён (с локальными изменениями)"
 fi
 
@@ -594,19 +586,6 @@ if [[ "$APP_READY" != "true" ]]; then
     echo ""
     error "Обновление прервано. App не запустился. Для отката восстановите бэкап: ${BACKUP_FILE:-N/A}"
 fi
-if [[ $MIGRATION_EXIT -ne 0 ]]; then
-    if echo "$MIGRATION_OUTPUT" | grep -qi "already up to date\|no migration"; then
-        info "База уже актуальна"
-    else
-        warn "Миграция вернула ошибку (exit code: ${MIGRATION_EXIT}):"
-        echo "$MIGRATION_OUTPUT"
-        echo ""
-        warn "Проверьте: docker compose exec app uv run alembic current"
-    fi
-else
-    success "Миграции применены"
-fi
-
 # ── [6/6] Nginx ──────────────────────────────────────────────────────────────
 info "[6/6] Обновляю nginx..."
 
@@ -627,7 +606,11 @@ info "Проверяю работоспособность..."
 
 # Test health endpoint
 if [[ "$USE_SSL" == "true" ]]; then
-    HEALTHCHECK_URL="https://${DOMAIN}:${HTTPS_PORT}/health"
+    if [[ "$HTTPS_PORT" == "443" ]]; then
+        HEALTHCHECK_URL="https://${DOMAIN}/health"
+    else
+        HEALTHCHECK_URL="https://${DOMAIN}:${HTTPS_PORT}/health"
+    fi
 else
     HEALTHCHECK_URL="http://${DOMAIN}/health"
 fi

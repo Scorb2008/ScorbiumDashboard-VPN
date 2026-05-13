@@ -9,7 +9,6 @@ from fastapi.templating import Jinja2Templates
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_db
 from app.core.config import config
 from app.models.payment import PaymentStatus
 from app.schemas.user import UserDetail, UserRead
@@ -94,6 +93,43 @@ def _toast(resp: Response, message: str, kind: str = "success") -> None:
     """Unicode-safe toast via HX-Trigger JSON header."""
     resp.headers["HX-Trigger"] = json.dumps(
         {"showToast": {"msg": message, "type": kind}}
+    )
+
+
+def _is_secure_request(request: Request) -> bool:
+    forwarded_proto = request.headers.get("x-forwarded-proto", "")
+    if forwarded_proto:
+        return forwarded_proto.split(",")[0].strip().lower() == "https"
+    return request.url.scheme == "https"
+
+
+def _set_cookie(
+    response: Response,
+    request: Request,
+    key: str,
+    value: str,
+    *,
+    max_age: int,
+    httponly: bool = True,
+) -> None:
+    response.set_cookie(
+        key,
+        value,
+        httponly=httponly,
+        samesite="lax",
+        secure=_is_secure_request(request),
+        max_age=max_age,
+        path="/",
+    )
+
+
+def _clear_cookie(response: Response, request: Request, key: str) -> None:
+    response.delete_cookie(
+        key,
+        path="/",
+        secure=_is_secure_request(request),
+        httponly=True,
+        samesite="lax",
     )
 
 
@@ -203,10 +239,10 @@ def _render_messages(ticket) -> str:
         reply_btn = ""
         if not msg.is_admin:
             reply_btn = (
-                f'<div class="mt-1 text-end">'
-                f'<button class="btn btn-sm py-0 px-2" style="font-size:.65rem;color:#00d4aa;background:none;border:1px solid rgba(0,212,170,.3)" '
-                f"onclick=\"document.querySelector('[name=text]').value=''\">✏️ Ответить</button>"
-                f"</div>"
+                '<div class="mt-1 text-end">'
+                '<button class="btn btn-sm py-0 px-2" style="font-size:.65rem;color:#00d4aa;background:none;border:1px solid rgba(0,212,170,.3)" '
+                "onclick=\"document.querySelector('[name=text]').value=''\">✏️ Ответить</button>"
+                "</div>"
             )
         safe_text = html.escape(str(msg.text)) if msg.text else ""
         msgs_html += (

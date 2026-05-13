@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
 from app.api.dependencies import get_db, get_current_admin
-from app.models.payment import PaymentProvider, PaymentStatus
+from app.models.payment import PaymentStatus
 from app.schemas.payment import PaymentCreate, PaymentRead
 from app.services.bot_settings import BotSettingsService
 from app.services.payment import PaymentService
@@ -11,6 +11,17 @@ from app.services.plan import PlanService
 from app.utils.log import log
 
 router = APIRouter()
+
+
+async def _get_yookassa_webhook_secret(db: AsyncSession) -> str:
+    secret = await BotSettingsService(db).get("yookassa_secret_key_override") or ""
+    if secret:
+        return secret
+    from app.core.config import config as _yk_cfg
+
+    if _yk_cfg.yookassa and _yk_cfg.yookassa.yookassa_secret_key:
+        return _yk_cfg.yookassa.yookassa_secret_key.get_secret_value()
+    return ""
 
 
 @router.get("/", response_model=list[PaymentRead], summary="List payments")
@@ -200,22 +211,19 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
         return {"status": "error", "message": "invalid body"}
 
     # Signature verification — fetch secret from DB first, then .env fallback
-    sig_header = request.headers.get("Authorization", "")
-    if sig_header:
-        from app.services.webhook_security import verify_yookassa_signature
-        secret = ""
-        try:
-            secret = await BotSettingsService(db).get("yookassa_secret_key_override") or ""
-        except Exception:
-            pass
-        if not secret:
-            from app.core.config import config as _yk_cfg
-            secret = _yk_cfg.yookassa.yookassa_secret_key.get_secret_value() if _yk_cfg.yookassa else ""
-        if secret and not await verify_yookassa_signature(raw_body, sig_header, secret):
-            log.warning(f"Yookassa webhook: invalid signature")
-            return {"status": "error", "message": "invalid signature"}
-    else:
+    from app.services.webhook_security import verify_yookassa_signature
+
+    sig_header = request.headers.get("Authorization", "").strip()
+    secret = await _get_yookassa_webhook_secret(db)
+    if not secret:
+        log.error("Yookassa webhook: secret is not configured")
+        return {"status": "error", "message": "webhook not configured"}
+    if not sig_header:
         log.warning("Yookassa webhook: missing Authorization header")
+        return {"status": "error", "message": "missing signature"}
+    if not await verify_yookassa_signature(raw_body, sig_header, secret):
+        log.warning("Yookassa webhook: invalid signature")
+        return {"status": "error", "message": "invalid signature"}
 
     event = data.get("event")
     obj = data.get("object", {})
@@ -336,16 +344,19 @@ async def cryptobot_webhook(request: Request, db: AsyncSession = Depends(get_db)
         log.error(f"CryptoBot webhook: invalid JSON: {e}")
         return {"ok": False}
 
-    sig_header = request.headers.get("X-Crypto-Pay-API-Signature", "")
-    if sig_header:
-        from app.services.webhook_security import verify_cryptobot_signature
-        settings = await BotSettingsService(db).get_all()
-        cb_token = settings.get("cryptobot_token", "")
-        if cb_token and not verify_cryptobot_signature(data, sig_header, cb_token):
-            log.warning("CryptoBot webhook: invalid signature")
-            return {"ok": False}
-    else:
+    sig_header = request.headers.get("X-Crypto-Pay-API-Signature", "").strip()
+    from app.services.webhook_security import verify_cryptobot_signature
+    settings = await BotSettingsService(db).get_all()
+    cb_token = settings.get("cryptobot_token", "").strip()
+    if not cb_token:
+        log.error("CryptoBot webhook: token is not configured")
+        return {"ok": False}
+    if not sig_header:
         log.warning("CryptoBot webhook: missing signature header")
+        return {"ok": False}
+    if not verify_cryptobot_signature(data, sig_header, cb_token):
+        log.warning("CryptoBot webhook: invalid signature")
+        return {"ok": False}
 
     invoice = data.get("payload", {})
     invoice_id = invoice.get("invoice_id")

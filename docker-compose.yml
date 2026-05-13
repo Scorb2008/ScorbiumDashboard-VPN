@@ -50,7 +50,7 @@ services:
       - "8443:8443"
     volumes:
       - ./nginx/nginx.local.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/ssl:/etc/nginx/ssl
       - ./nginx/entrypoint.sh:/docker-entrypoint.d/01-generate-ssl.sh:ro
       - ./app/static:/app/app/static:ro
     depends_on:

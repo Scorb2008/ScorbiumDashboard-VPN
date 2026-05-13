@@ -1,11 +1,11 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, AnyHttpUrl, field_validator, SecretStr, model_validator
-from typing import List, Optional
+from typing import List
 from functools import lru_cache
 import re
 
 from app.utils.path import env_file
-from app.core.exceptions import *
+from app.core.exceptions import WebException
 from app.utils.log import log
 
 

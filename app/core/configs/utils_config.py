@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 
 from app.utils.path import env_file
-from app.core.exceptions import *
+from app.core.exceptions import EnvException
 from app.utils.log import log
 
 class _UtilsConfig(BaseSettings):
