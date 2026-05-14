@@ -3,6 +3,7 @@ from typing import Optional
 import asyncio
 
 from sqlalchemy import func, inspect, select
+from sqlalchemy.orm import undefer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import config
@@ -50,6 +51,10 @@ class VpnKeyService:
     async def get_active_for_user(self, user_id: int) -> list[VpnKey]:
         result = await self.session.execute(
             select(VpnKey)
+            .options(
+                undefer(VpnKey.download),
+                undefer(VpnKey.upload),
+            )
             .where(
                 VpnKey.user_id == user_id,
                 VpnKey.status == VpnKeyStatus.ACTIVE.value,
@@ -64,6 +69,10 @@ class VpnKeyService:
     async def get_all_for_user(self, user_id: int) -> list[VpnKey]:
         result = await self.session.execute(
             select(VpnKey)
+            .options(
+                undefer(VpnKey.download),
+                undefer(VpnKey.upload),
+            )
             .where(VpnKey.user_id == user_id)
             .order_by(VpnKey.created_at.desc())
         )
