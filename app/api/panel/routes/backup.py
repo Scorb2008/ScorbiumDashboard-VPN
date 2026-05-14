@@ -213,7 +213,6 @@ async def backup_import(
     request: Request,
     file: UploadFile = File(...),
     confirm: str = Form(None),
-    db: AsyncSession = Depends(get_db),
 ):
     _require_permission(request, "system")
     if confirm != "yes":
@@ -241,9 +240,6 @@ async def backup_import(
     cmd = ["psql", "--no-password", "-X", "-v", "ON_ERROR_STOP=1", "-1", "-f", "-", pg_uri]
 
     try:
-        await db.rollback()
-        await db.close()
-
         result = subprocess.run(
             cmd,
             input=restore_sql,
