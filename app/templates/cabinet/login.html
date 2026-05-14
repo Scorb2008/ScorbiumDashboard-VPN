@@ -130,7 +130,8 @@ async function startMiniAppLogin(force) {
       window.location.replace(cabinetUrl('/cabinet/?miniapp=1'));
       return;
     }
-    showMiniAppFailure('Не удалось загрузить данные кабинета автоматически');
+    startMiniAppLogin(true);
+    return;
   } else { showWebLoginFallback(); }
 })();
 setTimeout(function() {

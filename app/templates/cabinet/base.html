@@ -108,6 +108,7 @@ function decorateCabinetLinks() {
 function cleanMiniAppParamFromAddress() {
   var tg = getTelegramWebApp();
   if (!tg || !tg.initData) return;
+  if (document.body.classList.contains('login-page')) return;
   var current = new URL(window.location.href);
   if (!current.searchParams.has(window.CABINET_BOOT.initDataParam)) return;
   current.searchParams.delete(window.CABINET_BOOT.initDataParam);
