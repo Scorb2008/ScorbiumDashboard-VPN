@@ -29,6 +29,7 @@
         <div id="miniapp-status" style="display:none" class="s">
           <div class="ib"><i class="bi bi-phone cg"></i><div><strong>MiniApp</strong><span class="muted">Автовход</span></div></div>
           <div class="r">
+            <button id="miniapp-login" class="btn btn-p" style="display:none" onclick="startMiniAppLogin(true)"><i class="bi bi-telegram"></i> Войти через Telegram</button>
             <button id="miniapp-retry" class="btn btn-p" style="display:none" onclick="startMiniAppLogin(true)"><i class="bi bi-arrow-clockwise"></i> Повторить</button>
             <a href="/cabinet/" id="miniapp-home" class="btn btn-o" style="display:none">Открыть</a>
           </div>
@@ -77,30 +78,45 @@ function setLoginState(m) {
 }
 function showWebLoginFallback() {
   document.getElementById('login-status').style.display = 'none';
+  var webLogin = document.getElementById('web-login');
+  var miniLogin = document.getElementById('miniapp-login');
   var b = document.getElementById('login-btn');
   var w = document.getElementById('telegram-login');
+  if (webLogin) webLogin.style.display = '';
   if (b) b.style.display = '';
   if (w) w.style.display = '';
+  if (miniLogin) miniLogin.style.display = 'none';
+  document.getElementById('miniapp-retry').style.display = 'none';
+  document.getElementById('miniapp-home').style.display = 'none';
 }
 function showMiniAppFailure(m) {
   document.getElementById('miniapp-status').style.display = '';
+  document.getElementById('miniapp-login').style.display = '';
   document.getElementById('miniapp-retry').style.display = '';
   document.getElementById('miniapp-home').style.display = '';
+  document.getElementById('login-hint').style.display = '';
+  document.getElementById('login-hint').textContent = 'Если автовход не сработал, попробуйте ещё раз';
   setLoginState(m || 'Ошибка');
 }
 async function startMiniAppLogin(force) {
   document.getElementById('miniapp-status').style.display = '';
+  document.getElementById('miniapp-login').style.display = '';
   document.getElementById('miniapp-retry').style.display = 'none';
   setLoginState('Подключение...');
   try {
     var r = await syncMiniAppSession({force:!!force, silent:false});
-    if (r.ok) { document.getElementById('miniapp-home').style.display = ''; window.location.replace(cabinetUrl('/cabinet/')); }
+    if (r.ok) {
+      document.getElementById('miniapp-home').style.display = '';
+      window.location.replace(cabinetUrl('/cabinet/'));
+    }
     else { showMiniAppFailure(r.message || 'Ошибка'); }
   } catch(e) { showMiniAppFailure('Ошибка сети'); }
 }
 (function() {
   var tg = getTelegramWebApp();
   if (tg && tg.initData) {
+    document.getElementById('miniapp-status').style.display = '';
+    document.getElementById('miniapp-login').style.display = '';
     document.getElementById('web-login').style.display = 'none';
     document.getElementById('login-hint').style.display = 'none';
     startMiniAppLogin(true);

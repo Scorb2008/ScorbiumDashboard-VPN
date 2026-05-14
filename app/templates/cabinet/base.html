@@ -50,16 +50,6 @@
       {% block content %}{% endblock %}
     </main>
 
-    {% if not is_log %}
-    <nav class="mnav">
-      <a href="/cabinet/" class="mnl {% if cp in ('/cabinet', '/cabinet/') %}on{% endif %}"><i class="bi bi-grid-1x2"></i><span>Обзор</span></a>
-      <a href="/cabinet/plans" class="mnl {% if cp.startswith('/cabinet/plans') %}on{% endif %}"><i class="bi bi-stars"></i><span>Тарифы</span></a>
-      <a href="/cabinet/keys" class="mnl {% if cp.startswith('/cabinet/keys') %}on{% endif %}"><i class="bi bi-key"></i><span>Ключи</span></a>
-      <a href="/cabinet/promo" class="mnl {% if cp.startswith('/cabinet/promo') %}on{% endif %}"><i class="bi bi-ticket-perforated"></i><span>Промо</span></a>
-      <a href="/cabinet/support" class="mnl {% if cp.startswith('/cabinet/support') %}on{% endif %}"><i class="bi bi-chat-left-dots"></i><span>Чат</span></a>
-      <a href="/cabinet/profile" class="mnl {% if cp.startswith('/cabinet/profile') %}on{% endif %}"><i class="bi bi-person"></i><span>Я</span></a>
-    </nav>
-    {% endif %}
   </div>
 
 <script>

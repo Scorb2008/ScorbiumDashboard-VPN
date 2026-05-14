@@ -2,9 +2,10 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Optional
 from sqlalchemy import select
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.promo import PromoCode, PromoType
+from app.models.promo import PromoCode
 from app.models.promo_usage import PromoUsage
 from app.utils.log import log
 
@@ -18,6 +19,26 @@ class PromoValidationResult:
 class PromoService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+        self._usage_table_available: bool | None = None
+
+    def _is_missing_promo_usage_table(self, exc: Exception) -> bool:
+        message = str(exc).lower()
+        return "promo_usages" in message and "does not exist" in message
+
+    async def _can_use_usage_tracking(self) -> bool:
+        if self._usage_table_available is not None:
+            return self._usage_table_available
+        try:
+            await self.session.execute(select(PromoUsage.id).limit(1))
+            self._usage_table_available = True
+        except ProgrammingError as exc:
+            if self._is_missing_promo_usage_table(exc):
+                log.warning("promo_usages table is missing; promo usage tracking is temporarily disabled")
+                await self.session.rollback()
+                self._usage_table_available = False
+            else:
+                raise
+        return self._usage_table_available
 
     async def get_all(self) -> list[PromoCode]:
         result = await self.session.execute(
@@ -91,7 +112,7 @@ class PromoService:
         if plan_id and promo.plan_id and promo.plan_id != plan_id:
             return PromoValidationResult(None, "Промокод действует только для другого тарифа")
 
-        if user_id:
+        if user_id and await self._can_use_usage_tracking():
             result = await self.session.execute(
                 select(PromoUsage).where(
                     PromoUsage.promo_id == promo.id,
@@ -119,7 +140,7 @@ class PromoService:
         stored_promo.current_uses += 1
         await self.session.flush()
 
-        if user_id:
+        if user_id and await self._can_use_usage_tracking():
             self.session.add(PromoUsage(promo_id=stored_promo.id, user_id=user_id))
             await self.session.flush()
         return stored_promo
