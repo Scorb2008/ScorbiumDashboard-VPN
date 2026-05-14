@@ -7,7 +7,6 @@ from typing import Optional
 from app.core.config import config
 from app.core.database import AsyncSessionFactory
 from app.services.telegram_notify import TelegramNotifyService
-from app.utils.log import log
 
 
 class ServiceStatus:
@@ -116,6 +115,7 @@ class HealthService:
             cooldown_sec = int((await settings.get("notify_cooldown_seconds")) or "300")
             notify_on_degraded = (await settings.get("notify_on_degraded")) == "1"
             chat_ids_raw = await settings.get("notify_chat_ids")
+            lang = (await settings.get("bot_language")) or "ru"
             notify_svc = {
                 "database": (await settings.get("notify_svc_database")) == "1",
                 "telegram_bot": (await settings.get("notify_svc_telegram_bot")) == "1",
@@ -136,7 +136,6 @@ class HealthService:
         notify = TelegramNotifyService()
         now = time.time()
 
-        lang = (await settings.get("bot_language")) or "ru"
         tz_offsets = {"ru": 3, "fa": 3.5, "en": -5}
         tz = timezone(timedelta(hours=tz_offsets.get(lang, 3)))
 
