@@ -1,5 +1,8 @@
+import json
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -12,11 +15,14 @@ from app.services.user import UserService
 from app.services.plan import PlanService
 from app.services.vpn_key import VpnKeyService
 from app.services.payment import PaymentService
+from app.services.payment_fulfillment import PaymentFulfillmentService
 from app.services.promo import PromoService
 from app.services.support import SupportService
 from app.services.referral import ReferralService
 from app.services.bot_settings import BotSettingsService
-from app.models.payment import PaymentProvider
+from app.services.yookassa import YookassaService
+from app.models.payment import PaymentProvider, PaymentStatus
+from app.models.promo import PromoType
 from app.utils.log import log
 
 from .auth import (
@@ -32,6 +38,7 @@ router = APIRouter()
 _tpl_path = Path(__file__).resolve().parent.parent.parent / "templates"
 templates = Jinja2Templates(directory=str(_tpl_path))
 templates.env.globals["is_admin_user"] = lambda u: bool(u and u.id in config.telegram.telegram_admin_ids)
+_MONEY_STEP = Decimal("0.01")
 
 
 async def _require_user(request: Request, db: AsyncSession):
@@ -58,6 +65,120 @@ def _is_mini_app(request: Request) -> bool:
 def _persist_cabinet_session(request: Request, response, user) -> None:
     if user and not request.cookies.get("cabinet_session"):
         set_session_cookie(response, user.id, secure=_is_secure_request(request))
+
+
+def _normalize_money(value) -> Decimal:
+    return Decimal(str(value)).quantize(_MONEY_STEP, rounding=ROUND_HALF_UP)
+
+
+def _request_origin(request: Request) -> str:
+    forwarded_proto = request.headers.get("x-forwarded-proto", "")
+    scheme = (
+        forwarded_proto.split(",")[0].strip().lower()
+        if forwarded_proto
+        else request.url.scheme
+    )
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host") or request.url.netloc
+    return f"{scheme}://{host}"
+
+
+def _absolute_cabinet_url(request: Request, path: str, **params) -> str:
+    query = urlencode({
+        key: str(value)
+        for key, value in params.items()
+        if value not in (None, "")
+    })
+    return f"{_request_origin(request)}{path}" + (f"?{query}" if query else "")
+
+
+def _payment_meta_dict(payment) -> dict:
+    if not payment or not payment.meta:
+        return {}
+    try:
+        data = json.loads(payment.meta)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+async def _resolve_discount_promo(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    plan_id: int,
+    promo_code: str,
+):
+    code = promo_code.strip().upper()
+    if not code:
+        return None, None
+    validation = await PromoService(db).validate_for_user(
+        code,
+        user_id=user_id,
+        promo_type=PromoType.DISCOUNT.value,
+        plan_id=plan_id,
+    )
+    if not validation.promo:
+        return None, validation.message or "Промокод недействителен"
+    return validation.promo, None
+
+
+def _apply_discount(amount, promo) -> tuple[Decimal, Decimal]:
+    original_amount = _normalize_money(amount)
+    if not promo:
+        return original_amount, Decimal("0.00")
+
+    discount_percent = Decimal(str(promo.value))
+    if discount_percent < 0:
+        discount_percent = Decimal("0")
+    if discount_percent > 100:
+        discount_percent = Decimal("100")
+
+    discount_amount = (
+        original_amount * discount_percent / Decimal("100")
+    ).quantize(_MONEY_STEP, rounding=ROUND_HALF_UP)
+    final_amount = (original_amount - discount_amount).quantize(
+        _MONEY_STEP, rounding=ROUND_HALF_UP
+    )
+    if final_amount < 0:
+        final_amount = Decimal("0.00")
+    return final_amount, discount_amount
+
+
+async def _get_days_promo_target_key(db: AsyncSession, user_id: int):
+    key_svc = VpnKeyService(db)
+    active_keys = await key_svc.get_active_for_user(user_id)
+    if active_keys:
+        return active_keys[0]
+    all_keys = await key_svc.get_all_for_user(user_id)
+    return all_keys[0] if all_keys else None
+
+
+async def _finalize_subscription_payment(db: AsyncSession, payment, external_id: str):
+    meta = _payment_meta_dict(payment)
+    plan_id = int(meta.get("plan_id", 0) or 0)
+    extend_key_id = int(meta.get("extend_key_id", 0) or 0) or None
+    if not plan_id:
+        return payment, None, "Не удалось определить тариф для платежа"
+
+    plan = await PlanService(db).get_by_id(plan_id)
+    if not plan:
+        return payment, None, "Тариф не найден"
+
+    confirmation = await PaymentService(db).confirm_once(payment.id, external_id)
+    payment = confirmation.payment
+    if not payment:
+        return None, None, "Платёж не найден"
+
+    fulfillment = PaymentFulfillmentService(db)
+    if extend_key_id:
+        delivery = await fulfillment.extend_subscription_once(
+            payment.id, payment.user_id, extend_key_id, plan
+        )
+    else:
+        delivery = await fulfillment.provision_subscription_once(
+            payment.id, payment.user_id, plan
+        )
+    return payment, delivery.key, None
 
 
 async def _ensure_bot_username(db: AsyncSession, settings: dict) -> str:
@@ -215,11 +336,64 @@ async def cabinet_promo_apply(
     if not user:
         return JSONResponse({"ok": False, "message": "Not authenticated"}, status_code=401)
     try:
-        promo = await PromoService(db).apply(code.strip(), user.id)
-        if promo:
-            return JSONResponse({"ok": True, "message": f"Промокод активирован! Скидка: {promo.value}"})
-        return JSONResponse({"ok": False, "message": "Промокод не найден или истёк"}, status_code=400)
+        promo_service = PromoService(db)
+        validation = await promo_service.validate_for_user(code.strip(), user.id)
+        promo = validation.promo
+        if not promo:
+            return JSONResponse(
+                {"ok": False, "message": validation.message or "Промокод недействителен"},
+                status_code=400,
+            )
+
+        promo_type = str(promo.promo_type)
+        if promo_type == PromoType.DISCOUNT.value:
+            return JSONResponse({
+                "ok": True,
+                "message": f"Скидка {promo.value}% готова. Примените промокод при покупке тарифа.",
+                "promo_type": promo_type,
+                "code": promo.code,
+                "value": str(promo.value),
+            })
+
+        if promo_type == PromoType.BALANCE.value:
+            await UserService(db).add_balance(user.id, promo.value)
+            consumed = await promo_service.consume(promo, user.id)
+            if not consumed:
+                await db.rollback()
+                return JSONResponse({"ok": False, "message": "Промокод уже использован"}, status_code=400)
+            await db.commit()
+            return JSONResponse({
+                "ok": True,
+                "message": f"На баланс зачислено {promo.value} ₽",
+                "promo_type": promo_type,
+            })
+
+        target_key = await _get_days_promo_target_key(db, user.id)
+        if not target_key:
+            return JSONResponse({
+                "ok": False,
+                "message": "Для промокода на дни нужна хотя бы одна подписка",
+            }, status_code=400)
+
+        updated_key = await VpnKeyService(db).extend(target_key.id, int(Decimal(str(promo.value))))
+        if not updated_key:
+            await db.rollback()
+            return JSONResponse({"ok": False, "message": "Не удалось продлить подписку"}, status_code=500)
+
+        consumed = await promo_service.consume(promo, user.id)
+        if not consumed:
+            await db.rollback()
+            return JSONResponse({"ok": False, "message": "Промокод уже использован"}, status_code=400)
+
+        await db.commit()
+        return JSONResponse({
+            "ok": True,
+            "message": f"Подписка продлена на {int(Decimal(str(promo.value)))} дн.",
+            "promo_type": promo_type,
+            "expires_at": updated_key.expires_at.isoformat() if updated_key.expires_at else None,
+        })
     except Exception as e:
+        await db.rollback()
         return JSONResponse({"ok": False, "message": str(e)}, status_code=400)
 
 
@@ -408,7 +582,10 @@ async def cabinet_trial_activate(request: Request, db: AsyncSession = Depends(ge
 
 @router.post("/cabinet/pay/balance")
 async def cabinet_pay_balance(
-    request: Request, plan_id: int = Form(0), db: AsyncSession = Depends(get_db),
+    request: Request,
+    plan_id: int = Form(0),
+    promo_code: str = Form(""),
+    db: AsyncSession = Depends(get_db),
 ):
     user = await _require_active_user(request, db)
     if not user:
@@ -417,32 +594,377 @@ async def cabinet_pay_balance(
     if not plan or not plan.is_active:
         return JSONResponse({"ok": False, "message": "Тариф не найден"}, status_code=404)
 
+    promo = None
+    if promo_code.strip():
+        promo, promo_error = await _resolve_discount_promo(
+            db,
+            user_id=user.id,
+            plan_id=plan.id,
+            promo_code=promo_code,
+        )
+        if promo_error:
+            return JSONResponse({"ok": False, "message": promo_error}, status_code=400)
+
+    charged_amount, discount_amount = _apply_discount(plan.price, promo)
+
     from sqlalchemy import select
     from app.models.user import User
     locked = await db.execute(select(User).where(User.id == user.id).with_for_update())
     locked_user = locked.scalar_one_or_none()
     if not locked_user or locked_user.is_banned:
         return JSONResponse({"ok": False, "message": "Аккаунт заблокирован"}, status_code=403)
-    if locked_user.balance < plan.price:
+    if locked_user.balance < charged_amount:
         return JSONResponse({"ok": False, "message": "Недостаточно средств"}, status_code=400)
 
     try:
-        payment = await PaymentService(db).create_pending(user.id, plan, PaymentProvider.BALANCE)
-        await UserService(db).deduct_balance(user.id, plan.price)
-        confirmed = await PaymentService(db).confirm(payment.id, f"balance_{payment.id}")
-        if not confirmed:
-            await UserService(db).add_balance(user.id, plan.price)
+        payment_meta = {
+            "plan_id": plan.id,
+            "kind": "cabinet_plan_purchase",
+            "original_amount": str(_normalize_money(plan.price)),
+            "final_amount": str(charged_amount),
+        }
+        if promo:
+            payment_meta["promo_code"] = promo.code
+            payment_meta["discount_value"] = str(promo.value)
+            payment_meta["discount_amount"] = str(discount_amount)
+
+        payment = await PaymentService(db).create_pending(
+            user.id,
+            plan,
+            PaymentProvider.BALANCE,
+            amount=charged_amount,
+            meta=json.dumps(payment_meta),
+        )
+
+        if charged_amount > Decimal("0.00"):
+            deducted = await UserService(db).deduct_balance(user.id, charged_amount)
+            if not deducted:
+                await db.rollback()
+                return JSONResponse({"ok": False, "message": "Недостаточно средств"}, status_code=400)
+
+        if promo:
+            consumed = await PromoService(db).consume(promo, user.id)
+            if not consumed:
+                await db.rollback()
+                return JSONResponse({"ok": False, "message": "Промокод уже использован"}, status_code=400)
+
+        confirmed = await PaymentService(db).confirm_once(payment.id, f"balance_{payment.id}")
+        if not confirmed.payment:
+            await db.rollback()
             return JSONResponse({"ok": False, "message": "Ошибка при оплате"}, status_code=500)
-        key = await VpnKeyService(db).provision(user.id, plan)
-        if not key:
-            await UserService(db).add_balance(user.id, plan.price)
-            await PaymentService(db).fail(payment.id)
+
+        _, key, payment_error = await _finalize_subscription_payment(
+            db, payment, f"balance_{payment.id}"
+        )
+        if payment_error or not key:
+            await db.rollback()
             return JSONResponse({"ok": False, "message": "Ошибка при создании ключа"}, status_code=500)
-        return JSONResponse({"ok": True, "message": "Подписка оформлена!", "access_url": key.access_url})
+
+        await db.commit()
+        amount_note = f" за {charged_amount} ₽" if charged_amount > Decimal("0.00") else ""
+        return JSONResponse({
+            "ok": True,
+            "status": "succeeded",
+            "message": f"Подписка оформлена{amount_note}",
+            "access_url": key.access_url,
+            "redirect": "/cabinet/keys",
+        })
     except Exception as e:
         log.error("Payment error: %s", e)
         await db.rollback()
         return JSONResponse({"ok": False, "message": "Ошибка сервера"}, status_code=500)
+
+
+@router.post("/cabinet/pay/yookassa")
+async def cabinet_pay_yookassa(
+    request: Request,
+    plan_id: int = Form(0),
+    promo_code: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await _require_active_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False, "message": "Not authenticated"}, status_code=401)
+
+    plan = await PlanService(db).get_by_id(plan_id)
+    if not plan or not plan.is_active:
+        return JSONResponse({"ok": False, "message": "Тариф не найден"}, status_code=404)
+
+    promo = None
+    if promo_code.strip():
+        promo, promo_error = await _resolve_discount_promo(
+            db,
+            user_id=user.id,
+            plan_id=plan.id,
+            promo_code=promo_code,
+        )
+        if promo_error:
+            return JSONResponse({"ok": False, "message": promo_error}, status_code=400)
+
+    charged_amount, discount_amount = _apply_discount(plan.price, promo)
+
+    try:
+        payment_provider = (
+            PaymentProvider.BALANCE if charged_amount == Decimal("0.00") else PaymentProvider.YOOKASSA
+        )
+        payment_meta = {
+            "plan_id": plan.id,
+            "kind": "cabinet_plan_purchase",
+            "original_amount": str(_normalize_money(plan.price)),
+            "final_amount": str(charged_amount),
+        }
+        if promo:
+            payment_meta["promo_code"] = promo.code
+            payment_meta["discount_value"] = str(promo.value)
+            payment_meta["discount_amount"] = str(discount_amount)
+
+        payment = await PaymentService(db).create_pending(
+            user.id,
+            plan,
+            payment_provider,
+            amount=charged_amount,
+            meta=json.dumps(payment_meta),
+        )
+
+        if promo:
+            consumed = await PromoService(db).consume(promo, user.id)
+            if not consumed:
+                await db.rollback()
+                return JSONResponse({"ok": False, "message": "Промокод уже использован"}, status_code=400)
+
+        if charged_amount == Decimal("0.00"):
+            confirmed = await PaymentService(db).confirm_once(payment.id, f"promo_free_{payment.id}")
+            if not confirmed.payment:
+                await db.rollback()
+                return JSONResponse({"ok": False, "message": "Ошибка при оформлении"}, status_code=500)
+            _, key, payment_error = await _finalize_subscription_payment(
+                db, payment, f"promo_free_{payment.id}"
+            )
+            if payment_error or not key:
+                await db.rollback()
+                return JSONResponse({"ok": False, "message": "Ошибка при создании ключа"}, status_code=500)
+            await db.commit()
+            return JSONResponse({
+                "ok": True,
+                "status": "succeeded",
+                "message": "Промокод полностью покрыл стоимость тарифа",
+                "access_url": key.access_url,
+                "redirect": "/cabinet/keys",
+            })
+
+        yk = await YookassaService.create()
+        return_url = _absolute_cabinet_url(request, "/cabinet/plans", payment_id=payment.id)
+        yk_payment = await yk.create_payment(
+            amount=charged_amount,
+            description=f"VPN подписка — {plan.name}",
+            return_url=return_url,
+            metadata={"payment_id": str(payment.id), "plan_id": str(plan.id)},
+        )
+        payment.external_id = yk_payment.id
+        await db.commit()
+
+        return JSONResponse({
+            "ok": True,
+            "status": "pending",
+            "message": "Ссылка на оплату создана",
+            "payment_id": payment.id,
+            "payment_url": yk_payment.confirmation.confirmation_url,
+            "return_url": return_url,
+        })
+    except Exception as e:
+        log.error("Yookassa cabinet payment error: %s", e)
+        await db.rollback()
+        return JSONResponse({"ok": False, "message": "Не удалось создать платёж"}, status_code=502)
+
+
+@router.post("/cabinet/topup/yookassa")
+async def cabinet_topup_yookassa(
+    request: Request,
+    amount: str = Form("0"),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await _require_active_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False, "message": "Not authenticated"}, status_code=401)
+
+    try:
+        topup_amount = _normalize_money(amount)
+    except (InvalidOperation, ValueError):
+        return JSONResponse({"ok": False, "message": "Некорректная сумма"}, status_code=400)
+
+    if topup_amount < Decimal("100.00"):
+        return JSONResponse({"ok": False, "message": "Минимальная сумма пополнения 100 ₽"}, status_code=400)
+    if topup_amount > Decimal("100000.00"):
+        return JSONResponse({"ok": False, "message": "Слишком большая сумма пополнения"}, status_code=400)
+
+    try:
+        yk = await YookassaService.create()
+        payment = await PaymentService(db).create_topup_pending(
+            user_id=user.id,
+            amount=topup_amount,
+            provider=PaymentProvider.YOOKASSA,
+            meta=json.dumps({"kind": "cabinet_topup"}),
+        )
+        return_url = _absolute_cabinet_url(request, "/cabinet/balance", payment_id=payment.id)
+        yk_payment = await yk.create_payment(
+            amount=topup_amount,
+            description=f"Пополнение баланса на {topup_amount} ₽",
+            return_url=return_url,
+            metadata={"payment_id": str(payment.id)},
+        )
+        payment.external_id = yk_payment.id
+        await db.commit()
+
+        return JSONResponse({
+            "ok": True,
+            "status": "pending",
+            "message": "Ссылка на пополнение создана",
+            "payment_id": payment.id,
+            "payment_url": yk_payment.confirmation.confirmation_url,
+            "return_url": return_url,
+        })
+    except Exception as e:
+        log.error("Yookassa cabinet topup error: %s", e)
+        await db.rollback()
+        return JSONResponse({"ok": False, "message": "Не удалось создать платёж"}, status_code=502)
+
+
+@router.get("/cabinet/pay/status/{payment_id}")
+async def cabinet_pay_status(
+    request: Request, payment_id: int, db: AsyncSession = Depends(get_db),
+):
+    user = await _require_active_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False, "message": "Not authenticated"}, status_code=401)
+
+    payment = await PaymentService(db).get_by_id(payment_id)
+    if not payment or payment.user_id != user.id:
+        return JSONResponse({"ok": False, "message": "Платёж не найден"}, status_code=404)
+
+    if payment.status == PaymentStatus.FAILED.value:
+        return JSONResponse({
+            "ok": False,
+            "status": "failed",
+            "message": "Платёж не был завершён",
+        })
+
+    if payment.status == PaymentStatus.CANCELLED.value:
+        return JSONResponse({
+            "ok": False,
+            "status": "cancelled",
+            "message": "Платёж отменён",
+        })
+
+    if payment.status == PaymentStatus.SUCCEEDED.value and payment.payment_type == "topup":
+        result = await PaymentFulfillmentService(db).confirm_topup_and_credit_once(
+            payment.id,
+            payment.external_id or f"cabinet_topup_{payment.id}",
+        )
+        await db.commit()
+        return JSONResponse({
+            "ok": True,
+            "status": "succeeded",
+            "message": "Баланс успешно пополнен",
+            "balance": str(result.balance) if result.balance is not None else None,
+            "redirect": "/cabinet/balance",
+        })
+
+    if payment.status == PaymentStatus.SUCCEEDED.value:
+        payment, key, payment_error = await _finalize_subscription_payment(
+            db,
+            payment,
+            payment.external_id or f"cabinet_{payment.id}",
+        )
+        await db.commit()
+        if payment_error:
+            return JSONResponse({"ok": False, "status": "failed", "message": payment_error}, status_code=400)
+        if key:
+            return JSONResponse({
+                "ok": True,
+                "status": "succeeded",
+                "message": "Оплата подтверждена, подписка готова",
+                "access_url": key.access_url,
+                "redirect": "/cabinet/keys",
+            })
+        return JSONResponse({
+            "ok": True,
+            "status": "processing",
+            "message": "Оплата получена, ключ ещё подготавливается",
+            "redirect": "/cabinet/keys",
+        })
+
+    if payment.provider not in (
+        PaymentProvider.YOOKASSA.value,
+        PaymentProvider.YOOKASSA_SBP.value,
+    ) or not payment.external_id:
+        return JSONResponse({
+            "ok": True,
+            "status": payment.status,
+            "message": "Платёж ещё ожидает подтверждения",
+        })
+
+    try:
+        yk = await YookassaService.create()
+        yk_payment = await yk.get_payment(payment.external_id)
+    except Exception as e:
+        log.warning("Cabinet payment status check failed: {}", e)
+        return JSONResponse({
+            "ok": False,
+            "message": "Не удалось проверить статус платежа",
+        }, status_code=502)
+
+    if yk_payment.status == "succeeded":
+        if payment.payment_type == "topup":
+            result = await PaymentFulfillmentService(db).confirm_topup_and_credit_once(
+                payment.id,
+                yk_payment.id,
+            )
+            await db.commit()
+            return JSONResponse({
+                "ok": True,
+                "status": "succeeded",
+                "message": "Баланс успешно пополнен",
+                "balance": str(result.balance) if result.balance is not None else None,
+                "redirect": "/cabinet/balance",
+            })
+
+        payment, key, payment_error = await _finalize_subscription_payment(
+            db,
+            payment,
+            yk_payment.id,
+        )
+        await db.commit()
+        if payment_error:
+            return JSONResponse({"ok": False, "status": "failed", "message": payment_error}, status_code=400)
+        if key:
+            return JSONResponse({
+                "ok": True,
+                "status": "succeeded",
+                "message": "Оплата подтверждена, подписка готова",
+                "access_url": key.access_url,
+                "redirect": "/cabinet/keys",
+            })
+        return JSONResponse({
+            "ok": True,
+            "status": "processing",
+            "message": "Оплата получена, ключ ещё подготавливается",
+            "redirect": "/cabinet/keys",
+        })
+
+    if yk_payment.status in ("canceled", "expired"):
+        await PaymentService(db).fail(payment.id)
+        await db.commit()
+        return JSONResponse({
+            "ok": False,
+            "status": "failed",
+            "message": "Платёж отменён или истёк",
+        })
+
+    return JSONResponse({
+        "ok": True,
+        "status": "pending",
+        "message": "Платёж ещё обрабатывается",
+    })
 
 
 @router.get("/cabinet/logout")

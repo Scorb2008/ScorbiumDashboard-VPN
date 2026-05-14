@@ -237,6 +237,14 @@ class BotSettingsService:
         return int(value) if value else 10
 
 
+async def reset_bot_settings_cache() -> None:
+    """Clear the process-wide bot settings cache after external DB changes."""
+    global _cache, _cache_ts, _cache_lock
+    async with _cache_lock:
+        _cache = None
+        _cache_ts = 0
+
+
 async def create_traffic_analysis_service() -> "TrafficAnalysisService":
     from app.services.pasarguard.pasarguard import get_vpn_panel
 

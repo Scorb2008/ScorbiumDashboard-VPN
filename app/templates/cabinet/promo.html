@@ -1,19 +1,66 @@
 {% extends "cabinet/base.html" %}
 {% block title %}Промокод — {{ app_name }}{% endblock %}
+
+{% block head %}
+<style>{% include "cabinet/_premium_section_styles.html" %}</style>
+{% endblock %}
+
 {% block content %}
-<div class="sl">
-  <div class="ttl"><h2>Промокод</h2></div>
+<div class="cab-premium">
+  <section class="cab-premium-shell">
+    <div class="cab-premium-top">
+      <div class="cab-premium-copy">
+        <div class="cab-premium-kicker">Промокоды</div>
+        <h1 class="cab-premium-title">Активируйте бонус без лишних переходов</h1>
+        <p class="cab-premium-subtitle">Промокоды на баланс и дополнительные дни срабатывают сразу, а скидочные коды автоматически подставляются в раздел «Тарифы».</p>
+      </div>
+      <span class="cab-premium-badge">Быстрый доступ</span>
+    </div>
 
-  <div class="cd">
-    <form onsubmit="return applyPromo(event)" class="s">
-      <input type="text" id="promo-code" class="inp" placeholder="Введите промокод" required autocomplete="off">
-      <button type="submit" class="btn btn-p btn-w">Активировать</button>
-      <div id="promo-result"></div>
-    </form>
-  </div>
+    <div class="cab-premium-grid-2" style="margin-top:24px">
+      <article class="cab-premium-card">
+        <div class="cab-premium-kicker" style="margin-bottom:10px">Активация</div>
+        <form onsubmit="return applyPromo(event)" class="cab-premium-form">
+          <input type="text" id="promo-code" class="inp" placeholder="Введите промокод" required autocomplete="off">
+          <div class="cab-premium-form-foot">
+            <div id="promo-result" class="cab-premium-row-note"></div>
+            <button type="submit" class="btn btn-p">Активировать</button>
+          </div>
+        </form>
+      </article>
+
+      <article class="cab-premium-card">
+        <div class="cab-premium-kicker" style="margin-bottom:10px">Как это работает</div>
+        <div class="cab-premium-list">
+          <div class="cab-premium-note">
+            <i class="bi bi-wallet2"></i>
+            <div>
+              <strong>Баланс</strong>
+              <span>Деньги зачисляются на внутренний счёт и сразу доступны для покупки тарифа.</span>
+            </div>
+          </div>
+          <div class="cab-premium-note">
+            <i class="bi bi-calendar2-check"></i>
+            <div>
+              <strong>Дни</strong>
+              <span>Срок активной подписки продлевается автоматически, если у вас уже есть хотя бы один ключ.</span>
+            </div>
+          </div>
+          <div class="cab-premium-note">
+            <i class="bi bi-ticket-perforated"></i>
+            <div>
+              <strong>Скидка</strong>
+              <span>Код сохраняется локально и применяется при покупке тарифа на странице тарифов.</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
 </div>
+{% endblock %}
 
-<script>
+{% block scripts %}
 async function applyPromo(event) {
   event.preventDefault();
   var code = document.getElementById('promo-code').value.trim();
@@ -22,7 +69,22 @@ async function applyPromo(event) {
   try {
     var res = await cabinetJson('/cabinet/promo/apply', {method:'POST', body:fd});
     setMsg(r, res.data.ok, res.data.message || 'Ошибка');
+    if (!res.data.ok) {
+      showToast(res.data.message || 'Ошибка применения промокода', 'error');
+      return false;
+    }
+
+    if (res.data.promo_type === 'discount' && res.data.code) {
+      localStorage.setItem('cabinetPlansPromoCode', String(res.data.code).toUpperCase());
+      showToast('Скидка сохранена. Сейчас откроем тарифы.', 'success');
+      setTimeout(function() {
+        window.location.href = cabinetUrl('/cabinet/plans');
+      }, 800);
+      return false;
+    }
+
+    showToast(res.data.message || 'Промокод активирован', 'success');
   } catch(e) { setMsg(r, false, 'Ошибка сети'); }
+  return false;
 }
-</script>
 {% endblock %}

@@ -26,6 +26,7 @@ from app.services.referral import ReferralService
 from app.services.promo import PromoService
 from app.services.bot_settings import BotSettingsService
 from app.services.support import SupportService
+from app.services.vpn_key import VpnKeyService
 from app.services.telegram_notify import TelegramNotifyService
 from app.services.i18n import t, get_lang
 from app.core.config import config
@@ -492,21 +493,48 @@ async def process_promo(message: Message, state: FSMContext) -> None:
     code = message.text.strip().upper()
     async with AsyncSessionFactory() as session:
         lang = await _get_lang_from_session(message.from_user.id, session)
-        promo = await PromoService(session).apply(code, user_id=message.from_user.id)
+        promo_service = PromoService(session)
+        validation = await promo_service.validate_for_user(code, user_id=message.from_user.id)
+        promo = validation.promo
         if promo:
             pt = str(promo.promo_type)
             if pt == "balance":
                 await UserService(session).add_balance(
                     message.from_user.id, promo.value
                 )
+                await promo_service.consume(promo, user_id=message.from_user.id)
                 result_text = t("promo_balance", lang, value=promo.value)
             elif pt == "days":
-                result_text = t("promo_days", lang, value=int(promo.value))
+                keys = await VpnKeyService(session).get_active_for_user(message.from_user.id)
+                if not keys:
+                    keys = await VpnKeyService(session).get_all_for_user(message.from_user.id)
+                if not keys:
+                    result_text = (
+                        "❌ Для промокода на дни нужна хотя бы одна подписка"
+                        if lang == "ru"
+                        else (
+                            "❌ You need at least one subscription to use a days promo"
+                            if lang == "en"
+                            else "❌ برای استفاده از کد روز، حداقل یک اشتراک لازم است"
+                        )
+                    )
+                else:
+                    await VpnKeyService(session).extend(keys[0].id, int(promo.value))
+                    await promo_service.consume(promo, user_id=message.from_user.id)
+                    result_text = t("promo_days", lang, value=int(promo.value))
             else:
-                result_text = t("promo_discount", lang, value=promo.value)
+                result_text = (
+                    "✅ Скидочный промокод сохраните для оплаты в личном кабинете"
+                    if lang == "ru"
+                    else (
+                        "✅ Use this discount promo code during checkout in the web cabinet"
+                        if lang == "en"
+                        else "✅ این کد تخفیف را هنگام پرداخت در کابین وب استفاده کنید"
+                    )
+                )
             await session.commit()
         else:
-            result_text = t("promo_invalid", lang)
+            result_text = validation.message or t("promo_invalid", lang)
         kb = await _get_menu_kb(
             session,
             lang=lang,

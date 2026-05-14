@@ -22,6 +22,14 @@ class PaymentService:
         result = await self.session.execute(select(Payment).where(Payment.id == payment_id))
         return result.scalar_one_or_none()
 
+    async def get_by_id_for_update(self, payment_id: int) -> Optional[Payment]:
+        result = await self.session.execute(
+            select(Payment)
+            .where(Payment.id == payment_id)
+            .with_for_update()
+        )
+        return result.scalar_one_or_none()
+
     async def get_by_external_id(self, external_id: str) -> Optional[Payment]:
         result = await self.session.execute(
             select(Payment).where(Payment.external_id == external_id)
@@ -79,7 +87,10 @@ class PaymentService:
         user_id: int,
         plan: Plan,
         provider: PaymentProvider,
-        currency: str = "RUB",
+        currency: Optional[str] = None,
+        amount: Optional[Decimal] = None,
+        external_id: Optional[str] = None,
+        meta: Optional[str] = None,
     ) -> Payment:
         """Создать pending платёж за подписку."""
         from datetime import datetime, timezone, timedelta
@@ -100,9 +111,11 @@ class PaymentService:
             user_id=user_id,
             provider=provider.value,
             payment_type=PaymentType.SUBSCRIPTION.value,
-            amount=plan.price,
-            currency=currency,
+            amount=amount if amount is not None else plan.price,
+            currency=currency or plan.currency or "RUB",
             status=PaymentStatus.PENDING.value,
+            external_id=external_id,
+            meta=meta,
         )
         self.session.add(payment)
         await self.session.flush()
@@ -115,6 +128,7 @@ class PaymentService:
         provider: PaymentProvider,
         external_id: Optional[str] = None,
         currency: str = "RUB",
+        meta: Optional[str] = None,
     ) -> Payment:
         """Создать pending платёж пополнения баланса."""
         from datetime import datetime, timezone, timedelta
@@ -140,6 +154,7 @@ class PaymentService:
             currency=currency,
             status=PaymentStatus.PENDING.value,
             external_id=external_id,
+            meta=meta,
         )
         self.session.add(payment)
         await self.session.flush()
@@ -191,13 +206,7 @@ class PaymentService:
         return await self._confirm_once(payment_id, external_id)
 
     async def _confirm_once(self, payment_id: int, external_id: str) -> PaymentConfirmationResult:
-        from sqlalchemy import select as _select
-        result = await self.session.execute(
-            _select(Payment)
-            .where(Payment.id == payment_id)
-            .with_for_update()
-        )
-        payment = result.scalar_one_or_none()
+        payment = await self.get_by_id_for_update(payment_id)
         if not payment:
             return PaymentConfirmationResult(payment=None, just_confirmed=False)
         if payment.status == PaymentStatus.SUCCEEDED.value:

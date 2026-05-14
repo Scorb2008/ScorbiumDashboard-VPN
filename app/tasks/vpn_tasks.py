@@ -6,6 +6,7 @@ from app.utils.log import log
 
 EXPIRE_CHECK_INTERVAL = 300 
 SYNC_INTERVAL = 3600 
+_AUTO_RENEW_LOW_BALANCE_NOTIFIED: dict[int, object] = {}
 
 
 async def expire_outdated_keys() -> None:
@@ -234,12 +235,14 @@ async def auto_renew_keys() -> None:
 
                     user = await UserService(session).deduct_balance(user_id, Decimal(str(price)))
                     if not user:
-
-                        await notify.send_message(
-                            user_id,
-                            "⚠️ <b>Автопродление не выполнено</b>\n\n"
-                            "Недостаточно средств на балансе. Пополните баланс для продления подписки.",
-                        )
+                        last_notified_expiry = _AUTO_RENEW_LOW_BALANCE_NOTIFIED.get(key_id)
+                        if last_notified_expiry != current_key.expires_at:
+                            await notify.send_message(
+                                user_id,
+                                "⚠️ <b>Автопродление не выполнено</b>\n\n"
+                                "Недостаточно средств на балансе. Пополните баланс для продления подписки.",
+                            )
+                            _AUTO_RENEW_LOW_BALANCE_NOTIFIED[key_id] = current_key.expires_at
                         continue
 
                     from app.services.plan import PlanService
@@ -253,7 +256,7 @@ async def auto_renew_keys() -> None:
                     key = await VpnKeyService(session).extend(key_id, plan.duration_days)
                     
                     if key:
-                        
+                        _AUTO_RENEW_LOW_BALANCE_NOTIFIED.pop(key_id, None)
                         exp_str = key.expires_at.strftime("%d.%m.%Y") if key.expires_at else "—"
                         key_id_for_log = key.id
                         await session.commit()

@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardButton
@@ -6,6 +7,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from app.bot.utils.menu import get_main_menu_kb as _get_menu_kb
 from app.bot.handlers.admin import _is_admin
 from app.core.database import AsyncSessionFactory
+from app.models.payment import PaymentStatus
 from app.services.vpn_key import VpnKeyService
 from app.services.bot_settings import BotSettingsService
 from app.services.i18n import t
@@ -73,6 +75,30 @@ async def _get_lang(user_id: int, session) -> str:
     settings = await BotSettingsService(session).get_all()
     user_lang = user.language if user and user.language else None
     return get_lang(settings, user_lang)
+
+
+async def _complete_extension_payment(
+    user_id: int, payment_id: int, plan_id: int, key_id: int, external_id: str
+) -> str | None:
+    from app.services.payment import PaymentService
+    from app.services.payment_fulfillment import PaymentFulfillmentService
+    from app.services.plan import PlanService
+
+    async with AsyncSessionFactory() as session:
+        payment = await PaymentService(session).get_by_id(payment_id)
+        plan = await PlanService(session).get_by_id(plan_id)
+        if not payment or not plan or payment.user_id != user_id:
+            return None
+
+        await PaymentService(session).confirm_once(payment_id, external_id)
+        result = await PaymentFulfillmentService(session).extend_subscription_once(
+            payment_id, user_id, key_id, plan
+        )
+        await session.commit()
+
+        if not result.key:
+            return None
+        return result.key.expires_at.strftime("%d.%m.%Y") if result.key.expires_at else "—"
 
 
 # ── Мои подписки ──────────────────────────────────────────────────────────────
@@ -603,7 +629,7 @@ async def extend_yookassa(callback: CallbackQuery, bot) -> None:
             user_id=callback.from_user.id, plan=plan,
             provider=PaymentProvider.YOOKASSA,
         )
-        payment.metadata = {"extend_key_id": str(key_id)}
+        payment.meta = json.dumps({"extend_key_id": str(key_id)})
         await session.flush()
         payment_id = payment.id
 
@@ -660,7 +686,7 @@ async def extend_sbp(callback: CallbackQuery, bot) -> None:
             user_id=callback.from_user.id, plan=plan,
             provider=PaymentProvider.YOOKASSA_SBP,
         )
-        payment.metadata = {"extend_key_id": str(key_id)}
+        payment.meta = json.dumps({"extend_key_id": str(key_id)})
         await session.flush()
         payment_id = payment.id
 
@@ -718,7 +744,7 @@ async def extend_stars(callback: CallbackQuery, bot) -> None:
             user_id=callback.from_user.id, plan=plan,
             provider=PaymentProvider.TELEGRAM_STARS,
         )
-        payment.metadata = {"extend_key_id": str(key_id)}
+        payment.meta = json.dumps({"extend_key_id": str(key_id)})
         await session.commit()
 
     ok = await TelegramStarsService(bot).send_invoice(
@@ -776,7 +802,7 @@ async def extend_crypto(callback: CallbackQuery, bot) -> None:
             user_id=callback.from_user.id, plan=plan,
             provider=PaymentProvider.CRYPTOBOT,
         )
-        payment.metadata = {"extend_key_id": str(key_id)}
+        payment.meta = json.dumps({"extend_key_id": str(key_id)})
         await session.flush()
 
         invoice = await crypto.create_invoice(
@@ -796,7 +822,7 @@ async def extend_crypto(callback: CallbackQuery, bot) -> None:
     builder.row(InlineKeyboardButton(text="Оплатить", url=invoice["pay_url"]))
     builder.row(InlineKeyboardButton(
         text="Проверить",
-        callback_data=f"extend:check:crypto:{invoice['invoice_id']}:{plan.price}:{payment.id}:{key_id}",
+        callback_data=f"extend:check:crypto:{payment.id}:{plan_id}:{key_id}",
     ))
     builder.row(InlineKeyboardButton(text="Назад", callback_data=f"extend:methods:{key_id}:{plan_id}"))
 
@@ -841,7 +867,7 @@ async def extend_freekassa(callback: CallbackQuery, bot) -> None:
             user_id=callback.from_user.id, plan=plan,
             provider=PaymentProvider.FREEKASSA,
         )
-        payment.metadata = {"extend_key_id": str(key_id)}
+        payment.meta = json.dumps({"extend_key_id": str(key_id)})
         await session.flush()
         payment_id = payment.id
 
@@ -889,15 +915,13 @@ async def extend_check_fk(callback: CallbackQuery, bot) -> None:
         from app.services.vpn_key import VpnKeyService
         from app.services.bot_settings import BotSettingsService
         from app.services.freekassa import FreeKassaService
-        from app.models.payment import PaymentStatus
-
         lang = await _get_lang(callback.from_user.id, session)
         payment = await PaymentService(session).get_by_id(payment_id)
-        if not payment:
+        if not payment or payment.user_id != callback.from_user.id:
             await callback.answer("Платёж не найден", show_alert=True)
             return
 
-        if payment.status == PaymentStatus.SUCCEEDED.value:
+        if payment.status == PaymentStatus.SUCCEEDED.value and payment.vpn_key_id:
             await callback.answer("Уже оплачено!", show_alert=True)
             return
 
@@ -912,17 +936,17 @@ async def extend_check_fk(callback: CallbackQuery, bot) -> None:
             if result and result.get("orders"):
                 order = result["orders"][0]
                 if order.get("orderStatus") == 1:
-                    payment.status = PaymentStatus.SUCCEEDED.value
-                    await session.commit()
-                    plan = await PlanService(session).get_by_id(plan_id)
-                    if plan:
-                        extended = await VpnKeyService(session).extend(key_id, plan.duration_days)
-                        await session.commit()
-                        if extended:
-                            exp = extended.expires_at.strftime("%d.%m.%Y") if extended.expires_at else "—"
-                            await callback.answer(f"Продлено до {exp}!", show_alert=True)
-                        else:
-                            await callback.answer("Ошибка продления", show_alert=True)
+                    exp = await _complete_extension_payment(
+                        callback.from_user.id,
+                        payment_id,
+                        plan_id,
+                        key_id,
+                        payment.external_id,
+                    )
+                    if exp:
+                        await callback.answer(f"Продлено до {exp}!", show_alert=True)
+                    else:
+                        await callback.answer("Ошибка продления", show_alert=True)
                 else:
                     await callback.answer("Ожидание оплаты...", show_alert=True)
             else:
@@ -941,15 +965,13 @@ async def extend_check_yk(callback: CallbackQuery, bot) -> None:
         from app.services.payment import PaymentService
         from app.services.plan import PlanService
         from app.services.vpn_key import VpnKeyService
-        from app.models.payment import PaymentStatus
-
         lang = await _get_lang(callback.from_user.id, session)
         payment = await PaymentService(session).get_by_id(payment_id)
-        if not payment:
+        if not payment or payment.user_id != callback.from_user.id:
             await callback.answer("Платёж не найден", show_alert=True)
             return
 
-        if payment.status == PaymentStatus.SUCCEEDED.value:
+        if payment.status == PaymentStatus.SUCCEEDED.value and payment.vpn_key_id:
             await callback.answer("Уже оплачено!", show_alert=True)
             return
 
@@ -958,17 +980,17 @@ async def extend_check_yk(callback: CallbackQuery, bot) -> None:
             yk = await YookassaService.create()
             yk_payment = await yk.get_payment(payment.external_id)
             if yk_payment.status == "succeeded":
-                payment.status = PaymentStatus.SUCCEEDED.value
-                await session.commit()
-                plan = await PlanService(session).get_by_id(plan_id)
-                if plan:
-                    extended = await VpnKeyService(session).extend(key_id, plan.duration_days)
-                    await session.commit()
-                    if extended:
-                        exp = extended.expires_at.strftime("%d.%m.%Y") if extended.expires_at else "—"
-                        await callback.answer(f"Продлено до {exp}!", show_alert=True)
-                    else:
-                        await callback.answer("Ошибка продления", show_alert=True)
+                exp = await _complete_extension_payment(
+                    callback.from_user.id,
+                    payment_id,
+                    plan_id,
+                    key_id,
+                    yk_payment.id,
+                )
+                if exp:
+                    await callback.answer(f"Продлено до {exp}!", show_alert=True)
+                else:
+                    await callback.answer("Ошибка продления", show_alert=True)
             else:
                 await callback.answer("Ожидание оплаты...", show_alert=True)
     await callback.answer()
@@ -977,19 +999,20 @@ async def extend_check_yk(callback: CallbackQuery, bot) -> None:
 @router.callback_query(F.data.startswith("extend:check:crypto:"))
 async def extend_check_crypto(callback: CallbackQuery, bot) -> None:
     parts = callback.data.split(":")
-    inv_id = parts[3]
-    amount_str = parts[4]
-    payment_id = int(parts[5])
-    key_id = int(parts[6])
+    if len(parts) >= 7:
+        payment_id = int(parts[5])
+        key_id = int(parts[6])
+        plan_id = int(parts[4]) if parts[4].isdigit() else 0
+    else:
+        payment_id = int(parts[3])
+        plan_id = int(parts[4])
+        key_id = int(parts[5])
 
     async with AsyncSessionFactory() as session:
         from app.services.bot_settings import BotSettingsService
         from app.services.cryptobot import CryptoBotService
         from app.services.payment import PaymentService
-        from app.services.plan import PlanService
         from app.services.vpn_key import VpnKeyService
-        from app.models.payment import PaymentStatus
-
         lang = await _get_lang(callback.from_user.id, session)
         settings = await BotSettingsService(session).get_all()
         crypto = CryptoBotService.from_settings(settings)
@@ -998,23 +1021,35 @@ async def extend_check_crypto(callback: CallbackQuery, bot) -> None:
             return
 
         payment = await PaymentService(session).get_by_id(payment_id)
-        if payment and payment.status == PaymentStatus.SUCCEEDED.value:
+        if not payment or payment.user_id != callback.from_user.id:
+            await callback.answer("Платёж не найден", show_alert=True)
+            return
+        if payment.status == PaymentStatus.SUCCEEDED.value and payment.vpn_key_id:
             await callback.answer("Уже оплачено!", show_alert=True)
             return
+        if not payment.external_id:
+            await callback.answer("Ошибка", show_alert=True)
+            return
+        if not plan_id:
+            key = await VpnKeyService(session).get_by_id(key_id)
+            plan_id = int(key.plan_id) if key and key.plan_id else 0
+            if not plan_id:
+                await callback.answer("Тариф не найден", show_alert=True)
+                return
 
-        invoice = await crypto.get_invoice(int(inv_id))
+        invoice = await crypto.get_invoice(int(payment.external_id))
         if invoice and invoice.get("status") == "paid":
-            if payment:
-                payment.status = PaymentStatus.SUCCEEDED.value
-            plan = await PlanService(session).get_by_id(
-                int(payment.plan_id) if payment and payment.plan_id else 0)
-            await session.commit()
-            if plan:
-                extended = await VpnKeyService(session).extend(key_id, plan.duration_days)
-                await session.commit()
-                if extended:
-                    exp = extended.expires_at.strftime("%d.%m.%Y") if extended.expires_at else "—"
-                    await callback.answer(f"Продлено до {exp}!", show_alert=True)
+            exp = await _complete_extension_payment(
+                callback.from_user.id,
+                payment_id,
+                plan_id,
+                key_id,
+                str(invoice.get("invoice_id") or payment.external_id),
+            )
+            if exp:
+                await callback.answer(f"Продлено до {exp}!", show_alert=True)
+            else:
+                await callback.answer("Ошибка продления", show_alert=True)
         else:
             await callback.answer("Ожидание оплаты...", show_alert=True)
     await callback.answer()
@@ -1027,6 +1062,9 @@ async def extend_pay(callback: CallbackQuery) -> None:
     plan_id = int(parts[3])
 
     async with AsyncSessionFactory() as session:
+        from app.models.payment import PaymentProvider
+        from app.services.payment import PaymentService
+        from app.services.payment_fulfillment import PaymentFulfillmentService
         from app.services.plan import PlanService
         from app.services.user import UserService
         from decimal import Decimal
@@ -1059,8 +1097,23 @@ async def extend_pay(callback: CallbackQuery) -> None:
             await callback.answer("Ошибка списания", show_alert=True)
             return
 
-        # Продлеваем ключ
-        extended = await VpnKeyService(session).extend(key_id, plan.duration_days)
+        payment = await PaymentService(session).create_pending(
+            user_id=callback.from_user.id,
+            plan=plan,
+            provider=PaymentProvider.BALANCE,
+        )
+        await PaymentService(session).confirm_once(
+            payment.id, f"balance_extend_{payment.id}"
+        )
+        result = await PaymentFulfillmentService(session).extend_subscription_once(
+            payment.id, callback.from_user.id, key_id, plan
+        )
+        extended = result.key
+        if not extended:
+            await UserService(session).add_balance(
+                callback.from_user.id, Decimal(str(price))
+            )
+            await PaymentService(session).fail(payment.id)
         await session.commit()
 
         if extended:
@@ -1073,7 +1126,7 @@ async def extend_pay(callback: CallbackQuery) -> None:
             text += f"Списано: {price} ₽\n"
             text += f"Новая дата: {exp}"
         else:
-            text = "❌ Ошибка продления"
+            text = "❌ Ошибка продления. Баланс возвращён."
 
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="🔑 Мои подписки", callback_data="my_keys"))

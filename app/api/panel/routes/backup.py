@@ -3,6 +3,7 @@ import gzip
 import io
 import subprocess
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Request, Response, UploadFile
 from fastapi.responses import HTMLResponse, Response as StreamingResponse
@@ -16,12 +17,96 @@ from app.models.payment import Payment
 from app.models.support import SupportTicket
 from app.models.user import User
 from app.models.vpn_key import VpnKey
+from app.services.bot_settings import reset_bot_settings_cache
 
 from .shared import _require_permission, _toast, _base_ctx, templates
 
 router = APIRouter()
 
 _MAX_BACKUP = 100 * 1024 * 1024 
+_REPO_ROOT = Path(__file__).resolve().parents[4]
+_RESTORE_TIMEOUT = 180
+_PUBLIC_SCHEMA_RESET_SQL = """DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;
+GRANT ALL ON SCHEMA public TO CURRENT_USER;
+GRANT ALL ON SCHEMA public TO public;
+"""
+
+
+def _portable_dump_command(pg_uri: str) -> list[str]:
+    return [
+        "pg_dump",
+        "--no-password",
+        "--clean",
+        "--if-exists",
+        "--no-owner",
+        "--no-privileges",
+        pg_uri,
+    ]
+
+
+def _format_subprocess_error(result: subprocess.CompletedProcess[bytes]) -> str:
+    stderr = result.stderr.decode(errors="replace").strip()
+    stdout = result.stdout.decode(errors="replace").strip()
+    raw = stderr or stdout or "unknown subprocess error"
+    lines = [line.strip() for line in raw.splitlines() if line.strip()]
+    return " | ".join(lines[-6:])[:700]
+
+
+def _prepare_restore_sql(content: bytes) -> bytes:
+    """Normalize imported SQL so legacy dumps restore predictably."""
+    text = content.decode("utf-8-sig", errors="replace")
+    filtered: list[str] = []
+
+    for line in text.splitlines():
+        stripped = line.strip()
+        upper = stripped.upper()
+
+        if upper.startswith("\\CONNECT "):
+            continue
+        if upper.startswith("CREATE DATABASE ") or upper.startswith("ALTER DATABASE "):
+            continue
+        if upper.startswith("DROP SCHEMA ") and "PUBLIC" in upper:
+            continue
+        if upper.startswith("CREATE SCHEMA ") and "PUBLIC" in upper:
+            continue
+        if upper.startswith("ALTER SCHEMA ") and "PUBLIC" in upper:
+            continue
+        if upper.startswith("COMMENT ON SCHEMA ") and "PUBLIC" in upper:
+            continue
+        if upper.startswith("ALTER ") and " OWNER TO " in upper:
+            continue
+        if upper.startswith("GRANT ") or upper.startswith("REVOKE "):
+            continue
+
+        filtered.append(line)
+
+    normalized = "\n".join(filtered).strip()
+    return f"{_PUBLIC_SCHEMA_RESET_SQL}\n{normalized}\n".encode("utf-8")
+
+
+def _run_post_restore_migrations() -> tuple[bool, str | None]:
+    commands = [
+        ["uv", "run", "python", "fix_alembic.py"],
+        ["uv", "run", "alembic", "upgrade", "head"],
+    ]
+    for cmd in commands:
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                timeout=_RESTORE_TIMEOUT,
+                cwd=_REPO_ROOT,
+            )
+        except FileNotFoundError:
+            return False, f"Команда не найдена: {' '.join(cmd)}"
+        except subprocess.TimeoutExpired:
+            return False, f"Команда зависла: {' '.join(cmd)}"
+
+        if result.returncode != 0:
+            return False, _format_subprocess_error(result)
+
+    return True, None
 
 
 @router.get("", response_class=HTMLResponse)
@@ -44,7 +129,7 @@ async def backup_page(request: Request, db: AsyncSession = Depends(get_db)):
 async def backup_export(request: Request, format: str = "sql"):
     _require_permission(request, "system")
     pg_uri = config.database.sync_dsn
-    cmd = ["pg_dump", "--no-password", "--clean", "--if-exists", pg_uri]
+    cmd = _portable_dump_command(pg_uri)
 
     try:
         result = subprocess.run(cmd, capture_output=True, timeout=120)
@@ -106,17 +191,35 @@ async def backup_import(
             return resp
 
     pg_uri = config.database.sync_dsn
-    cmd = ["psql", "--no-password", "-f", "-", pg_uri]
+    restore_sql = _prepare_restore_sql(content)
+    cmd = ["psql", "--no-password", "-X", "-v", "ON_ERROR_STOP=1", "-1", "-f", "-", pg_uri]
 
     try:
-        result = subprocess.run(cmd, input=content, capture_output=True, timeout=120)
+        await db.rollback()
+        await db.close()
+
+        result = subprocess.run(
+            cmd,
+            input=restore_sql,
+            capture_output=True,
+            timeout=_RESTORE_TIMEOUT,
+            cwd=_REPO_ROOT,
+        )
         if result.returncode != 0:
-            err = result.stderr.decode(errors="replace")[:300]
+            err = _format_subprocess_error(result)
             resp = Response(status_code=500)
             _toast(resp, f"Ошибка импорта: {err}", "error")
             return resp
+
+        migrations_ok, migrations_error = _run_post_restore_migrations()
+        if not migrations_ok:
+            resp = Response(status_code=500)
+            _toast(resp, f"Импорт выполнен, но миграции не применились: {migrations_error}", "error")
+            return resp
+
+        await reset_bot_settings_cache()
         resp = Response(status_code=200)
-        _toast(resp, "База данных восстановлена")
+        _toast(resp, "База данных восстановлена и приведена к текущей схеме")
     except FileNotFoundError:
         resp = Response(status_code=500)
         _toast(resp, "psql not found", "error")

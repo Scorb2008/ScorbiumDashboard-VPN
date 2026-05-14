@@ -7,6 +7,7 @@ from app.models.payment import PaymentStatus
 from app.schemas.payment import PaymentCreate, PaymentRead
 from app.services.bot_settings import BotSettingsService
 from app.services.payment import PaymentService
+from app.services.payment_fulfillment import PaymentFulfillmentService, TopupFulfillmentResult
 from app.services.plan import PlanService
 from app.utils.log import log
 
@@ -22,6 +23,64 @@ async def _get_yookassa_webhook_secret(db: AsyncSession) -> str:
     if _yk_cfg.yookassa and _yk_cfg.yookassa.yookassa_secret_key:
         return _yk_cfg.yookassa.yookassa_secret_key.get_secret_value()
     return ""
+
+
+async def _notify_topup_success(payment_user_id: int, amount, balance) -> None:
+    from app.services.telegram_notify import TelegramNotifyService
+
+    text = (
+        "✅ <b>Баланс пополнен!</b>\n\n"
+        f"💰 Зачислено: <b>{amount} ₽</b>\n"
+        f"👛 Текущий баланс: <b>{balance} ₽</b>"
+    )
+    try:
+        await TelegramNotifyService().send_message(payment_user_id, text)
+    except Exception as e:
+        log.warning(f"Topup success notification failed for user {payment_user_id}: {e}")
+
+
+async def _finalize_topup_payment(
+    db: AsyncSession, payment_id: int, external_id: str
+) -> TopupFulfillmentResult:
+    result = await PaymentFulfillmentService(db).confirm_topup_and_credit_once(
+        payment_id, external_id
+    )
+    await db.commit()
+    if result.just_processed and result.payment and result.balance is not None:
+        await _notify_topup_success(
+            result.payment.user_id,
+            result.payment.amount,
+            result.balance,
+        )
+    return result
+
+
+async def _finalize_subscription_payment(
+    db: AsyncSession,
+    payment_id: int,
+    external_id: str,
+    plan_id: int,
+    extend_key_id: int | None = None,
+):
+    plan = await PlanService(db).get_by_id(plan_id)
+    if not plan:
+        return None, None, False, False
+
+    confirmation = await PaymentService(db).confirm_once(payment_id, external_id)
+    payment = confirmation.payment
+    if not payment:
+        return None, None, False, False
+
+    fulfillment = PaymentFulfillmentService(db)
+    if extend_key_id:
+        delivery = await fulfillment.extend_subscription_once(
+            payment_id, payment.user_id, int(extend_key_id), plan
+        )
+    else:
+        delivery = await fulfillment.provision_subscription_once(
+            payment_id, payment.user_id, plan
+        )
+    return payment, delivery.key, confirmation.just_confirmed, delivery.just_processed
 
 
 @router.get("/", response_model=list[PaymentRead], summary="List payments")
@@ -115,30 +174,19 @@ async def freekassa_webhook(request: Request, db: AsyncSession = Depends(get_db)
         if parts[0] == "fk" and len(parts) >= 3:
             if parts[1] == "topup":
                 payment_id = int(parts[2])
-                confirmation = await PaymentService(db).confirm_topup_once(
+                result = await _finalize_topup_payment(
+                    db,
                     payment_id,
                     str(form.get("intid", "")),
                 )
-                payment = confirmation.payment
-                await db.flush()
+                payment = result.payment
                 if not payment:
-                    await db.commit()
                     log.error(f"FreeKassa: topup payment {payment_id} not found")
                     return "YES"
-                if not confirmation.just_confirmed:
-                    await db.commit()
+                if not result.just_processed:
                     log.info(f"FreeKassa: duplicate topup webhook ignored for payment {payment_id}")
                     return "YES"
-                if payment.status == PaymentStatus.SUCCEEDED.value:
-                    from app.services.user import UserService
-                    result = await UserService(db).add_balance(payment.user_id, payment.amount)
-                    await db.commit()
-                    if result:
-                        log.info(f"FreeKassa: topup {payment_id} confirmed + balance credited")
-                    else:
-                        log.error(f"FreeKassa: topup {payment_id} confirmed but add_balance failed")
-                else:
-                    await db.commit()
+                log.info(f"FreeKassa: topup {payment_id} confirmed + balance credited")
                 return "YES"
             elif parts[1] == "ext" and len(parts) >= 5:
                 payment_id = int(parts[2])
@@ -159,36 +207,37 @@ async def freekassa_webhook(request: Request, db: AsyncSession = Depends(get_db)
     from app.services.user import UserService
     from app.services.telegram_notify import TelegramNotifyService
 
-    plan = await PlanService(db).get_by_id(plan_id)
-    confirmation = await PaymentService(db).confirm_once(payment_id, str(form.get("intid", "")))
-    payment = confirmation.payment
+    payment, key, just_confirmed, just_processed = await _finalize_subscription_payment(
+        db,
+        payment_id,
+        str(form.get("intid", "")),
+        plan_id,
+        key_id if 'key_id' in locals() else None,
+    )
     if not payment:
         log.error(f"FreeKassa webhook: payment {payment_id} not found")
         return "YES"
-    if not confirmation.just_confirmed:
+    if not just_confirmed and not just_processed:
         log.info(f"FreeKassa webhook: duplicate or stale payment ignored: {payment_id}")
         return "YES"
 
     if 'key_id' in locals():
-        key = await VpnKeyService(db).extend(key_id, plan.duration_days)
         await db.commit()
         if key:
             exp = key.expires_at.strftime("%d.%m.%Y") if key.expires_at else "—"
-            text = f"✅ Оплата прошла успешно!\n\n🔄 <b>Подписка продлена!</b>\n📅 Новая дата: <b>{exp}</b>\n➕ +{plan.duration_days} дней"
+            plan = await PlanService(db).get_by_id(plan_id)
+            days = plan.duration_days if plan else 0
+            text = f"✅ Оплата прошла успешно!\n\n🔄 <b>Подписка продлена!</b>\n📅 Новая дата: <b>{exp}</b>\n➕ +{days} дней"
         else:
             text = "✅ Оплата прошла, но возникла ошибка продления. Обратитесь в поддержку."
     else:
-        if not plan:
-            log.error(f"FreeKassa webhook: plan {plan_id} not found")
-            return "YES"
-        key = await VpnKeyService(db).provision(user_id=payment.user_id, plan=plan)
-        if key:
-            payment.vpn_key_id = key.id
         await db.commit()
 
         success_msg = settings.get("payment_success_message", "✅ Оплата прошла успешно!")
+        plan = await PlanService(db).get_by_id(plan_id)
+        days = plan.duration_days if plan else "—"
         if key:
-            text = f"{success_msg}\n\n🔑 <b>Ваш ключ:</b>\n<code>{key.access_url}</code>\n\n📅 Действует <b>{plan.duration_days} дней</b>"
+            text = f"{success_msg}\n\n🔑 <b>Ваш ключ:</b>\n<code>{key.access_url}</code>\n\n📅 Действует <b>{days} дней</b>"
         else:
             text = f"{success_msg}\n\nНажмите «Мои ключи» для получения ключа."
 
@@ -244,64 +293,46 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
             log.error(f"Yookassa cancel error: {e}")
         return {"status": "ok"}
 
-    if event != "payment.succeeded" or not payment_id or not plan_id:
+    if event != "payment.succeeded" or not payment_id:
         return {"status": "ok"}
 
     try:
-        plan = await PlanService(db).get_by_id(int(plan_id))
-        if not plan:
-            log.warning(f"Yookassa: plan {plan_id} not found")
+        if not plan_id:
+            result = await _finalize_topup_payment(
+                db, int(payment_id), str(external_id)
+            )
+            if not result.payment:
+                log.warning(f"Yookassa topup: payment {payment_id} not found")
+            elif not result.just_processed:
+                log.info(f"Yookassa topup: duplicate or stale webhook ignored for payment {payment_id}")
+            else:
+                log.info(f"Yookassa topup: payment {payment_id} confirmed + balance credited")
             return {"status": "ok"}
 
-        # Atomic confirm with FOR UPDATE — prevents double-spending
-        confirmation = await PaymentService(db).confirm_once(int(payment_id), external_id)
-        payment = confirmation.payment
-        await db.commit()
+        payment, key, just_confirmed, just_processed = await _finalize_subscription_payment(
+            db,
+            int(payment_id),
+            str(external_id),
+            int(plan_id),
+            int(extend_key_id) if extend_key_id else None,
+        )
 
         if not payment:
             log.warning(f"Yookassa: payment {payment_id} not found for confirmation")
             return {"status": "ok"}
-        if not confirmation.just_confirmed:
+        if not just_confirmed and not just_processed:
             log.info(f"Yookassa: duplicate or stale webhook ignored for payment {payment_id}")
             return {"status": "ok"}
 
-        key = None
-        last_error = None
-
-        if extend_key_id:
-            from app.services.vpn_key import VpnKeyService
-            try:
-                key = await VpnKeyService(db).extend(int(extend_key_id), plan.duration_days)
-                await db.commit()
-                log.info(f"Yookassa: key {extend_key_id} extended by {plan.duration_days} days")
-            except Exception as e:
-                last_error = e
-                log.error(f"Yookassa: extend key {extend_key_id} failed: {e}")
-        else:
-            for attempt in range(3):
-                try:
-                    from app.services.vpn_key import VpnKeyService
-                    key = await VpnKeyService(db).provision(user_id=payment.user_id, plan=plan)
-                    if key:
-                        break
-                except Exception as e:
-                    last_error = e
-                    log.warning(f"Yookassa provision attempt {attempt + 1}/3 failed: {e}")
-                    if attempt < 2:
-                        await asyncio.sleep(1.5 * (attempt + 1))
-
-            if key:
-                payment.vpn_key_id = key.id
-                await db.commit()
-                log.info(f"Yookassa: payment={payment_id} key={key.id} provisioned")
-            else:
-                log.error(f"Yookassa: payment={payment_id} provisioning failed after 3 retries: {last_error}")
+        await db.commit()
 
         try:
             from app.services.telegram_notify import TelegramNotifyService
             from app.services.bot_settings import BotSettingsService
             settings = await BotSettingsService(db).get_all()
             success_msg = settings.get("payment_success_message", "Оплата прошла успешно!")
+            plan = await PlanService(db).get_by_id(int(plan_id))
+            days = plan.duration_days if plan else "—"
 
             if extend_key_id and key:
                 exp = key.expires_at.strftime("%d.%m.%Y") if key.expires_at else "—"
@@ -309,13 +340,13 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     f"✅ {success_msg}\n\n"
                     f"🔄 <b>Подписка продлена!</b>\n"
                     f"📅 Новая дата: <b>{exp}</b>\n"
-                    f"➕ +{plan.duration_days} дней"
+                    f"➕ +{days} дней"
                 )
             elif key:
                 text = (
                     f"✅ {success_msg}\n\n"
                     f"🔑 <b>Ваш VPN ключ:</b>\n<code>{key.access_url}</code>\n\n"
-                    f"📅 Действует <b>{plan.duration_days} дней</b>"
+                    f"📅 Действует <b>{days} дней</b>"
                 )
             else:
                 text = (
@@ -367,9 +398,23 @@ async def cryptobot_webhook(request: Request, db: AsyncSession = Depends(get_db)
 
     payload_raw = invoice.get("payload", "")
     try:
-        from app.services.plan import PlanService
         from app.services.vpn_key import VpnKeyService
         from app.services.telegram_notify import TelegramNotifyService
+
+        if payload_raw.startswith("topup_crypto:"):
+            topup_parts = payload_raw.split(":")
+            if len(topup_parts) < 2:
+                log.error(f"CryptoBot webhook: invalid topup payload: {payload_raw}")
+                return {"ok": True}
+            payment_id = int(topup_parts[1])
+            result = await _finalize_topup_payment(db, payment_id, str(invoice_id))
+            if not result.payment:
+                log.error(f"CryptoBot topup: payment {payment_id} not found")
+            elif not result.just_processed:
+                log.info(f"CryptoBot topup: duplicate or stale payment ignored: {payment_id}")
+            else:
+                log.info(f"CryptoBot topup: payment {payment_id} confirmed + balance credited")
+            return {"ok": True}
 
         parts = payload_raw.split("_")
         if len(parts) >= 3 and parts[0] == "cb":
@@ -380,28 +425,19 @@ async def cryptobot_webhook(request: Request, db: AsyncSession = Depends(get_db)
             log.error(f"CryptoBot webhook: unknown payload format: {payload_raw}")
             return {"ok": True}
 
-        confirmation = await PaymentService(db).confirm_once(int(payment_id), str(invoice_id))
-        payment = confirmation.payment
+        payment, key, just_confirmed, just_processed = await _finalize_subscription_payment(
+            db,
+            int(payment_id),
+            str(invoice_id),
+            plan_id,
+            extend_key_id,
+        )
         if not payment:
             log.error(f"CryptoBot webhook: payment {payment_id} not found")
             return {"ok": True}
-        if not confirmation.just_confirmed:
+        if not just_confirmed and not just_processed:
             log.info(f"CryptoBot webhook: duplicate or stale payment ignored: {payment_id}")
             return {"ok": True}
-
-        plan = await PlanService(db).get_by_id(plan_id)
-        if not plan:
-            log.error(f"CryptoBot webhook: plan {plan_id} not found")
-            return {"ok": True}
-
-        key = None
-        if extend_key_id:
-            key = await VpnKeyService(db).extend(extend_key_id, plan.duration_days)
-        else:
-            key = await VpnKeyService(db).provision(user_id=payment.user_id, plan=plan)
-
-        if key:
-            payment.vpn_key_id = key.id
 
         await db.commit()
 
@@ -443,8 +479,6 @@ async def platega_webhook(request: Request, db: AsyncSession = Depends(get_db)) 
 
     payload_raw = data.get("payload", "")
     try:
-        from app.services.plan import PlanService
-        from app.services.vpn_key import VpnKeyService
         from app.services.telegram_notify import TelegramNotifyService
 
         parts = payload_raw.split("_")
@@ -456,28 +490,19 @@ async def platega_webhook(request: Request, db: AsyncSession = Depends(get_db)) 
             log.error(f"Platega webhook: unknown payload format: {payload_raw}")
             return "OK"
 
-        confirmation = await PaymentService(db).confirm_once(int(payment_id), transaction_id)
-        payment = confirmation.payment
+        payment, key, just_confirmed, just_processed = await _finalize_subscription_payment(
+            db,
+            int(payment_id),
+            transaction_id,
+            plan_id,
+            extend_key_id,
+        )
         if not payment:
             log.error(f"Platega webhook: payment {payment_id} not found")
             return "OK"
-        if not confirmation.just_confirmed:
+        if not just_confirmed and not just_processed:
             log.info(f"Platega webhook: duplicate or stale payment ignored: {payment_id}")
             return "OK"
-
-        plan = await PlanService(db).get_by_id(plan_id)
-        if not plan:
-            log.error(f"Platega webhook: plan {plan_id} not found")
-            return "OK"
-
-        key = None
-        if extend_key_id:
-            key = await VpnKeyService(db).extend(extend_key_id, plan.duration_days)
-        else:
-            key = await VpnKeyService(db).provision(user_id=payment.user_id, plan=plan)
-
-        if key:
-            payment.vpn_key_id = key.id
 
         await db.commit()
 
@@ -519,8 +544,6 @@ async def paypalych_webhook(request: Request, db: AsyncSession = Depends(get_db)
 
     custom_raw = data.get("custom", "")
     try:
-        from app.services.plan import PlanService
-        from app.services.vpn_key import VpnKeyService
         from app.services.telegram_notify import TelegramNotifyService
 
         parts = custom_raw.split("_")
@@ -532,28 +555,19 @@ async def paypalych_webhook(request: Request, db: AsyncSession = Depends(get_db)
             log.error(f"PayPalych webhook: unknown custom format: {custom_raw}")
             return "OK"
 
-        confirmation = await PaymentService(db).confirm_once(int(payment_id), bill_id)
-        payment = confirmation.payment
+        payment, key, just_confirmed, just_processed = await _finalize_subscription_payment(
+            db,
+            int(payment_id),
+            bill_id,
+            plan_id,
+            extend_key_id,
+        )
         if not payment:
             log.error(f"PayPalych webhook: payment {payment_id} not found")
             return "OK"
-        if not confirmation.just_confirmed:
+        if not just_confirmed and not just_processed:
             log.info(f"PayPalych webhook: duplicate or stale payment ignored: {payment_id}")
             return "OK"
-
-        plan = await PlanService(db).get_by_id(plan_id)
-        if not plan:
-            log.error(f"PayPalych webhook: plan {plan_id} not found")
-            return "OK"
-
-        key = None
-        if extend_key_id:
-            key = await VpnKeyService(db).extend(extend_key_id, plan.duration_days)
-        else:
-            key = await VpnKeyService(db).provision(user_id=payment.user_id, plan=plan)
-
-        if key:
-            payment.vpn_key_id = key.id
 
         await db.commit()
 
@@ -590,8 +604,6 @@ async def aikassa_webhook(request: Request, db: AsyncSession = Depends(get_db)) 
 
     payload_raw = form.get("orderId", "")
     try:
-        from app.services.plan import PlanService
-        from app.services.vpn_key import VpnKeyService
         from app.services.telegram_notify import TelegramNotifyService
 
         parts = payload_raw.split("_")
@@ -603,28 +615,19 @@ async def aikassa_webhook(request: Request, db: AsyncSession = Depends(get_db)) 
             log.error(f"AiKassa webhook: unknown orderId format: {payload_raw}")
             return "OK"
 
-        confirmation = await PaymentService(db).confirm_once(int(payment_id), invoice_id)
-        payment = confirmation.payment
+        payment, key, just_confirmed, just_processed = await _finalize_subscription_payment(
+            db,
+            int(payment_id),
+            invoice_id,
+            plan_id,
+            extend_key_id,
+        )
         if not payment:
             log.error(f"AiKassa webhook: payment {payment_id} not found")
             return "OK"
-        if not confirmation.just_confirmed:
+        if not just_confirmed and not just_processed:
             log.info(f"AiKassa webhook: duplicate or stale payment ignored: {payment_id}")
             return "OK"
-
-        plan = await PlanService(db).get_by_id(plan_id)
-        if not plan:
-            log.error(f"AiKassa webhook: plan {plan_id} not found")
-            return "OK"
-
-        key = None
-        if extend_key_id:
-            key = await VpnKeyService(db).extend(extend_key_id, plan.duration_days)
-        else:
-            key = await VpnKeyService(db).provision(user_id=payment.user_id, plan=plan)
-
-        if key:
-            payment.vpn_key_id = key.id
 
         await db.commit()
 

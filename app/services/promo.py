@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import Optional
 from sqlalchemy import select
@@ -6,6 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.promo import PromoCode, PromoType
 from app.models.promo_usage import PromoUsage
 from app.utils.log import log
+
+
+@dataclass(frozen=True)
+class PromoValidationResult:
+    promo: Optional[PromoCode]
+    message: Optional[str] = None
 
 
 class PromoService:
@@ -61,15 +68,29 @@ class PromoService:
             await self.session.flush()
         return promo
 
-    async def apply(self, code: str, user_id: Optional[int] = None) -> Optional[PromoCode]:
+    async def validate_for_user(
+        self,
+        code: str,
+        user_id: Optional[int] = None,
+        *,
+        promo_type: Optional[str] = None,
+        plan_id: Optional[int] = None,
+    ) -> PromoValidationResult:
         promo = await self.get_by_code(code)
         if not promo or not promo.is_active:
-            return None
+            return PromoValidationResult(None, "Промокод не найден или отключён")
+
+        if promo_type and str(promo.promo_type) != promo_type:
+            return PromoValidationResult(None, "Этот промокод нельзя применить в данном сценарии")
+
         if promo.current_uses is None:
             promo.current_uses = 0
         if promo.max_uses > 0 and promo.current_uses >= promo.max_uses:
-            return None
-        # Per-user usage check
+            return PromoValidationResult(None, "Лимит использований этого промокода исчерпан")
+
+        if plan_id and promo.plan_id and promo.plan_id != plan_id:
+            return PromoValidationResult(None, "Промокод действует только для другого тарифа")
+
         if user_id:
             result = await self.session.execute(
                 select(PromoUsage).where(
@@ -79,10 +100,32 @@ class PromoService:
             )
             if result.scalar_one_or_none():
                 log.warning(f"Promo {promo.code} already used by user {user_id}")
-                return None
-        promo.current_uses += 1
+                return PromoValidationResult(None, "Вы уже использовали этот промокод")
+
+        return PromoValidationResult(promo, None)
+
+    async def consume(self, promo: PromoCode, user_id: Optional[int] = None) -> Optional[PromoCode]:
+        validation = await self.validate_for_user(
+            promo.code,
+            user_id=user_id,
+            promo_type=str(promo.promo_type),
+        )
+        if not validation.promo:
+            return None
+
+        stored_promo = validation.promo
+        if stored_promo.current_uses is None:
+            stored_promo.current_uses = 0
+        stored_promo.current_uses += 1
         await self.session.flush()
+
         if user_id:
-            self.session.add(PromoUsage(promo_id=promo.id, user_id=user_id))
+            self.session.add(PromoUsage(promo_id=stored_promo.id, user_id=user_id))
             await self.session.flush()
-        return promo
+        return stored_promo
+
+    async def apply(self, code: str, user_id: Optional[int] = None) -> Optional[PromoCode]:
+        validation = await self.validate_for_user(code, user_id=user_id)
+        if not validation.promo:
+            return None
+        return await self.consume(validation.promo, user_id=user_id)
