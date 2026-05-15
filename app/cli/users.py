@@ -312,28 +312,33 @@ def list_users(limit=20, offset=0, page=1):
     import asyncio
     asyncio.run(_list_users(limit, offset, page))
 
-def search():
-    query = click.prompt("Поисковый запрос (ID, @username, или имя)")
+def search(query=None):
+    if query is None:
+        query = click.prompt("Поисковый запрос (ID, @username, или имя)")
     import asyncio
     asyncio.run(_search_user(query))
 
-def info():
-    user_id = click.prompt("ID пользователя", type=int)
+def info(user_id=None):
+    if user_id is None:
+        user_id = click.prompt("ID пользователя", type=int)
     import asyncio
     asyncio.run(_user_info(user_id))
 
-def ban():
-    user_id = click.prompt("ID пользователя", type=int)
+def ban(user_id=None):
+    if user_id is None:
+        user_id = click.prompt("ID пользователя", type=int)
     import asyncio
     asyncio.run(_ban_user(user_id))
 
-def unban():
-    user_id = click.prompt("ID пользователя", type=int)
+def unban(user_id=None):
+    if user_id is None:
+        user_id = click.prompt("ID пользователя", type=int)
     import asyncio
     asyncio.run(_unban_user(user_id))
 
-def balance():
-    user_id = click.prompt("ID пользователя", type=int)
+def balance(user_id=None):
+    if user_id is None:
+        user_id = click.prompt("ID пользователя", type=int)
     import asyncio
     asyncio.run(_change_balance(user_id))
 

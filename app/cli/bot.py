@@ -14,12 +14,10 @@ async def _bot_status():
     from sqlalchemy import select, func
     
     async with AsyncSessionFactory() as session:
-        # Admin count
         stmt = select(func.count(Admin.id))
         result = await session.execute(stmt)
         admin_count = result.scalar()
         
-        # Settings count
         stmt = select(func.count(BotSettings.id))
         result = await session.execute(stmt)
         settings_count = result.scalar()
@@ -126,13 +124,16 @@ def settings():
     import asyncio
     asyncio.run(_bot_settings())
 
-def get():
-    key = click.prompt("Ключ настройки")
+def get(key=None):
+    if key is None:
+        key = click.prompt("Ключ настройки")
     import asyncio
     asyncio.run(_get_setting(key))
 
-def set_setting():
-    key = click.prompt("Ключ настройки")
-    value = click.prompt("Значение")
+def set_setting(key=None, value=None):
+    if key is None:
+        key = click.prompt("Ключ настройки")
+    if value is None:
+        value = click.prompt("Значение")
     import asyncio
     asyncio.run(_set_setting(key, value))

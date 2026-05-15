@@ -4,6 +4,9 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from click import Context
+from app.cli import bootstrap_cli_environment
+
+bootstrap_cli_environment()
 
 console = Console()
 
@@ -44,7 +47,6 @@ def create_table(title: str, columns: list) -> Table:
 def cli(ctx: Context):
     """Scorbium VPN Dashboard — CLI управление"""
     if ctx.invoked_subcommand is None:
-        show_banner()
         ctx.invoke(menu)
 
 
@@ -310,36 +312,36 @@ def users_list(limit, page):
 @click.argument("query")
 def search(query):
     """Поиск пользователя (ID, @username, или имя)"""
-    from app.cli.users import search
-    search()
+    from app.cli.users import search as run_search
+    run_search(query)
 
 @users.command()
 @click.argument("user_id", type=int)
 def info(user_id):
     """Информация о пользователе"""
-    from app.cli.users import info
-    info()
+    from app.cli.users import info as run_info
+    run_info(user_id)
 
 @users.command()
 @click.argument("user_id", type=int)
 def ban(user_id):
     """Забанить пользователя"""
-    from app.cli.users import ban
-    ban()
+    from app.cli.users import ban as run_ban
+    run_ban(user_id)
 
 @users.command()
 @click.argument("user_id", type=int)
 def unban(user_id):
     """Разбанить пользователя"""
-    from app.cli.users import unban
-    unban()
+    from app.cli.users import unban as run_unban
+    run_unban(user_id)
 
 @users.command()
 @click.argument("user_id", type=int)
 def balance(user_id):
     """Изменить баланс пользователя"""
-    from app.cli.users import balance
-    balance()
+    from app.cli.users import balance as run_balance
+    run_balance(user_id)
 
 @users.command()
 def gift():
@@ -361,30 +363,30 @@ def subs_list(status, limit):
     from app.cli.subs import list_subs
     list_subs(status=status, limit=limit)
 
-@subs.command()
+@subs.command("create")
 @click.option("--user-id", type=int, required=True)
 @click.option("--plan-id", type=int)
 @click.option("--days", type=int)
 @click.option("--name")
 def cmd_create(user_id, plan_id, days, name):
     """Создать подписку (по тарифу или по дням)"""
-    from app.cli.subs import create
-    create()
+    from app.cli.subs import create as run_create
+    run_create(user_id=user_id, plan_id=plan_id, days=days, name=name)
 
 @subs.command()
 @click.argument("key_id", type=int)
 @click.argument("days", type=int)
 def extend(key_id, days):
     """Продлить подписку"""
-    from app.cli.subs import extend
-    extend()
+    from app.cli.subs import extend as run_extend
+    run_extend(key_id=key_id, days=days)
 
 @subs.command()
 @click.argument("key_id", type=int)
 def revoke(key_id):
     """Отозвать подписку"""
-    from app.cli.subs import revoke
-    revoke()
+    from app.cli.subs import revoke as run_revoke
+    run_revoke(key_id=key_id)
 
 
 @click.group()
@@ -405,15 +407,15 @@ def plans_list():
 @click.option("--active/--inactive", default=True)
 def create(name, duration, price, active):
     """Создать тариф"""
-    from app.cli.plans import create
-    create()
+    from app.cli.plans import create as run_create
+    run_create(name=name, duration=duration, price=price, active=active)
 
 @plans.command()
 @click.argument("plan_id", type=int)
 def edit(plan_id):
     """Редактировать тариф"""
-    from app.cli.plans import edit
-    edit()
+    from app.cli.plans import edit as run_edit
+    run_edit(plan_id)
 
 
 @click.group()
@@ -428,7 +430,7 @@ def payments_list(limit):
     from app.cli.payments import list_payments
     list_payments(limit=limit)
 
-@payments.command()
+@payments.command("stats")
 def get_stats():
     """Статистика платежей"""
     from app.cli.payments import stats
@@ -470,6 +472,27 @@ def status():
     from app.cli.bot import status
     status()
 
+@bot.command()
+def settings():
+    """Все настройки бота"""
+    from app.cli.bot import settings as run_settings
+    run_settings()
+
+@bot.command("get")
+@click.argument("key")
+def bot_get(key):
+    """Получить настройку бота"""
+    from app.cli.bot import get as run_get
+    run_get(key)
+
+@bot.command("set")
+@click.argument("key")
+@click.argument("value")
+def bot_set(key, value):
+    """Установить настройку бота"""
+    from app.cli.bot import set_setting as run_set
+    run_set(key, value)
+
 @click.group()
 def system():
     """Системные команды"""
@@ -493,22 +516,22 @@ def admins():
 @click.option("--name", prompt=True)
 def system_add_admin(tg_id, role, name):
     """Добавить администратора"""
-    from app.cli.system import add_admin
-    add_admin()
+    from app.cli.system import add_admin as run_add_admin
+    run_add_admin(tg_id=tg_id, role=role, name=name)
 
 @system.command("remove-admin")
 @click.argument("admin_id", type=int)
 def system_remove_admin(admin_id):
     """Удалить администратора"""
-    from app.cli.system import remove_admin
-    remove_admin()
+    from app.cli.system import remove_admin as run_remove_admin
+    run_remove_admin(admin_id)
 
 @system.command()
 @click.option("--lines", default=50)
 def logs(lines):
     """Показать логи"""
-    from app.cli.system import logs
-    logs()
+    from app.cli.system import logs as run_logs
+    run_logs(lines)
 
 
 # Register groups

@@ -191,27 +191,35 @@ def list_subs(status="active", limit=20):
     import asyncio
     asyncio.run(_list_subs(status, limit))
 
-def create():
-    user_id = click.prompt("ID пользователя", type=int)
-    plan_id = click.prompt("ID тарифа (оставьте пустым для自定义)", type=int, default=None)
-    
+def create(user_id=None, plan_id=None, days=None, name=None):
+    if user_id is None:
+        user_id = click.prompt("ID пользователя", type=int)
+
+    if plan_id is None and days is None:
+        plan_id = click.prompt("ID тарифа (оставьте пустым для ручного создания)", type=int, default=None)
+
     if not plan_id:
-        days = click.prompt("Дней", type=int)
-        name = click.prompt("Название")
+        if days is None:
+            days = click.prompt("Дней", type=int)
+        if name is None:
+            name = click.prompt("Название")
     else:
         days = None
         name = None
-    
+
     import asyncio
     asyncio.run(_create_sub(user_id, plan_id, days, name))
 
-def extend():
-    key_id = click.prompt("ID подписки", type=int)
-    days = click.prompt("Дней продления", type=int)
+def extend(key_id=None, days=None):
+    if key_id is None:
+        key_id = click.prompt("ID подписки", type=int)
+    if days is None:
+        days = click.prompt("Дней продления", type=int)
     import asyncio
     asyncio.run(_extend_sub(key_id, days))
 
-def revoke():
-    key_id = click.prompt("ID подписки", type=int)
+def revoke(key_id=None):
+    if key_id is None:
+        key_id = click.prompt("ID подписки", type=int)
     import asyncio
     asyncio.run(_revoke_sub(key_id))

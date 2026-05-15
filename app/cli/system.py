@@ -180,19 +180,24 @@ def admins():
     import asyncio
     asyncio.run(_list_admins())
 
-def add_admin():
-    tg_id = click.prompt("Telegram ID", type=int)
-    role = click.prompt("Роль", default="admin")
-    name = click.prompt("Имя")
+def add_admin(tg_id=None, role="admin", name=None):
+    if tg_id is None:
+        tg_id = click.prompt("Telegram ID", type=int)
+    if role is None:
+        role = click.prompt("Роль", default="admin")
+    if name is None:
+        name = click.prompt("Имя")
     import asyncio
     asyncio.run(_add_admin(tg_id, role, name))
 
-def remove_admin():
-    admin_id = click.prompt("ID администратора", type=int)
+def remove_admin(admin_id=None):
+    if admin_id is None:
+        admin_id = click.prompt("ID администратора", type=int)
     import asyncio
     asyncio.run(_remove_admin(admin_id))
 
-def logs():
-    lines = click.prompt("Количество строк", type=int, default=50)
+def logs(lines=50):
+    if lines is None:
+        lines = click.prompt("Количество строк", type=int, default=50)
     import asyncio
     asyncio.run(_show_logs(lines))

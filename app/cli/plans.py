@@ -108,16 +108,21 @@ def list_plans():
     import asyncio
     asyncio.run(_list_plans())
 
-def create():
-    name = click.prompt("Название тарифа")
-    duration = click.prompt("Длительность (дней)", type=int)
-    price = click.prompt("Цена", type=float)
-    active = click.confirm("Активен?", default=True)
-    
+def create(name=None, duration=None, price=None, active=None):
+    if name is None:
+        name = click.prompt("Название тарифа")
+    if duration is None:
+        duration = click.prompt("Длительность (дней)", type=int)
+    if price is None:
+        price = click.prompt("Цена", type=float)
+    if active is None:
+        active = click.confirm("Активен?", default=True)
+
     import asyncio
     asyncio.run(_create_plan(name, duration, price, active))
 
-def edit():
-    plan_id = click.prompt("ID тарифа", type=int)
+def edit(plan_id=None):
+    if plan_id is None:
+        plan_id = click.prompt("ID тарифа", type=int)
     import asyncio
     asyncio.run(_edit_plan(plan_id))
