@@ -9,11 +9,18 @@
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/bootstrap-icons.min.css">
 <link rel="stylesheet" href="/static/css/cabinet.css">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+try {
+  if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData)
+    document.documentElement.classList.add('tg-miniapp-client');
+} catch (e) {}
+</script>
 {% block head %}{% endblock %}
 </head>
 {% set cp = request.url.path %}
 {% set is_log = cp in ('/cabinet', '/cabinet/') and user is not defined %}
-<body data-page="{{ cp }}" data-mini-app="{{ 'true' if is_mini_app else 'false' }}"{% if is_log %} class="login-page"{% endif %}>
+<body data-page="{{ cp }}" data-mini-app="{{ 'true' if is_mini_app else 'false' }}" class="{% if is_log %}login-page{% endif %}{% if is_mini_app %} mini-mode{% endif %}">
   <div id="app-shell">
     <header class="nav">
       <div class="nav-inner">
@@ -63,6 +70,24 @@ window.CABINET_BOOT = {
 function getTelegramWebApp() {
   try { return window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null; }
   catch (e) { return null; }
+}
+
+function hasTelegramMiniAppInitData() {
+  var tg = getTelegramWebApp();
+  return !!(tg && tg.initData);
+}
+
+function hasMiniAppQueryHint() {
+  try {
+    var current = new URL(window.location.href);
+    return current.searchParams.has('miniapp') || current.searchParams.has(window.CABINET_BOOT.initDataParam);
+  } catch (e) {
+    return false;
+  }
+}
+
+function isMiniAppRuntime() {
+  return !!(window.CABINET_BOOT.isMiniApp || hasTelegramMiniAppInitData() || hasMiniAppQueryHint());
 }
 
 function getMiniAppInitData() {
@@ -265,6 +290,22 @@ function openExternal(url) {
     }
   } catch (e) {}
   try {
+    if (tg && typeof tg.openTelegramLink === 'function' && /^tg:\/\//i.test(target)) {
+      tg.openTelegramLink(target);
+      return;
+    }
+  } catch (e) {}
+  if (!isWebUrl(target)) {
+    try {
+      window.location.href = target;
+      return;
+    } catch (e) {}
+    try {
+      triggerLinkOpen(target);
+      return;
+    } catch (e) {}
+  }
+  try {
     if (isWebUrl(target)) {
       var opened = window.open(target, '_blank', 'noopener,noreferrer');
       if (opened) return;
@@ -286,12 +327,13 @@ async function copyInputValue(trigger, successText) {
   var input = root ? root.querySelector('.inp') : null;
   var text = input ? String(input.value || '') : '';
   if (input) {
+    var wasReadonly = input.hasAttribute('readonly');
     try {
       input.focus();
-      input.removeAttribute('readonly');
+      if (wasReadonly) input.removeAttribute('readonly');
       input.select();
       input.setSelectionRange(0, text.length);
-      input.setAttribute('readonly', 'readonly');
+      if (wasReadonly) input.setAttribute('readonly', 'readonly');
     } catch (e) {}
   }
   var copied = await copyText(text, successText || 'Ссылка скопирована');
@@ -335,10 +377,16 @@ document.addEventListener('click', function(event) {
 
 (function() {
   var tg = getTelegramWebApp();
-  if (tg && tg.initData) {
+  if (isMiniAppRuntime()) {
     document.body.classList.add('mini-mode');
-    rememberMiniAppInitData(tg.initData);
-    try { tg.ready(); tg.expand(); if (typeof tg.disableVerticalSwipes === 'function') tg.disableVerticalSwipes(); } catch (e) {}
+    if (tg && tg.initData) rememberMiniAppInitData(tg.initData);
+    try {
+      if (tg) {
+        tg.ready();
+        tg.expand();
+        if (typeof tg.disableVerticalSwipes === 'function') tg.disableVerticalSwipes();
+      }
+    } catch (e) {}
   }
   rememberMiniAppInitData(getMiniAppInitData());
   cleanMiniAppParamFromAddress();

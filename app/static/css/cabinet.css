@@ -33,6 +33,7 @@ a { color: inherit; text-decoration: none; }
 .wrap { max-width: 940px; margin: 0 auto; padding: 16px 12px 90px; }
 .wrap-sm { max-width: 600px; margin: 0 auto; padding: 16px 12px 90px; }
 .login-page .wrap { padding-bottom: 0; }
+.tg-miniapp-client #web-login { display: none !important; }
 
 /* ── nav ── */
 
@@ -618,20 +619,35 @@ textarea.inp { resize: vertical; }
 }
 
 .mini-mode .nav-inner {
-  align-items: flex-start;
-  flex-wrap: wrap;
+  align-items: center;
+  flex-wrap: nowrap;
+  border-radius: 18px;
+  max-width: 100%;
 }
 .mini-mode .nav-links {
-  overflow: visible;
-  flex-wrap: wrap;
-  row-gap: 8px;
+  display: flex;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  row-gap: 0;
+  padding-bottom: 1px;
+  -webkit-overflow-scrolling: touch;
 }
 .mini-mode .nav-side {
-  width: 100%;
+  width: auto;
+  margin-left: auto;
   justify-content: flex-end;
 }
 .mini-mode .nav-lnk {
   min-height: 38px;
+  background: rgba(255,255,255,.035);
+  border-color: rgba(159,193,255,.1);
+}
+.mini-mode .nav-lnk.on {
+  background: linear-gradient(135deg, rgba(88,242,200,.14), rgba(79,124,255,.12));
+  border-color: rgba(88,242,200,.22);
+}
+.mini-mode .nav {
+  padding-top: max(10px, env(safe-area-inset-top));
 }
 
 @media (max-width: 600px) {

@@ -144,18 +144,21 @@ async function bootMiniAppLogin() {
 }
 
 (function() {
-  if (window.CABINET_BOOT.isMiniApp) {
+  if (isMiniAppRuntime()) {
     bootMiniAppLogin();
     return;
   }
   showWebLoginFallback();
 })();
-setTimeout(function() {
-  if (document.querySelector('#telegram-login') && !document.querySelector('#telegram-login iframe')) {
-    var b = document.getElementById('login-btn');
-    if (b) b.style.display = '';
-  }
-}, 1800);
+if (!isMiniAppRuntime()) {
+  setTimeout(function() {
+    if (isMiniAppRuntime()) return;
+    if (document.querySelector('#telegram-login') && !document.querySelector('#telegram-login iframe')) {
+      var b = document.getElementById('login-btn');
+      if (b) b.style.display = '';
+    }
+  }, 1800);
+}
 function onTelegramAuth(user) {
   setLoginState('Проверка...');
   var w = document.getElementById('telegram-login');
