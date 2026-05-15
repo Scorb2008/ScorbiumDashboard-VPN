@@ -41,10 +41,11 @@
             data-copy-url="{{ key.access_url }}"
             data-copy-success="Ссылка скопирована"
             onclick="copyInputValue(this, 'Ссылка скопирована')"
+            onfocus="this.select(); this.setSelectionRange(0, this.value.length);"
             title="Нажмите, чтобы скопировать ссылку"
           >
           <button class="btn btn-p" type="button" onclick="copyInputValue(this, 'Ссылка скопирована')"><i class="bi bi-copy"></i></button>
-          <button class="btn btn-o" type="button" onclick="openInputValue(this)"><i class="bi bi-box-arrow-up-right"></i></button>
+          <a class="btn btn-o" href="{{ key.access_url }}" onclick="return openInputValue(this, this.href)"><i class="bi bi-box-arrow-up-right"></i></a>
         </div>
         {% else %}
         <div class="ib"><i class="bi bi-hourglass-split cg"></i><div><strong>Подготовка</strong><span class="muted">Ключ появится автоматически</span></div></div>

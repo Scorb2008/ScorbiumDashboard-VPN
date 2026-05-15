@@ -226,6 +226,12 @@ async function copyText(value, successText) {
     }
   } catch (e) {}
 
+  try {
+    window.prompt('Скопируйте ссылку вручную:', text);
+    showToast(successText || 'Скопируйте ссылку вручную', 'info');
+    return false;
+  } catch (e) {}
+
   showToast('Не удалось скопировать', 'error');
   return false;
 }
@@ -291,11 +297,19 @@ async function copyInputValue(trigger, successText) {
   return copyText(text, successText || 'Ссылка скопирована');
 }
 
-function openInputValue(trigger) {
-  var root = trigger && trigger.closest ? trigger.closest('.cp') : null;
-  var input = root ? root.querySelector('.inp') : null;
-  var text = input ? String(input.value || '') : '';
+function openInputValue(trigger, explicitUrl) {
+  var text = String(explicitUrl || '');
+  if (!text) {
+    var root = trigger && trigger.closest ? trigger.closest('.cp') : null;
+    var input = root ? root.querySelector('.inp') : null;
+    text = input ? String(input.value || '') : '';
+  }
+  if (!text) {
+    showToast('Ссылка недоступна', 'error');
+    return false;
+  }
   openExternal(text);
+  return false;
 }
 
 document.addEventListener('click', function(event) {
