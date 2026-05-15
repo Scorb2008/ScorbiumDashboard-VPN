@@ -71,6 +71,13 @@
 {% endblock %}
 
 {% block scripts %}
+function setMiniAppControls(opts) {
+  var retry = document.getElementById('miniapp-retry');
+  var home = document.getElementById('miniapp-home');
+  if (retry) retry.style.display = opts && opts.retry ? '' : 'none';
+  if (home) home.style.display = opts && opts.home ? '' : 'none';
+}
+
 function setLoginState(m) {
   document.getElementById('login-status').style.display = '';
   document.getElementById('login-status-text').textContent = m;
@@ -83,50 +90,65 @@ function showWebLoginFallback() {
   if (webLogin) webLogin.style.display = '';
   if (b) b.style.display = '';
   if (w) w.style.display = '';
-  document.getElementById('miniapp-retry').style.display = 'none';
-  document.getElementById('miniapp-home').style.display = 'none';
+  setMiniAppControls({ retry:false, home:false });
 }
 function showMiniAppFailure(m) {
   document.getElementById('miniapp-status').style.display = '';
-  document.getElementById('miniapp-retry').style.display = '';
-  document.getElementById('miniapp-home').style.display = '';
+  setMiniAppControls({ retry:true, home:true });
   document.getElementById('login-hint').style.display = '';
   document.getElementById('login-hint').textContent = 'Если кабинет не загрузился, попробуйте ещё раз или откройте mini app заново из Telegram';
   setLoginState(m || 'Ошибка');
 }
 async function startMiniAppLogin(force) {
   document.getElementById('miniapp-status').style.display = '';
-  document.getElementById('miniapp-retry').style.display = 'none';
+  setMiniAppControls({ retry:false, home:false });
   setLoginState('Подключение...');
   try {
     rememberMiniAppInitData(getMiniAppInitData());
     var r = await syncMiniAppSession({force:!!force, silent:false});
     if (r.ok) {
-      document.getElementById('miniapp-home').style.display = '';
+      setMiniAppControls({ retry:false, home:true });
       window.location.replace(r.redirect || cabinetUrl('/cabinet/?miniapp=1'));
     }
     else { showMiniAppFailure(r.message || 'Ошибка'); }
   } catch(e) { showMiniAppFailure('Ошибка сети'); }
 }
-(function() {
-  var tg = getTelegramWebApp();
-  if (tg && tg.initData) {
-    var hasInitDataInUrl = false;
-    try {
-      hasInitDataInUrl = new URL(window.location.href).searchParams.has(window.CABINET_BOOT.initDataParam);
-    } catch (e) {}
-    document.getElementById('miniapp-status').style.display = '';
-    document.getElementById('web-login').style.display = 'none';
-    document.getElementById('login-hint').style.display = 'none';
-    rememberMiniAppInitData(tg.initData);
-    if (!hasInitDataInUrl) {
-      setLoginState('Загрузка кабинета...');
-      window.location.replace(cabinetUrl('/cabinet/?miniapp=1'));
+async function bootMiniAppLogin() {
+  var attempts = 0;
+  document.getElementById('miniapp-status').style.display = '';
+  document.getElementById('web-login').style.display = 'none';
+  document.getElementById('login-hint').style.display = 'none';
+  setLoginState('Ожидание Telegram...');
+
+  while (attempts < 25) {
+    var tg = getTelegramWebApp();
+    if (tg && tg.initData) {
+      var hasInitDataInUrl = false;
+      try {
+        hasInitDataInUrl = new URL(window.location.href).searchParams.has(window.CABINET_BOOT.initDataParam);
+      } catch (e) {}
+      rememberMiniAppInitData(tg.initData);
+      if (!hasInitDataInUrl) {
+        setLoginState('Загрузка кабинета...');
+        window.location.replace(cabinetUrl('/cabinet/?miniapp=1'));
+        return;
+      }
+      await startMiniAppLogin(true);
       return;
     }
-    startMiniAppLogin(true);
+    attempts += 1;
+    await new Promise(function(resolve) { setTimeout(resolve, 200); });
+  }
+
+  showMiniAppFailure('Telegram не передал initData');
+}
+
+(function() {
+  if (window.CABINET_BOOT.isMiniApp) {
+    bootMiniAppLogin();
     return;
-  } else { showWebLoginFallback(); }
+  }
+  showWebLoginFallback();
 })();
 setTimeout(function() {
   if (document.querySelector('#telegram-login') && !document.querySelector('#telegram-login iframe')) {

@@ -415,6 +415,15 @@ textarea.inp { resize: vertical; }
 
 .cp { display: flex; gap: 8px; align-items: stretch; }
 .cp .inp { flex: 1; }
+.cp textarea.inp {
+  min-height: 88px;
+  resize: none;
+  line-height: 1.4;
+  word-break: break-all;
+}
+.cp > .btn {
+  min-width: 48px;
+}
 
 /* ── server ── */
 
@@ -606,6 +615,23 @@ textarea.inp { resize: vertical; }
   .lg { grid-template-columns: 1fr; }
   .r3 { grid-template-columns: 1fr 1fr; }
   .r2 { grid-template-columns: 1fr; }
+}
+
+.mini-mode .nav-inner {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.mini-mode .nav-links {
+  overflow: visible;
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+.mini-mode .nav-side {
+  width: 100%;
+  justify-content: flex-end;
+}
+.mini-mode .nav-lnk {
+  min-height: 38px;
 }
 
 @media (max-width: 600px) {

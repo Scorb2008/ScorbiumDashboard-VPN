@@ -294,7 +294,10 @@ async function copyInputValue(trigger, successText) {
       input.setAttribute('readonly', 'readonly');
     } catch (e) {}
   }
-  return copyText(text, successText || 'Ссылка скопирована');
+  var copied = await copyText(text, successText || 'Ссылка скопирована');
+  if (!copied && input)
+    showToast('Ссылка выделена. Если Telegram блокирует буфер, удерживайте поле и выберите «Копировать».', 'info');
+  return copied;
 }
 
 function openInputValue(trigger, explicitUrl) {
