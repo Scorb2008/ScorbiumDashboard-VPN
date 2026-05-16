@@ -20,6 +20,7 @@ from app.services.promo import PromoService
 from app.services.support import SupportService
 from app.services.referral import ReferralService
 from app.services.bot_settings import BotSettingsService
+from app.services.branding_asset import BrandingAssetService
 from app.services.yookassa import YookassaService
 from app.models.payment import PaymentProvider, PaymentStatus
 from app.models.promo import PromoType
@@ -111,6 +112,12 @@ def _payment_meta_dict(payment) -> dict:
         return data if isinstance(data, dict) else {}
     except Exception:
         return {}
+
+
+async def _cabinet_branding_context(db: AsyncSession) -> dict:
+    return {
+        "custom_logo": await BrandingAssetService(db).get_logo_url(),
+    }
 
 
 async def _resolve_discount_promo(
@@ -343,6 +350,7 @@ async def cabinet_index(request: Request, db: AsyncSession = Depends(get_db)):
                 "request": request, "app_name": config.web.app_name, "settings": {},
                 "error": "Аккаунт заблокирован", "is_mini_app": _is_mini_app(request),
                 "telegram_client_id": config.telegram.telegram_client_id,
+                **(await _cabinet_branding_context(db)),
             })
         svc = await BotSettingsService(db).get_all()
         plans = await PlanService(db).get_all(only_active=True)
@@ -355,6 +363,7 @@ async def cabinet_index(request: Request, db: AsyncSession = Depends(get_db)):
             "user": user, "plans": plans, "keys": keys,
             "settings": svc, "now": datetime.now(timezone.utc),
             "is_mini_app": _is_mini_app(request),
+            **(await _cabinet_branding_context(db)),
         })
         _persist_cabinet_session(request, response, user)
         return response
@@ -367,6 +376,7 @@ async def cabinet_index(request: Request, db: AsyncSession = Depends(get_db)):
         "request": request, "app_name": config.web.app_name, "settings": svc,
         "error": None, "is_mini_app": _is_mini_app(request),
         "telegram_client_id": config.telegram.telegram_client_id,
+        **(await _cabinet_branding_context(db)),
     })
 
 
@@ -385,6 +395,7 @@ async def cabinet_profile(request: Request, db: AsyncSession = Depends(get_db)):
         "user": user, "keys": keys, "payments": payments,
         "referrals_count": referrals, "now": datetime.now(timezone.utc),
         "is_mini_app": _is_mini_app(request),
+        **(await _cabinet_branding_context(db)),
     })
     _persist_cabinet_session(request, response, user)
     return response
@@ -402,6 +413,7 @@ async def cabinet_keys(request: Request, db: AsyncSession = Depends(get_db)):
         "request": request, "app_name": config.web.app_name,
         "user": user, "keys": keys, "now": datetime.now(timezone.utc),
         "is_mini_app": _is_mini_app(request),
+        **(await _cabinet_branding_context(db)),
     })
     _persist_cabinet_session(request, response, user)
     return response
@@ -418,6 +430,7 @@ async def cabinet_plans(request: Request, db: AsyncSession = Depends(get_db)):
         "request": request, "app_name": config.web.app_name,
         "user": user, "plans": plans, "settings": settings,
         "is_mini_app": _is_mini_app(request),
+        **(await _cabinet_branding_context(db)),
     })
     _persist_cabinet_session(request, response, user)
     return response
@@ -434,6 +447,7 @@ async def cabinet_balance(request: Request, db: AsyncSession = Depends(get_db)):
         "request": request, "app_name": config.web.app_name,
         "user": user, "payments": payments, "settings": settings,
         "is_mini_app": _is_mini_app(request),
+        **(await _cabinet_branding_context(db)),
     })
     _persist_cabinet_session(request, response, user)
     return response
@@ -447,6 +461,7 @@ async def cabinet_promo(request: Request, db: AsyncSession = Depends(get_db)):
     response = templates.TemplateResponse("cabinet/promo.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "is_mini_app": _is_mini_app(request),
+        **(await _cabinet_branding_context(db)),
     })
     _persist_cabinet_session(request, response, user)
     return response
@@ -530,6 +545,7 @@ async def cabinet_support(request: Request, db: AsyncSession = Depends(get_db)):
     response = templates.TemplateResponse("cabinet/support.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "tickets": tickets, "is_mini_app": _is_mini_app(request),
+        **(await _cabinet_branding_context(db)),
     })
     _persist_cabinet_session(request, response, user)
     return response
@@ -562,6 +578,7 @@ async def cabinet_support_ticket(
     response = templates.TemplateResponse("cabinet/support_ticket.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "ticket": ticket, "is_mini_app": _is_mini_app(request),
+        **(await _cabinet_branding_context(db)),
     })
     _persist_cabinet_session(request, response, user)
     return response
@@ -608,6 +625,7 @@ async def cabinet_referrals(request: Request, db: AsyncSession = Depends(get_db)
         "user": user, "referrals": refs, "top_referrers": top,
         "settings": settings, "current_bonus_label": current_bonus_label,
         "referral_service": ref_svc, "is_mini_app": _is_mini_app(request),
+        **(await _cabinet_branding_context(db)),
     })
     _persist_cabinet_session(request, response, user)
     return response
@@ -626,6 +644,7 @@ async def cabinet_servers(request: Request, db: AsyncSession = Depends(get_db)):
     response = templates.TemplateResponse("cabinet/servers.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "hosts": hosts, "is_mini_app": _is_mini_app(request),
+        **(await _cabinet_branding_context(db)),
     })
     _persist_cabinet_session(request, response, user)
     return response
@@ -640,6 +659,7 @@ async def cabinet_guides(request: Request, db: AsyncSession = Depends(get_db)):
     response = templates.TemplateResponse("cabinet/guides.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "settings": settings, "is_mini_app": _is_mini_app(request),
+        **(await _cabinet_branding_context(db)),
     })
     _persist_cabinet_session(request, response, user)
     return response
@@ -653,6 +673,7 @@ async def cabinet_language(request: Request, db: AsyncSession = Depends(get_db))
     response = templates.TemplateResponse("cabinet/language.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "is_mini_app": _is_mini_app(request),
+        **(await _cabinet_branding_context(db)),
     })
     _persist_cabinet_session(request, response, user)
     return response
@@ -686,6 +707,7 @@ async def cabinet_trial(request: Request, db: AsyncSession = Depends(get_db)):
         "user": user, "trial_enabled": trial_enabled,
         "trial_days": trial_days, "has_keys": has_keys,
         "is_mini_app": _is_mini_app(request),
+        **(await _cabinet_branding_context(db)),
     })
     _persist_cabinet_session(request, response, user)
     return response
