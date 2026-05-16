@@ -122,6 +122,8 @@
           <th>Тариф</th>
           <th>Статус</th>
           <th>Цена</th>
+          <th>Расход</th>
+          <th>В панели</th>
           <th>Истекает</th>
           <th>Действия</th>
         </tr>
@@ -150,16 +152,66 @@
           </td>
           <td><b>{{ sub.price or '—' }}</b>{% if sub.price %} ₽{% endif %}</td>
           <td style="color:var(--text-muted);font-size:.8rem">
+            {% set traffic = (sub.download or 0) + (sub.upload or 0) %}
+            {% if traffic >= 1073741824 %}
+              {{ "%.1f"|format(traffic / 1073741824) }} GB
+            {% elif traffic >= 1048576 %}
+              {{ "%.0f"|format(traffic / 1048576) }} MB
+            {% elif traffic >= 1024 %}
+              {{ "%.0f"|format(traffic / 1024) }} KB
+            {% elif traffic > 0 %}
+              {{ traffic }} B
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td>
+            {% set panel_status = sub.panel_status_raw %}
+            {% if panel_status == 'active' %}
+              <span class="badge badge-custom badge-active">Активен</span>
+            {% elif panel_status == 'connecting' %}
+              <span class="badge badge-custom badge-open">Подключается</span>
+            {% elif panel_status in ['disabled', 'limited'] %}
+              <span class="badge badge-custom badge-pending">Ограничен</span>
+            {% elif panel_status in ['expired', 'revoked'] %}
+              <span class="badge badge-custom badge-expired">Неактивен</span>
+            {% else %}
+              <span class="badge badge-custom badge-closed">Нет данных</span>
+            {% endif %}
+          </td>
+          <td style="color:var(--text-muted);font-size:.8rem">
             {{ sub.expires_at.strftime('%d.%m.%Y') if sub.expires_at else '—' }}
           </td>
           <td>
-            <div class="d-flex gap-1">
-              <button class="btn btn-xs btn-outline-accent" title="Скопировать URL" onclick="copyKeyUrl('{{ sub.access_url or '' }}')">
-                <i class="bi bi-clipboard"></i>
+            <div class="d-flex gap-1 flex-wrap">
+              <button
+                type="button"
+                class="btn btn-xs btn-outline-accent"
+                title="Скопировать URL"
+                onclick="copyKeyUrl({{ (sub.access_url or '')|tojson }})">
+                <i class="bi bi-clipboard me-1"></i>Скопировать
               </button>
+              {% if sub.access_url %}
+              <a
+                href="{{ sub.access_url }}"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn btn-xs btn-outline-accent"
+                title="Открыть ссылку подписки">
+                <i class="bi bi-box-arrow-up-right me-1"></i>Перейти
+              </a>
+              {% else %}
+              <button
+                type="button"
+                class="btn btn-xs btn-outline-secondary"
+                disabled
+                title="URL недоступен">
+                <i class="bi bi-box-arrow-up-right me-1"></i>Перейти
+              </button>
+              {% endif %}
               {% if st != 'revoked' %}
               <button class="btn btn-xs btn-outline-accent" title="Продлить" onclick="openExtendModal({{ sub.id }}, '{{ sub.plan.name if sub.plan else sub.name or "" }}')">
-                <i class="bi bi-clock-history"></i>
+                <i class="bi bi-clock-history me-1"></i>Продлить
               </button>
               {% endif %}
               {% if st == 'active' %}
@@ -167,14 +219,14 @@
                 hx-post="/panel/subscriptions/{{ sub.id }}/cancel"
                 hx-swap="none"
                 hx-confirm="Отозвать подписку?">
-                <i class="bi bi-x-circle"></i>
+                <i class="bi bi-x-circle me-1"></i>Отозвать
               </button>
               {% endif %}
             </div>
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="7" class="text-center py-4" style="color:var(--text-muted)">Подписок нет</td></tr>
+        <tr><td colspan="9" class="text-center py-4" style="color:var(--text-muted)">Подписок нет</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -215,9 +267,40 @@
 </style>
 
 <script>
-function copyKeyUrl(url) {
-  if (!url) { showToast('URL недоступен', 'error'); return; }
-  navigator.clipboard.writeText(url).then(() => showToast('URL скопирован', 'success')).catch(() => showToast('Не удалось скопировать', 'error'));
+async function copyKeyUrl(url) {
+  const text = (url || '').trim();
+  if (!text) {
+    showToast('URL недоступен', 'error');
+    return;
+  }
+
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      showToast('URL скопирован', 'success');
+      return;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'absolute';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    textarea.setSelectionRange(0, textarea.value.length);
+    const copied = document.execCommand('copy');
+    document.body.removeChild(textarea);
+
+    if (copied) {
+      showToast('URL скопирован', 'success');
+      return;
+    }
+  } catch (err) {
+    console.error('copyKeyUrl failed', err);
+  }
+
+  showToast('Не удалось скопировать', 'error');
 }
 let extendSubId = null;
 function openExtendModal(subId, subName) {

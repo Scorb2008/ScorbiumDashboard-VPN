@@ -90,10 +90,16 @@ class VpnKeyService:
         traffic_columns_supported = await self._supports_traffic_columns()
 
         for key in keys:
+            setattr(key, "panel_status_raw", None)
             if not key.pasarguard_key_id:
                 continue
             try:
                 marz_user = await self._get_panel().get_user(key.pasarguard_key_id)
+                raw_status = (
+                    (marz_user or {}).get("_normalized_status")
+                    or (marz_user or {}).get("status", "")
+                )
+                setattr(key, "panel_status_raw", str(raw_status).lower() if raw_status else None)
                 self._sync_key_status_from_panel(key, marz_user)
                 if not marz_user or not traffic_columns_supported:
                     continue

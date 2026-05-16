@@ -23,10 +23,21 @@ async def subscriptions_page(request: Request, db: AsyncSession = Depends(get_db
     ctx = await _base_ctx(request, db, "subscriptions", admin_info)
     from app.models.vpn_key import VpnKey, VpnKeyStatus
     from sqlalchemy import select
+    from sqlalchemy.orm import undefer
+
     result = await db.execute(
-        select(VpnKey).where(VpnKey.status == VpnKeyStatus.ACTIVE.value).order_by(VpnKey.expires_at.asc())  # type: ignore[comparison-overload]
+        select(VpnKey)
+        .options(
+            undefer(VpnKey.download),
+            undefer(VpnKey.upload),
+        )
+        .where(VpnKey.status == VpnKeyStatus.ACTIVE.value)
+        .order_by(VpnKey.expires_at.asc())  # type: ignore[comparison-overload]
     )
-    ctx["subscriptions"] = list(result.scalars().all())
+    subscriptions = list(result.scalars().all())
+    await VpnKeyService(db).refresh_traffic_for_keys(subscriptions)
+    await db.commit()
+    ctx["subscriptions"] = subscriptions
     ctx["plans"] = await PlanService(db).get_all(only_active=True)
     return templates.TemplateResponse("subscriptions.html", ctx)
 
