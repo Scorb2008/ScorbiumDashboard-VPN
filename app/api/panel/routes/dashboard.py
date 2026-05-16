@@ -23,6 +23,8 @@ router = APIRouter()
 async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
     admin_info = _require_permission(request, "dashboard")
     ctx = await _base_ctx(request, db, "dashboard", admin_info)
+    ctx["admin_info"] = admin_info
+    ctx["admin"] = admin_info
 
     today_start = datetime.now(timezone.utc).replace(
         hour=0, minute=0, second=0, microsecond=0
