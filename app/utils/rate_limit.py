@@ -118,11 +118,12 @@ async def get_redis_client():
             import redis.asyncio as redis
             from app.core.config import config
 
-            redis_url = getattr(config, "redis_url", None)
+            redis_url = config.utils.redis_url
             if redis_url:
                 _redis_client = await redis.from_url(redis_url)
+                log.info("Redis rate limit backend enabled")
         except ImportError:
-            pass
+            log.warning("redis package is not installed; using non-Redis rate limiting")
         except Exception as e:
             log.warning(f"Redis not available: {e}")
     return _redis_client

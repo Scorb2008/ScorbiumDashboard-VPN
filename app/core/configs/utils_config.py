@@ -33,6 +33,7 @@ class _UtilsConfig(BaseSettings):
         default="INFO",
         validation_alias="LOG_LEVEL"
     )
+    redis_url: str = Field(default="", validation_alias="REDIS_URL")
     
     @field_validator('log_path', mode='before')
     @classmethod
@@ -63,6 +64,17 @@ class _UtilsConfig(BaseSettings):
         if value.upper() not in valid_levels:
             raise EnvException(f"Level logs can be one of: {valid_levels}")
         return value.upper()
+
+    @field_validator("redis_url")
+    def validate_redis_url(cls, value: str) -> str:
+        if not value:
+            return ""
+        value = value.strip()
+        if not re.fullmatch(r"^rediss?://.+", value):
+            raise EnvException(
+                "REDIS_URL must start with redis:// or rediss://"
+            )
+        return value
     
     @model_validator(mode='after')
     def check_log_settings(self):

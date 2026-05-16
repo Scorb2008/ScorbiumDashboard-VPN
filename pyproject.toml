@@ -41,6 +41,7 @@ dependencies = [
     "psutil>=5.9.0",
     "prometheus-client>=0.20.0",
     "sentry-sdk[fastapi]>=2.0.0",
+    "redis>=5.0.0",
     # CLI
     "click>=8.1.0",
     "rich>=13.0.0",

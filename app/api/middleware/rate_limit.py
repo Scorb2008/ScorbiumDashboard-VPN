@@ -5,6 +5,8 @@ from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.utils.rate_limit import get_redis_client
+
 # ── Config ────────────────────────────────────────────────────────────────────
 PANEL_WINDOW = 60
 PANEL_MAX_REQUESTS = 120
@@ -87,6 +89,39 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return self._check(self._api_hits[ip], API_WINDOW, API_MAX_REQUESTS, ip)
         return self._check(self._panel_hits[ip], PANEL_WINDOW, PANEL_MAX_REQUESTS, ip)
 
+    async def _is_rate_limited_redis(self, ip: str, path: str, method: str) -> bool:
+        redis = await get_redis_client()
+        if not redis:
+            return self._is_rate_limited(ip, path, method)
+
+        if path in ("/panel/api/login", "/panel/login", "/cabinet/auth", "/cabinet/auth/") and method == "POST":
+            scope = "login"
+            window = LOGIN_WINDOW
+            max_requests = LOGIN_MAX_ATTEMPTS
+        elif path.startswith("/api/"):
+            scope = "api"
+            window = API_WINDOW
+            max_requests = API_MAX_REQUESTS
+        else:
+            scope = "panel"
+            window = PANEL_WINDOW
+            max_requests = PANEL_MAX_REQUESTS
+
+        block_key = f"rate_limit:block:{ip}"
+        if await redis.exists(block_key):
+            return True
+
+        hits_key = f"rate_limit:hits:{scope}:{ip}"
+        count = await redis.incr(hits_key)
+        if count == 1:
+            await redis.expire(hits_key, window)
+
+        if count > max_requests:
+            await redis.set(block_key, "1", ex=BLOCK_DURATION)
+            return True
+
+        return False
+
     async def dispatch(self, request: Request, call_next) -> Response:
         path = request.url.path
         self._cleanup()
@@ -94,7 +129,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         ip = self._get_ip(request)
-        if self._is_rate_limited(ip, path, request.method):
+        if await self._is_rate_limited_redis(ip, path, request.method):
             if path.startswith("/api/") or request.headers.get("accept", "").startswith(
                 "application/json"
             ):
