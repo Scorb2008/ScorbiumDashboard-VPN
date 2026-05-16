@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db
 from app.core.config import config
+from app.services.branding_asset import BrandingAssetService
 from app.services.bot_settings import BotSettingsService
 from app.services.telegram_notify import TelegramNotifyService
 
@@ -29,6 +30,7 @@ async def telegram_page(request: Request, db: AsyncSession = Depends(get_db)):
 
     svc = BotSettingsService(db)
     settings = await svc.get_all()
+    settings["custom_logo"] = await BrandingAssetService(db).get_logo_url()
     ctx["bot_settings"] = settings
     ctx["config"] = config
 

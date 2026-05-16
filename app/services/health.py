@@ -13,6 +13,7 @@ class ServiceStatus:
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     DOWN = "down"
+    INACTIVE = "inactive"
 
 
 class HealthEntry:
@@ -37,6 +38,12 @@ class HealthEntry:
 
     def fail(self, message: str = ""):
         self.status = ServiceStatus.DOWN
+        self.latency_ms = 0
+        self.message = message
+        self.checked_at = datetime.now(timezone.utc)
+
+    def skip(self, message: str = "Отключена"):
+        self.status = ServiceStatus.INACTIVE
         self.latency_ms = 0
         self.message = message
         self.checked_at = datetime.now(timezone.utc)
@@ -220,11 +227,15 @@ class HealthService:
 
         async with AsyncSessionFactory() as session:
             svc = BotSettingsService(session)
+            enabled = (await svc.get("ps_yookassa_enabled") or "0") == "1"
             shop_id = (await svc.get("yookassa_shop_id_override") or "").strip()
             secret = (await svc.get("yookassa_secret_key_override") or "").strip()
 
+        if not enabled:
+            entry.skip("Отключена")
+            return
         if not shop_id or not secret:
-            entry.warn(0, "Не настроена")
+            entry.warn(0, "Включена, но не настроена")
             return
         start = time.time()
         async with httpx.AsyncClient(timeout=5) as client:
@@ -246,9 +257,14 @@ class HealthService:
         from app.services.bot_settings import BotSettingsService
 
         async with AsyncSessionFactory() as session:
-            token = await BotSettingsService(session).get("cryptobot_token")
+            settings = BotSettingsService(session)
+            enabled = (await settings.get("ps_cryptobot_enabled") or "0") == "1"
+            token = await settings.get("cryptobot_token")
+        if not enabled:
+            entry.skip("Отключен")
+            return
         if not token:
-            entry.warn(0, "Не настроен")
+            entry.warn(0, "Включен, но не настроен")
             return
         import httpx
 
@@ -272,10 +288,15 @@ class HealthService:
         from app.services.bot_settings import BotSettingsService
 
         async with AsyncSessionFactory() as session:
-            shop_id = await BotSettingsService(session).get("freekassa_shop_id") or ""
-            api_key = await BotSettingsService(session).get("freekassa_api_key") or ""
+            settings = BotSettingsService(session)
+            enabled = (await settings.get("ps_freekassa_enabled") or "0") == "1"
+            shop_id = await settings.get("freekassa_shop_id") or ""
+            api_key = await settings.get("freekassa_api_key") or ""
+        if not enabled:
+            entry.skip("Отключена")
+            return
         if not shop_id or not api_key:
-            entry.warn(0, "Не настроена")
+            entry.warn(0, "Включена, но не настроена")
             return
         import httpx
 

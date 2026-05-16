@@ -16,6 +16,7 @@ from app.models.referral import Referral, ReferralBonusType
 from app.models.promo import PromoCode, PromoType
 from app.models.promo_usage import PromoUsage
 from app.models.vpn_key import VpnKey, VpnKeyStatus
+from app.models.branding_asset import BrandingAsset
 
 
 @pytest.fixture(scope="session")

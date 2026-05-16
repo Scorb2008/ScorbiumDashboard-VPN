@@ -1,11 +1,10 @@
 """Logo upload/clear endpoints for panel settings."""
-import base64
 from fastapi import APIRouter, Depends, File, Request, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db
-from app.services.bot_settings import BotSettingsService
+from app.services.branding_asset import BrandingAssetService
 
 from .shared import _require_permission
 
@@ -45,12 +44,9 @@ async def logo_upload(
     if not detected:
         return JSONResponse({"ok": False, "message": "Допустимы: PNG, JPG, WebP, GIF"}, status_code=400)
 
-    ext, mime = detected
-    b64 = base64.b64encode(raw).decode()
-    data_uri = f"data:{mime};base64,{b64}"
-
-    svc = BotSettingsService(db)
-    await svc.set("custom_logo", data_uri)
+    _ext, mime = detected
+    svc = BrandingAssetService(db)
+    await svc.save_logo(raw, mime)
     await db.commit()
 
     return JSONResponse({"ok": True})
@@ -63,8 +59,22 @@ async def logo_clear(
 ):
     _require_permission(request, "system")
 
-    svc = BotSettingsService(db)
-    await svc.set("custom_logo", "")
+    svc = BrandingAssetService(db)
+    await svc.clear_logo()
     await db.commit()
 
     return JSONResponse({"ok": True})
+
+
+@router.get("/logo/current")
+async def logo_current(db: AsyncSession = Depends(get_db)):
+    payload = await BrandingAssetService(db).get_logo_payload()
+    if not payload:
+        return Response(status_code=404)
+
+    mime_type, raw = payload
+    return Response(
+        content=raw,
+        media_type=mime_type,
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"},
+    )

@@ -27,6 +27,7 @@ CODEX_PROJECT_README.md
 # Logs
 logs/
 *.log
+backups/
 
 # OS
 .DS_Store
@@ -38,3 +39,4 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 *TODO.md
+nginx/ssl/

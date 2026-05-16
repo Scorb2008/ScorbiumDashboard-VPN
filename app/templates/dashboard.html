@@ -612,6 +612,91 @@
     font-size: 2.2rem;
     opacity: .5;
   }
+  [data-bs-theme="light"] .dash-hero {
+    border-color: var(--border);
+    background:
+      radial-gradient(circle at top right, rgba(14, 165, 233, 0.10), transparent 28%),
+      radial-gradient(circle at left center, rgba(5, 150, 105, 0.12), transparent 32%),
+      linear-gradient(135deg, #ffffff, #f8fbff 48%, #f1f5f9);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.7),
+      0 24px 48px rgba(15, 23, 42, 0.08);
+  }
+  [data-bs-theme="light"] .dash-hero::before {
+    background: radial-gradient(circle, rgba(14, 165, 233, 0.08), transparent 68%);
+  }
+  [data-bs-theme="light"] .dash-hero::after {
+    background: linear-gradient(90deg, transparent, rgba(15, 23, 42, 0.08), transparent);
+  }
+  [data-bs-theme="light"] .hero-chip,
+  [data-bs-theme="light"] .hero-meta-card,
+  [data-bs-theme="light"] .hero-panel,
+  [data-bs-theme="light"] .hero-score,
+  [data-bs-theme="light"] .metric-card,
+  [data-bs-theme="light"] .surface-panel,
+  [data-bs-theme="light"] .activity-card,
+  [data-bs-theme="light"] .mini-chart-wrap,
+  [data-bs-theme="light"] .status-card,
+  [data-bs-theme="light"] .quick-tile,
+  [data-bs-theme="light"] .feed-row {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.96)),
+      var(--bg-card);
+    border-color: var(--border);
+    box-shadow: none;
+  }
+  [data-bs-theme="light"] .metric-card:hover,
+  [data-bs-theme="light"] .quick-tile:hover {
+    border-color: var(--border-strong);
+    box-shadow: 0 16px 30px rgba(15, 23, 42, 0.08);
+  }
+  [data-bs-theme="light"] .hero-title,
+  [data-bs-theme="light"] .hero-meta-value,
+  [data-bs-theme="light"] .hero-brand-copy strong,
+  [data-bs-theme="light"] .hero-score-value,
+  [data-bs-theme="light"] .metric-value,
+  [data-bs-theme="light"] .metric-trend strong,
+  [data-bs-theme="light"] .panel-title,
+  [data-bs-theme="light"] .activity-card strong,
+  [data-bs-theme="light"] .mini-chart-copy strong,
+  [data-bs-theme="light"] .status-card strong,
+  [data-bs-theme="light"] .quick-tile-copy strong,
+  [data-bs-theme="light"] .feed-title {
+    color: var(--text);
+  }
+  [data-bs-theme="light"] .hero-title .hero-title-muted,
+  [data-bs-theme="light"] .hero-subtitle,
+  [data-bs-theme="light"] .hero-meta-sub,
+  [data-bs-theme="light"] .hero-brand-copy span,
+  [data-bs-theme="light"] .hero-score-label,
+  [data-bs-theme="light"] .hero-score-note,
+  [data-bs-theme="light"] .metric-label,
+  [data-bs-theme="light"] .metric-trend,
+  [data-bs-theme="light"] .metric-foot-tag,
+  [data-bs-theme="light"] .panel-subtitle,
+  [data-bs-theme="light"] .activity-card span,
+  [data-bs-theme="light"] .mini-chart-copy span,
+  [data-bs-theme="light"] .status-card span,
+  [data-bs-theme="light"] .quick-tile-copy span,
+  [data-bs-theme="light"] .feed-meta,
+  [data-bs-theme="light"] .empty-state {
+    color: var(--text-secondary);
+  }
+  [data-bs-theme="light"] .hero-chip {
+    color: var(--text);
+  }
+  [data-bs-theme="light"] .hero-brand-logo {
+    background: rgba(241, 245, 249, 0.92);
+    border-color: var(--border);
+  }
+  [data-bs-theme="light"] .hero-live-pill {
+    color: #047857;
+    background: rgba(16, 185, 129, 0.10);
+    border-color: rgba(16, 185, 129, 0.18);
+  }
+  [data-bs-theme="light"] .metric-card::after {
+    background: radial-gradient(circle, rgba(14, 165, 233, 0.08), transparent 65%);
+  }
   @media (max-width: 1399px) {
     .metric-grid,
     .status-grid {
@@ -678,33 +763,32 @@
       <div class="hero-copy">
         <span class="hero-chip">
           <i class="bi bi-stars"></i>
-          Scorbium Command Center
+          Scorbium Control
         </span>
         <div>
           <h1 class="hero-title">
-            Новый ритм
-            <span class="hero-title-muted">админ-панели</span>
+            Центр операций
+            <span class="hero-title-muted">в одном экране</span>
           </h1>
           <p class="hero-subtitle">
-            Операционный обзор пользователей, платежей и VPN-инфраструктуры в одном экране.
-            Вся критичная динамика вынесена выше, чтобы команда видела состояние платформы без переключений между разделами.
+            Пользователи, платежи и VPN-статус собраны в одном окне без лишних переходов.
           </p>
         </div>
         <div class="hero-meta">
           <div class="hero-meta-card">
-            <span class="hero-meta-label">Ответственный</span>
+            <span class="hero-meta-label">Сессия</span>
             <span class="hero-meta-value">{{ admin.sub or 'Admin session' }}</span>
             <span class="hero-meta-sub">Роль: {{ admin.role or 'operator' }}</span>
           </div>
           <div class="hero-meta-card">
-            <span class="hero-meta-label">Фокус дня</span>
-            <span class="hero-meta-value">{{ stats.open_tickets }} тикетов и {{ stats.pending_payments }} ожиданий</span>
-            <span class="hero-meta-sub">Приоритет: поддержка и платежные события</span>
+            <span class="hero-meta-label">Фокус</span>
+            <span class="hero-meta-value">{{ stats.open_tickets }} тикетов · {{ stats.pending_payments }} платежей</span>
+            <span class="hero-meta-sub">Требуют внимания</span>
           </div>
           <div class="hero-meta-card">
-            <span class="hero-meta-label">Состояние</span>
-            <span class="hero-meta-value">Панель активна</span>
-            <span class="hero-meta-sub">Обновлено: {{ current_time | default('сейчас') }}</span>
+            <span class="hero-meta-label">Обновление</span>
+            <span class="hero-meta-value">{{ current_time | default('сейчас') }}</span>
+            <span class="hero-meta-sub">Панель онлайн</span>
           </div>
         </div>
       </div>
@@ -719,12 +803,12 @@
             />
             <div class="hero-brand-copy">
               <strong>{{ app_name | default('Scorbium Dashboard') }}</strong>
-              <span>Премиальная админ-панель для VPN-операций и поддержки</span>
+              <span>Панель управления VPN</span>
             </div>
           </div>
           <span class="hero-live-pill">
             <span class="status-dot online"></span>
-            Live
+            Online
           </span>
         </div>
 
@@ -734,7 +818,7 @@
             <span class="hero-score-value">{{ stats.revenue_today | int }} ₽</span>
             <span class="hero-score-note positive">
               <i class="bi bi-arrow-up-right"></i>
-              Рост по активным подпискам
+              Успешные оплаты
             </span>
           </div>
           <div class="hero-score">
@@ -742,7 +826,7 @@
             <span class="hero-score-value">{{ stats.new_users_today }}</span>
             <span class="hero-score-note">
               <i class="bi bi-person-plus"></i>
-              За текущие сутки
+              За сутки
             </span>
           </div>
           <div class="hero-score">
@@ -750,7 +834,7 @@
             <span class="hero-score-value">{{ stats.open_tickets }}</span>
             <span class="hero-score-note warning">
               <i class="bi bi-headset"></i>
-              Нужен быстрый ответ
+              Очередь поддержки
             </span>
           </div>
           <div class="hero-score">
@@ -758,7 +842,7 @@
             <span class="hero-score-value">{{ stats.expired_keys }}</span>
             <span class="hero-score-note">
               <i class="bi bi-key"></i>
-              Контроль продления
+              Нужны действия
             </span>
           </div>
         </div>
@@ -769,7 +853,7 @@
   <section class="fade-in-up stagger-1">
     <div class="section-eyebrow">
       <i class="bi bi-grid-1x2-fill"></i>
-      Core Metrics
+      Ключевые метрики
     </div>
     <div class="metric-grid">
       <article class="metric-card">
@@ -860,7 +944,7 @@
             </div>
             <div>
               <h2 class="panel-title">Динамика выручки</h2>
-              <p class="panel-subtitle">Последние 7 дней по успешным подписочным платежам</p>
+              <p class="panel-subtitle">7 дней по успешным подписочным платежам</p>
             </div>
           </div>
           <span class="panel-badge">{{ stats.total_revenue | int }} ₽ total</span>
@@ -880,7 +964,7 @@
             </div>
             <div>
               <h2 class="panel-title">Операционная активность</h2>
-              <p class="panel-subtitle">Короткий пульс по загрузке панели</p>
+              <p class="panel-subtitle">Короткий срез по нагрузке</p>
             </div>
           </div>
         </div>
@@ -901,7 +985,7 @@
             <div class="mini-chart-copy">
               <div>
                 <strong>Weekly Sparkline</strong>
-                <span>Распределение выручки по дням</span>
+                <span>Выручка по дням</span>
               </div>
               <span class="panel-badge">7D</span>
             </div>
@@ -922,7 +1006,7 @@
             </div>
             <div>
               <h2 class="panel-title">Состояние платформы</h2>
-              <p class="panel-subtitle">Системные и VPN-метрики в одном контуре</p>
+              <p class="panel-subtitle">Системные и VPN-метрики</p>
             </div>
           </div>
           {% if marzban_stats %}
@@ -997,7 +1081,7 @@
             </div>
             <div>
               <h2 class="panel-title">Быстрые действия</h2>
-              <p class="panel-subtitle">Самые частые переходы для ежедневных операций</p>
+              <p class="panel-subtitle">Частые переходы</p>
             </div>
           </div>
         </div>
@@ -1008,7 +1092,7 @@
             </div>
             <div class="quick-tile-copy">
               <strong>Тикеты</strong>
-              <span>Поддержка и SLA</span>
+              <span>Поддержка</span>
             </div>
             {% if stats.open_tickets %}
             <span class="badge badge-custom badge-open ms-auto">{{ stats.open_tickets }}</span>
@@ -1020,7 +1104,7 @@
             </div>
             <div class="quick-tile-copy">
               <strong>Рассылки</strong>
-              <span>Коммуникации с базой</span>
+              <span>Сообщения</span>
             </div>
           </a>
           <a href="/panel/promos" class="quick-tile">
@@ -1029,7 +1113,7 @@
             </div>
             <div class="quick-tile-copy">
               <strong>Промокоды</strong>
-              <span>Запуск акций и скидок</span>
+              <span>Скидки</span>
             </div>
           </a>
           <a href="/panel/vpn" class="quick-tile">
@@ -1038,7 +1122,7 @@
             </div>
             <div class="quick-tile-copy">
               <strong>VPN ключи</strong>
-              <span>Управление подписками</span>
+              <span>Подписки</span>
             </div>
           </a>
         </div>

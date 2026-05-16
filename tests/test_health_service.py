@@ -54,3 +54,52 @@ async def test_send_alerts_reads_language_before_session_context_exits(monkeypat
 
     assert settings.calls >= 6
     assert sent_messages
+
+
+class _PaymentSettings:
+    def __init__(self, values):
+        self.values = values
+
+    async def get(self, key: str):
+        return self.values.get(key, "")
+
+
+class _SessionContext:
+    def __init__(self, settings):
+        self.settings = settings
+
+    async def __aenter__(self):
+        return object()
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+
+async def test_payment_checks_mark_disabled_gateways_as_inactive(monkeypatch):
+    service = HealthService()
+    values = {
+        "ps_yookassa_enabled": "0",
+        "ps_cryptobot_enabled": "0",
+        "ps_freekassa_enabled": "0",
+    }
+
+    monkeypatch.setattr(
+        "app.services.health.AsyncSessionFactory",
+        lambda: _SessionContext(_PaymentSettings(values)),
+    )
+    monkeypatch.setattr(
+        "app.services.bot_settings.BotSettingsService",
+        lambda _session: _PaymentSettings(values),
+    )
+
+    yookassa = HealthEntry("payment_yookassa")
+    cryptobot = HealthEntry("payment_cryptobot")
+    freekassa = HealthEntry("payment_freekassa")
+
+    await service._check_yookassa(yookassa)
+    await service._check_cryptobot(cryptobot)
+    await service._check_freekassa(freekassa)
+
+    assert yookassa.status == ServiceStatus.INACTIVE
+    assert cryptobot.status == ServiceStatus.INACTIVE
+    assert freekassa.status == ServiceStatus.INACTIVE

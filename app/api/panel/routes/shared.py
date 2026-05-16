@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import config
 from app.models.payment import PaymentStatus
 from app.schemas.user import UserDetail, UserRead
+from app.services.branding_asset import BrandingAssetService
 from app.services.bot_settings import BotSettingsService
 from app.services.payment import PaymentService
 from app.services.support import SupportService
@@ -269,7 +270,7 @@ async def _base_ctx(
     pending_payments = await PaymentService(db).count_by_status(PaymentStatus.PENDING)
     role = admin_info["role"] if admin_info else ""
     settings = await BotSettingsService(db).get_all()
-    custom_logo = settings.get("custom_logo", "")
+    custom_logo = await BrandingAssetService(db).get_logo_url()
     now = datetime.now(timezone.utc)
     moscow_tz = timezone(timedelta(hours=3))
     iran_tz = timezone(timedelta(hours=3, minutes=30))

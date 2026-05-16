@@ -17,6 +17,7 @@ from app.core.config import config
 from app.models.admin import Admin
 from app.services.admin import AdminService
 from app.services.admin_auth import authenticate_admin_credentials
+from app.services.branding_asset import BrandingAssetService
 from app.services.bot_settings import BotSettingsService
 from app.utils.security import create_access_token, decode_access_token_full
 
@@ -45,7 +46,7 @@ async def _login_template_context(
         "error": error,
         "app_name": config.web.app_name,
         "app_version": config.web.app_version,
-        "custom_logo": settings.get("custom_logo", ""),
+        "custom_logo": await BrandingAssetService(db).get_logo_url(),
         "show_2fa": show_2fa,
         "bot_language": settings.get("bot_language", "ru"),
     }
