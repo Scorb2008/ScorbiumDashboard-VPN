@@ -117,6 +117,22 @@ async def test_backup_import_success_without_request_db_session(monkeypatch):
     reset_cache.assert_awaited_once()
 
 
+async def test_backup_import_rejects_empty_file(monkeypatch):
+    monkeypatch.setattr(backup_routes, "_require_permission", lambda request, permission: None)
+
+    response = await backup_import(
+        _make_request(),
+        file=UploadFile(filename="backup.sql", file=io.BytesIO(b"   \n")),
+        confirm="yes",
+    )
+
+    payload = json.loads(response.headers["HX-Trigger"])
+
+    assert response.status_code == 400
+    assert payload["showToast"]["type"] == "error"
+    assert "пустой" in payload["showToast"]["msg"].lower()
+
+
 async def test_sync_deployment_url_settings_overwrites_stale_restore_urls(session, monkeypatch):
     session.add_all(
         [

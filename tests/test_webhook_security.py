@@ -1,6 +1,8 @@
 import hashlib
 import hmac
+from types import SimpleNamespace
 
+from app.api.v1.payments import _get_yookassa_webhook_secret
 from app.services.webhook_security import compute_cryptobot_hmac, verify_cryptobot_signature
 
 
@@ -31,3 +33,16 @@ def test_verify_cryptobot_signature_rejects_modified_body():
         )
         is False
     )
+
+
+async def test_get_yookassa_webhook_secret_falls_back_to_env(session, monkeypatch):
+    monkeypatch.setattr(
+        "app.api.v1.payments.config",
+        SimpleNamespace(
+            yookassa=SimpleNamespace(
+                yookassa_secret_key=SimpleNamespace(get_secret_value=lambda: "env_secret_12345")
+            )
+        ),
+    )
+
+    assert await _get_yookassa_webhook_secret(session) == "env_secret_12345"

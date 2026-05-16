@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
 from app.api.dependencies import get_db, get_current_admin
+from app.core.config import config
 from app.models.payment import PaymentStatus
 from app.schemas.payment import PaymentCreate, PaymentRead
 from app.services.bot_settings import BotSettingsService
@@ -15,7 +16,11 @@ router = APIRouter()
 
 
 async def _get_yookassa_webhook_secret(db: AsyncSession) -> str:
-    return await BotSettingsService(db).get("yookassa_secret_key_override") or ""
+    override = (await BotSettingsService(db).get("yookassa_secret_key_override") or "").strip()
+    if override:
+        return override
+    fallback = config.yookassa.yookassa_secret_key
+    return fallback.get_secret_value().strip() if fallback else ""
 
 
 async def _notify_topup_success(payment_user_id: int, amount, balance) -> None:

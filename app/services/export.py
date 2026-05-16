@@ -3,8 +3,9 @@ import io
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.payment import Payment
 from app.models.user import User
@@ -18,8 +19,34 @@ class ExportService:
 
     async def export_users(self, fmt: str = "csv") -> bytes:
         """Export all users with subscription/payment counts."""
-        result = await self.session.execute(select(User).order_by(User.id))
-        users = list(result.scalars().all())
+        payment_counts = (
+            select(Payment.user_id, func.count(Payment.id).label("payments_count"))
+            .group_by(Payment.user_id)
+            .subquery()
+        )
+        key_counts = (
+            select(VpnKey.user_id, func.count(VpnKey.id).label("vpn_keys_count"))
+            .group_by(VpnKey.user_id)
+            .subquery()
+        )
+        result = await self.session.execute(
+            select(
+                User.id,
+                User.full_name,
+                User.username,
+                User.language,
+                User.balance,
+                User.is_banned,
+                User.autorenew,
+                User.created_at,
+                func.coalesce(key_counts.c.vpn_keys_count, 0),
+                func.coalesce(payment_counts.c.payments_count, 0),
+            )
+            .outerjoin(key_counts, key_counts.c.user_id == User.id)
+            .outerjoin(payment_counts, payment_counts.c.user_id == User.id)
+            .order_by(User.id)
+        )
+        users = result.all()
 
         headers = [
             "Telegram ID", "Full Name", "Username", "Language",
@@ -29,16 +56,16 @@ class ExportService:
         rows = []
         for u in users:
             rows.append([
-                u.id,
-                u.full_name or "",
-                u.username or "",
-                u.language or "",
-                float(u.balance or 0),
-                "Yes" if u.is_banned else "No",
-                "Yes" if u.autorenew else "No",
-                u.created_at.strftime("%Y-%m-%d %H:%M") if u.created_at else "",
-                len(u.vpn_keys),
-                len(u.payments),
+                u[0],
+                u[1] or "",
+                u[2] or "",
+                u[3] or "",
+                float(u[4] or 0),
+                "Yes" if u[5] else "No",
+                "Yes" if u[6] else "No",
+                u[7].strftime("%Y-%m-%d %H:%M") if u[7] else "",
+                u[8],
+                u[9],
             ])
         return self._to_bytes(headers, rows, fmt, "users")
 
@@ -94,7 +121,9 @@ class ExportService:
     async def export_subscriptions(self, fmt: str = "csv") -> bytes:
         """Export VPN keys (subscriptions) with plan info."""
         result = await self.session.execute(
-            select(VpnKey).order_by(VpnKey.id.desc())
+            select(VpnKey)
+            .options(selectinload(VpnKey.plan))
+            .order_by(VpnKey.id.desc())
         )
         keys = list(result.scalars().all())
 

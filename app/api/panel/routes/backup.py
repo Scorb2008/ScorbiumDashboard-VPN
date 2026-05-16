@@ -235,26 +235,30 @@ async def backup_import(
         _toast(resp, "Подтвердите восстановление", "error")
         return resp
 
-    content = await file.read()
-    if len(content) > _MAX_BACKUP:
-        resp = Response(status_code=413)
-        _toast(resp, "Файл слишком большой (макс. 100MB)", "error")
-        return resp
-
-    filename = file.filename or ""
-    if filename.endswith(".gz"):
-        try:
-            content = gzip.decompress(content)
-        except Exception:
-            resp = Response(status_code=400)
-            _toast(resp, "Не удалось распаковать .gz файл", "error")
+    try:
+        content = await file.read()
+        if len(content) > _MAX_BACKUP:
+            resp = Response(status_code=413)
+            _toast(resp, "Файл слишком большой (макс. 100MB)", "error")
             return resp
 
-    pg_uri = config.database.sync_dsn
-    restore_sql = _prepare_restore_sql(content)
-    cmd = ["psql", "--no-password", "-X", "-v", "ON_ERROR_STOP=1", "-1", "-f", "-", pg_uri]
+        filename = file.filename or ""
+        if filename.endswith(".gz"):
+            try:
+                content = gzip.decompress(content)
+            except Exception:
+                resp = Response(status_code=400)
+                _toast(resp, "Не удалось распаковать .gz файл", "error")
+                return resp
 
-    try:
+        if not content.strip():
+            resp = Response(status_code=400)
+            _toast(resp, "Файл бэкапа пустой", "error")
+            return resp
+        pg_uri = config.database.sync_dsn
+        restore_sql = _prepare_restore_sql(content)
+        cmd = ["psql", "--no-password", "-X", "-v", "ON_ERROR_STOP=1", "-1", "-f", "-", pg_uri]
+
         result = subprocess.run(
             cmd,
             input=restore_sql,
@@ -284,6 +288,8 @@ async def backup_import(
     except subprocess.TimeoutExpired:
         resp = Response(status_code=500)
         _toast(resp, "Импорт завис", "error")
+    finally:
+        await file.close()
 
     return resp
 

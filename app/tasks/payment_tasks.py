@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 from app.core.database import AsyncSessionFactory
 from app.models.payment import Payment, PaymentProvider, PaymentStatus
+from app.services.payment_fulfillment import PaymentFulfillmentService
 from app.services.payment import PaymentService
 from app.services.plan import PlanService
 from app.services.vpn_key import VpnKeyService
@@ -15,6 +16,29 @@ from app.utils.log import log
 CHECK_INTERVAL = 60
 MAX_PENDING_AGE = timedelta(hours=24)
 PAYMENT_EXPIRE_MINUTES = 15
+
+
+def _extract_payment_context(payment_row: dict) -> tuple[int | None, int | None]:
+    meta_raw = payment_row.get("meta")
+    if not meta_raw:
+        return None, None
+
+    try:
+        meta = json.loads(meta_raw)
+    except (TypeError, ValueError):
+        return None, None
+
+    try:
+        plan_id = int(meta.get("plan_id", 0)) or None
+    except (TypeError, ValueError):
+        plan_id = None
+
+    try:
+        extend_key_id = int(meta.get("extend_key_id", 0)) or None
+    except (TypeError, ValueError):
+        extend_key_id = None
+
+    return plan_id, extend_key_id
 
 
 async def _provision_with_retry(session, user_id: int, plan, max_retries: int = 3):
@@ -67,7 +91,13 @@ async def check_pending_yookassa_payments() -> None:
         payments = list(result.scalars().all())
 
         payment_data = [
-            {"id": p.id, "external_id": p.external_id, "user_id": p.user_id, "meta": p.meta}
+            {
+                "id": p.id,
+                "external_id": p.external_id,
+                "user_id": p.user_id,
+                "payment_type": p.payment_type,
+                "meta": p.meta,
+            }
             for p in payments
         ]
 
@@ -81,30 +111,38 @@ async def check_pending_yookassa_payments() -> None:
                 log.warning(f"[polling] Timeout checking payment {pd['id']}")
                 continue
             if yk_payment.status == "succeeded":
-                plan_id = None
-                if pd["meta"]:
-                    try:
-                        meta = json.loads(pd["meta"])
-                        plan_id = int(meta.get("plan_id", 0)) or None
-                    except Exception:
-                        pass
-
-                if not plan_id:
-                    continue
-
-                key_data = None
-                payment_amount = None
-                payment_currency = None
-                plan_days = None
-                plan_name = None
-
+                plan_id, extend_key_id = _extract_payment_context(pd)
                 async with AsyncSessionFactory() as session:
-                    plan = await PlanService(session).get_by_id(plan_id)
-                    if not plan:
+                    payment = await PaymentService(session).get_by_id(pd["id"])
+                    if not payment:
+                        log.warning(f"[polling] Payment {pd['id']} not found")
                         continue
 
-                    payment = await PaymentService(session).get_by_id(pd["id"])
-                    if not payment or payment.status == PaymentStatus.SUCCEEDED.value:
+                    if not plan_id:
+                        topup_result = await PaymentFulfillmentService(
+                            session
+                        ).confirm_topup_and_credit_once(
+                            pd["id"], str(yk_payment.id)
+                        )
+                        await session.commit()
+                        if not topup_result.payment:
+                            continue
+                        if not topup_result.just_processed:
+                            log.info(f"[polling] Duplicate topup ignored for payment {pd['id']}")
+                            continue
+                        balance = topup_result.balance
+                        text = (
+                            "✅ <b>Баланс пополнен!</b>\n\n"
+                            f"💰 Зачислено: <b>{topup_result.payment.amount} ₽</b>\n"
+                            f"👛 Текущий баланс: <b>{balance} ₽</b>"
+                        )
+                        await TelegramNotifyService().send_message(pd["user_id"], text)
+                        log.info(f"[polling] Topup {pd['id']} confirmed + balance credited")
+                        continue
+
+                    plan = await PlanService(session).get_by_id(plan_id)
+                    if not plan:
+                        log.warning(f"[polling] Plan {plan_id} not found for payment {pd['id']}")
                         continue
 
                     payment_amount = str(payment.amount)
@@ -112,18 +150,34 @@ async def check_pending_yookassa_payments() -> None:
                     plan_days = plan.duration_days
                     plan_name = plan.name
 
-                    payment.status = PaymentStatus.SUCCEEDED.value
-                    await session.flush()
+                    confirmation = await PaymentService(session).confirm_once(
+                        pd["id"], str(yk_payment.id)
+                    )
+                    if not confirmation.payment:
+                        continue
 
-                    key = await _provision_with_retry(session, pd["user_id"], plan)
-                    if key:
-                        payment.vpn_key_id = key.id
-                        key_data = {
-                            "id": key.id,
-                            "access_url": key.access_url,
-                        }
+                    fulfillment = PaymentFulfillmentService(session)
+                    if extend_key_id:
+                        delivery = await fulfillment.extend_subscription_once(
+                            pd["id"], pd["user_id"], extend_key_id, plan
+                        )
+                    else:
+                        delivery = await fulfillment.provision_subscription_once(
+                            pd["id"], pd["user_id"], plan
+                        )
 
                     await session.commit()
+
+                    if not confirmation.just_confirmed and not delivery.just_processed:
+                        log.info(f"[polling] Duplicate subscription webhook ignored for payment {pd['id']}")
+                        continue
+
+                    key_data = None
+                    if delivery.key:
+                        key_data = {
+                            "id": delivery.key.id,
+                            "access_url": delivery.key.access_url,
+                        }
 
                 try:
                     async with AsyncSessionFactory() as session:
@@ -133,7 +187,15 @@ async def check_pending_yookassa_payments() -> None:
                     settings = {}
 
                 success_msg = settings.get("payment_success_message") or "✅ Оплата прошла успешно!"
-                if key_data:
+                if extend_key_id and key_data and delivery.key:
+                    exp = delivery.key.expires_at.strftime("%d.%m.%Y") if delivery.key.expires_at else "—"
+                    text = (
+                        f"{success_msg}\n\n"
+                        f"🔄 <b>Подписка продлена!</b>\n"
+                        f"📅 Новая дата: <b>{exp}</b>\n"
+                        f"➕ +{plan_days} дней"
+                    )
+                elif key_data:
                     text = (
                         f"{success_msg}\n\n"
                         f"🔑 <b>Ссылка подписки:</b>\n<code>{key_data['access_url']}</code>\n\n"
@@ -153,8 +215,7 @@ async def check_pending_yookassa_payments() -> None:
                             f"Платеж подтвержден, но ключ не создан. Проверьте Pasarguard."
                         )
 
-                if key_data:
-                    await TelegramNotifyService().send_message(pd["user_id"], text)
+                await TelegramNotifyService().send_message(pd["user_id"], text)
 
                 if key_data:
                     try:
@@ -170,7 +231,7 @@ async def check_pending_yookassa_payments() -> None:
                         })
                     except Exception as e:
                         log.warning(f"[polling] WebSocket broadcast failed: {e}")
-                
+
                 log.info(f"[polling] Payment {pd['id']} confirmed, key={key_data['id'] if key_data else 'FAILED'}")
 
             elif yk_payment.status in ("canceled", "expired"):
