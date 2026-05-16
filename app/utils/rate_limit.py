@@ -108,24 +108,50 @@ class RateLimiter:
 
 
 _redis_client = None
+_redis_retry_after = 0.0
+
+
+async def disable_redis_client(reason: str) -> None:
+    """Drop the cached Redis client and back off before the next retry."""
+    global _redis_client, _redis_retry_after
+
+    if _redis_client is not None:
+        try:
+            await _redis_client.aclose()
+        except Exception:
+            pass
+
+    _redis_client = None
+    _redis_retry_after = time.monotonic() + 60
+    log.warning(f"Redis rate limit backend disabled: {reason}")
 
 
 async def get_redis_client():
     """Get Redis client if available."""
-    global _redis_client
+    global _redis_client, _redis_retry_after
+
     if _redis_client is None:
+        if time.monotonic() < _redis_retry_after:
+            return None
         try:
             import redis.asyncio as redis
             from app.core.config import config
 
             redis_url = config.utils.redis_url
             if redis_url:
-                _redis_client = await redis.from_url(redis_url)
+                client = redis.from_url(
+                    redis_url,
+                    socket_connect_timeout=1,
+                    socket_timeout=1,
+                )
+                await client.ping()
+                _redis_client = client
+                _redis_retry_after = 0.0
                 log.info("Redis rate limit backend enabled")
         except ImportError:
             log.warning("redis package is not installed; using non-Redis rate limiting")
         except Exception as e:
-            log.warning(f"Redis not available: {e}")
+            await disable_redis_client(str(e))
     return _redis_client
 
 

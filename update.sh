@@ -52,6 +52,7 @@ confirm_action() {
 }
 
 COMPOSE_FILE="docker-compose.prod.yml"
+NGINX_GENERATED_CONF="nginx/nginx.generated.conf"
 
 echo -e "${BOLD}${CYAN}"
 echo "╔═══════════════════════════════════════════════════════════╗"
@@ -285,7 +286,7 @@ if [[ "$USE_SSL" == "true" ]]; then
         REDIR="return 301 https://\$host:${HTTPS_PORT}\$request_uri;"
     fi
 
-    cat > nginx/nginx.conf << NGINXEOF
+    cat > "$NGINX_GENERATED_CONF" << NGINXEOF
 worker_processes auto;
 error_log /var/log/nginx/error.log warn;
 pid /var/run/nginx.pid;
@@ -437,9 +438,9 @@ http {
     }
 }
 NGINXEOF
-    success "nginx.conf готов (HTTPS)"
+    success "nginx.conf готов (HTTPS) → ${NGINX_GENERATED_CONF}"
 else
-    cat > nginx/nginx.conf << NGINXEOF
+    cat > "$NGINX_GENERATED_CONF" << NGINXEOF
 worker_processes auto;
 error_log /var/log/nginx/error.log warn;
 pid /var/run/nginx.pid;
@@ -565,7 +566,7 @@ http {
     }
 }
 NGINXEOF
-    success "nginx.conf готов (HTTP-only fallback)"
+    success "nginx.conf готов (HTTP-only fallback) → ${NGINX_GENERATED_CONF}"
 fi
 
 # ── [4/6] Build & deploy ─────────────────────────────────────────────────────

@@ -5,7 +5,7 @@ from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.utils.rate_limit import get_redis_client
+from app.utils.rate_limit import disable_redis_client, get_redis_client
 
 # ── Config ────────────────────────────────────────────────────────────────────
 PANEL_WINDOW = 60
@@ -107,20 +107,24 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             window = PANEL_WINDOW
             max_requests = PANEL_MAX_REQUESTS
 
-        block_key = f"rate_limit:block:{ip}"
-        if await redis.exists(block_key):
-            return True
+        try:
+            block_key = f"rate_limit:block:{ip}"
+            if await redis.exists(block_key):
+                return True
 
-        hits_key = f"rate_limit:hits:{scope}:{ip}"
-        count = await redis.incr(hits_key)
-        if count == 1:
-            await redis.expire(hits_key, window)
+            hits_key = f"rate_limit:hits:{scope}:{ip}"
+            count = await redis.incr(hits_key)
+            if count == 1:
+                await redis.expire(hits_key, window)
 
-        if count > max_requests:
-            await redis.set(block_key, "1", ex=BLOCK_DURATION)
-            return True
+            if count > max_requests:
+                await redis.set(block_key, "1", ex=BLOCK_DURATION)
+                return True
 
-        return False
+            return False
+        except Exception as exc:
+            await disable_redis_client(str(exc))
+            return self._is_rate_limited(ip, path, method)
 
     async def dispatch(self, request: Request, call_next) -> Response:
         path = request.url.path

@@ -40,3 +40,4 @@ Thumbs.db
 *.sqlite3
 *TODO.md
 nginx/ssl/
+nginx/nginx.generated.conf

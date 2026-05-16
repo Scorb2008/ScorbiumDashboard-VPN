@@ -16,6 +16,8 @@ success() { echo -e "${GREEN}[OK]${RESET}   $*"; }
 warn()    { echo -e "${YELLOW}[WARN]${RESET} $*"; }
 error()   { echo -e "${RED}[ERR]${RESET}  $*" >&2; exit 1; }
 
+NGINX_GENERATED_CONF="nginx/nginx.generated.conf"
+
 echo -e "${BOLD}${CYAN}"
 echo "╔═══════════════════════════════════════════════════════════╗"
 echo "║       Scorbium Dashboard VPN  — Setup & Deploy            ║"
@@ -330,7 +332,7 @@ if [[ "$MODE" == "1" ]]; then
         REDIR="return 301 https://\$host:${HTTPS_PORT}\$request_uri;"
     fi
 
-    cat > nginx/nginx.conf << NGINXEOF
+    cat > "$NGINX_GENERATED_CONF" << NGINXEOF
 worker_processes auto;
 error_log /var/log/nginx/error.log warn;
 pid /var/run/nginx.pid;
@@ -457,7 +459,7 @@ http {
     }
 }
 NGINXEOF
-    success "nginx.conf создан"
+    success "nginx.conf создан → ${NGINX_GENERATED_CONF}"
 fi
 
 # ── Запуск ────────────────────────────────────────────────────────────────────

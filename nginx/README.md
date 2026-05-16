@@ -5,14 +5,15 @@
 ## Какие файлы используются
 
 - `nginx/nginx.local.conf` — dev-конфиг для локального `docker compose`
-- `nginx/nginx.conf` — prod-конфиг
+- `nginx/nginx.generated.conf` — prod-конфиг, который генерируют скрипты
+- `nginx/nginx.conf` — больше не используется в деплое и может оставаться только как справочный пример
 
-## Кто генерирует `nginx.conf`
+## Кто генерирует `nginx.generated.conf`
 
 - `setup.sh` — при первой прод-установке
 - `update.sh` — при каждом обновлении
 
-Из-за этого редактировать `nginx/nginx.conf` руками обычно бессмысленно: скрипт его перезапишет.
+Из-за этого редактировать `nginx/nginx.generated.conf` руками обычно бессмысленно: скрипт его перезапишет.
 
 ## Какой роутинг ожидается
 
@@ -39,10 +40,26 @@
 Для prod используется `docker-compose.prod.yml`, который монтирует:
 
 ```text
-./nginx/nginx.conf:/etc/nginx/nginx.conf
+./nginx/nginx.generated.conf:/etc/nginx/nginx.conf
 ```
 
 HTTPS-порт берется из `.env` через `HTTPS_PORT`, по умолчанию `443`.
+
+## Опциональный Redis
+
+Для shared rate limiting в prod можно дополнительно включить Redis profile:
+
+```bash
+docker compose -f docker-compose.prod.yml --profile redis up -d
+```
+
+Тогда в `.env` можно указать:
+
+```text
+REDIS_URL=redis://redis:6379/0
+```
+
+Если Redis не включен или недоступен, приложение автоматически откатывается на in-memory rate limiting.
 
 ## SSL
 
@@ -55,6 +72,6 @@ HTTPS-порт берется из `.env` через `HTTPS_PORT`, по умол
 
 ## Что не забыть
 
-- не редактировать `nginx.conf` вручную перед обычным деплоем
+- не редактировать `nginx.generated.conf` вручную перед обычным деплоем
 - после смены домена обновить `.env`
 - использовать `setup.sh` для первичной настройки и `update.sh` для обновлений
