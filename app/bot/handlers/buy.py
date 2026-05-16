@@ -71,9 +71,7 @@ async def select_plan(callback: CallbackQuery) -> None:
         await callback.answer(t("no_plans", lang), show_alert=True)
         return
 
-    from app.core.config import config as _cfg
-
-    # Проверяем YooKassa: env ИЛИ DB-настройки + флаг включения
+    # Проверяем YooKassa только по DB-настройкам + флагу включения
     async with AsyncSessionFactory() as _s:
         _svc = BotSettingsService(_s)
         _yk_toggle = (await _svc.get("ps_yookassa_enabled") or "0") == "1"
@@ -81,11 +79,7 @@ async def select_plan(callback: CallbackQuery) -> None:
         _yk_shop_db = await _svc.get("yookassa_shop_id_override") or ""
         _yk_key_db = bool(await _svc.get("yookassa_secret_key_override"))
         _stars_rate = float(await _svc.get("stars_rate") or "1.5")
-    _yk_env = _cfg.yookassa
-    _yk_env_ok = bool(
-        _yk_env and _yk_env.yookassa_shop_id and _yk_env.yookassa_secret_key
-    )
-    _yk_configured = _yk_env_ok or bool(_yk_shop_db and _yk_key_db)
+    _yk_configured = bool(_yk_shop_db and _yk_key_db)
     has_yookassa = _yk_toggle and _yk_configured
     has_sbp = _sbp_toggle and _yk_configured
 

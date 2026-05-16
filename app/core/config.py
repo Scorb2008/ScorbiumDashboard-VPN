@@ -11,7 +11,6 @@ class _Config:
     telegram_config: Optional[Any] = None
     pasarguard_config: Optional[Any] = None
     database_config: Optional[Any] = None
-    yookassa_config: Optional[Any] = None
     utils_config: Optional[Any] = None
     
     model_config = {
@@ -48,13 +47,6 @@ class _Config:
         return self.database_config
 
     @property 
-    def yookassa(self) -> Any:
-        if self.yookassa_config is None:
-            from .configs import yookassa
-            self.yookassa_config = yookassa
-        return self.yookassa_config
-    
-    @property 
     def utils(self) -> Any:
         if self.utils_config is None:
             from .configs import utils
@@ -70,7 +62,6 @@ class _Config:
         _ = self.telegram
         _ = self.pasarguard
         _ = self.database
-        _ = self.yookassa
         _ = self.utils
         _ = self.web
 
@@ -83,7 +74,6 @@ class _Config:
         self.pasarguard_config = None
         self.telegram_config = None
         self.utils_config = None
-        self.yookassa_config = None
         self.web_config = None
 
         self.initialized = False
@@ -127,12 +117,6 @@ class _Config:
             results["utils"] = False
             log.error(f"Error validating utils settings: {e}")
         
-        try:
-            _ = self.yookassa
-            results["yookassa"] = True
-        except Exception as e:
-            results["yookassa"] = False
-            log.error(f"Error validating Yookassa settings: {e}")
         return results
 
     def __repr__(self):

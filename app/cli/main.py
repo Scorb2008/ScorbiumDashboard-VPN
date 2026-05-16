@@ -61,6 +61,19 @@ def render_menu(title: str, items: list[tuple[str, str]], back_label: str = "Н�
     )
 
 
+def prompt_menu_choice(options: list[str]) -> str:
+    allowed = set(options)
+    while True:
+        raw = click.prompt("Ваш выбор", type=str, show_choices=False)
+        choice = raw.strip()
+        if choice in allowed:
+            return choice
+        click.secho(
+            f"Ошибка: '{raw}' не входит в список {', '.join(options)}.",
+            fg="red",
+        )
+
+
 @click.group(invoke_without_command=True)
 @click.pass_context
 def cli(ctx: Context):
@@ -91,7 +104,7 @@ def menu():
             back_label="Выход",
         )
 
-        choice = click.prompt("Ваш выбор", type=click.Choice(["0", "1", "2", "3", "4", "5", "6", "7"]), show_choices=False)
+        choice = prompt_menu_choice(["0", "1", "2", "3", "4", "5", "6", "7"])
 
         if choice == "0":
             print_info("До свидания!")
@@ -128,7 +141,7 @@ def _menu_users():
             ],
         )
 
-        choice = click.prompt("Ваш выбор", type=click.Choice(["0","1","2","3","4","5","6","7"]), show_choices=False)
+        choice = prompt_menu_choice(["0", "1", "2", "3", "4", "5", "6", "7"])
 
         if choice == "0":
             break
@@ -168,7 +181,7 @@ def _menu_subs():
             ],
         )
 
-        choice = click.prompt("Ваш выбор", type=click.Choice(["0","1","2","3","4"]), show_choices=False)
+        choice = prompt_menu_choice(["0", "1", "2", "3", "4"])
 
         if choice == "0":
             break
@@ -198,7 +211,7 @@ def _menu_plans():
             ],
         )
 
-        choice = click.prompt("Ваш выбор", type=click.Choice(["0","1","2","3"]), show_choices=False)
+        choice = prompt_menu_choice(["0", "1", "2", "3"])
 
         if choice == "0":
             break
@@ -224,7 +237,7 @@ def _menu_payments():
             ],
         )
 
-        choice = click.prompt("Ваш выбор", type=click.Choice(["0","1","2"]), show_choices=False)
+        choice = prompt_menu_choice(["0", "1", "2"])
 
         if choice == "0":
             break
@@ -248,7 +261,7 @@ def _menu_db():
             ],
         )
 
-        choice = click.prompt("Ваш выбор", type=click.Choice(["0","1","2","3"]), show_choices=False)
+        choice = prompt_menu_choice(["0", "1", "2", "3"])
 
         if choice == "0":
             break
@@ -276,7 +289,7 @@ def _menu_bot():
             ],
         )
 
-        choice = click.prompt("Ваш выбор", type=click.Choice(["0","1","2","3","4"]), show_choices=False)
+        choice = prompt_menu_choice(["0", "1", "2", "3", "4"])
 
         if choice == "0":
             break
@@ -308,7 +321,7 @@ def _menu_system():
             ],
         )
 
-        choice = click.prompt("Ваш выбор", type=click.Choice(["0","1","2","3","4","5"]), show_choices=False)
+        choice = prompt_menu_choice(["0", "1", "2", "3", "4", "5"])
 
         if choice == "0":
             break

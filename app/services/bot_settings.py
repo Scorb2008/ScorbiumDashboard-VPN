@@ -1,9 +1,10 @@
-from typing import Optional
+from typing import Any, Optional
 import time
 import asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import config
 from app.models.bot_settings import BotSettings
 from app.utils.log import log
 
@@ -24,6 +25,11 @@ _CACHE_TTL = 300
 _cache: Optional[dict] = None
 _cache_ts: float = 0
 _cache_lock = asyncio.Lock()
+_DEPLOYMENT_URL_PATHS = {
+    "panel_url": "/panel/",
+    "admin_panel_url": "/panel/",
+    "cabinet_url": "/cabinet/",
+}
 
 DEFAULTS = {
     "welcome_message": "👋 Привет, {name}!\n\nЭто VPN-бот. Выбери действие:",
@@ -237,6 +243,44 @@ class BotSettingsService:
         return int(value) if value else 10
 
 
+def canonical_site_url(path: str) -> str:
+    site_url = (config.web.site_url or "").strip().rstrip("/")
+    if not site_url:
+        return ""
+    normalized_path = path if path.startswith("/") else f"/{path}"
+    return f"{site_url}{normalized_path}"
+
+
+async def sync_deployment_url_settings(
+    session: AsyncSession,
+    *,
+    overwrite_existing: bool = False,
+) -> dict[str, str]:
+    """Synchronize deployment-specific URLs with current SITE_URL.
+
+    These URLs are environment-specific and should not keep stale domains
+    after restoring a database backup from another server.
+    """
+    svc = BotSettingsService(session)
+    applied: dict[str, str] = {}
+
+    for key, path in _DEPLOYMENT_URL_PATHS.items():
+        target = canonical_site_url(path)
+        if not target:
+            continue
+
+        current = ((await svc.get(key)) or "").strip()
+        if not overwrite_existing and current:
+            continue
+        if current == target:
+            continue
+
+        await svc.set(key, target)
+        applied[key] = target
+
+    return applied
+
+
 async def reset_bot_settings_cache() -> None:
     """Clear the process-wide bot settings cache after external DB changes."""
     global _cache, _cache_ts, _cache_lock
@@ -245,7 +289,7 @@ async def reset_bot_settings_cache() -> None:
         _cache_ts = 0
 
 
-async def create_traffic_analysis_service() -> "TrafficAnalysisService":
+async def create_traffic_analysis_service() -> Any:
     from app.services.pasarguard.pasarguard import get_vpn_panel
 
     class TrafficAnalysisService:

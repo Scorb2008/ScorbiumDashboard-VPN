@@ -1,8 +1,8 @@
 import click
-import asyncio
 from rich.console import Console
 from rich.table import Table
 from datetime import datetime
+from app.cli import run_cli_async
 
 console = Console()
 
@@ -132,23 +132,19 @@ async def _set_setting(key: str, value: str):
         await session.commit()
 
 def status():
-    import asyncio
-    asyncio.run(_bot_status())
+    run_cli_async(_bot_status())
 
 def settings():
-    import asyncio
-    asyncio.run(_bot_settings())
+    run_cli_async(_bot_settings())
 
 def get(key=None):
     if key is None:
         key = click.prompt("Ключ настройки")
-    import asyncio
-    asyncio.run(_get_setting(key))
+    run_cli_async(_get_setting(key))
 
 def set_setting(key=None, value=None):
     if key is None:
         key = click.prompt("Ключ настройки")
     if value is None:
         value = click.prompt("Значение")
-    import asyncio
-    asyncio.run(_set_setting(key, value))
+    run_cli_async(_set_setting(key, value))

@@ -7,7 +7,6 @@ import yookassa
 from yookassa import Payment as YKPayment
 from yookassa.domain.response import PaymentResponse
 
-from app.core.config import config
 from app.core.exceptions import YookassaPaymentError
 from app.utils.log import log
 
@@ -15,7 +14,7 @@ from app.utils.log import log
 async def _get_yookassa_credentials() -> Optional[dict]:
     """
     Returns credentials Yookassa.
-    Priority: bot_settings (DB) → .env config.
+    Source of truth: bot_settings (DB).
     Use ORM — SQL-injection impossible.
     """
     try:
@@ -29,12 +28,6 @@ async def _get_yookassa_credentials() -> Optional[dict]:
                 return {"shop_id": int(shop_id_str), "secret_key": secret_key}
     except Exception as e:
         log.debug(f"YooKassa DB credentials lookup failed: {e}")
-
-    # Fallback to .env
-    if config.yookassa:
-        auth = config.yookassa.get_auth
-        if auth:
-            return auth
     return None
 
 
@@ -49,21 +42,16 @@ def _configure_yookassa_sync(shop_id: int, secret_key: str) -> None:
 
 class YookassaService:
     def __init__(self, shop_id: Optional[int] = None, secret_key: Optional[str] = None) -> None:
-        """
-        If shop_id/secret_key not set — use _configure_yookassa() (env).
-        For async-initialization from DB use YookassaService.create().
-        """
         if shop_id and secret_key:
             _configure_yookassa_sync(shop_id, secret_key)
             self._ready = True
         else:
-            self._ready = _configure_yookassa_env()
-            if not self._ready:
-                raise YookassaPaymentError("Yookassa is not configured. Check YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY.")
+            self._ready = False
+            raise YookassaPaymentError("Yookassa is not configured in bot settings.")
 
     @classmethod
     async def create(cls) -> "YookassaService":
-        """Async factory — get settings from DB or .env."""
+        """Async factory — get settings from bot settings (DB)."""
         creds = await _get_yookassa_credentials()
         if not creds:
             raise YookassaPaymentError("Yookassa is not configured.")
@@ -148,13 +136,3 @@ class YookassaService:
     async def is_succeeded(self, payment_id: str) -> bool:
         payment = await self.get_payment(payment_id)
         return payment.status == "succeeded"
-
-
-def _configure_yookassa_env() -> bool:
-    if not config.yookassa:
-        return False
-    auth = config.yookassa.get_auth
-    if not auth:
-        return False
-    _configure_yookassa_sync(auth["shop_id"], auth["secret_key"])
-    return True

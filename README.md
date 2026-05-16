@@ -170,7 +170,7 @@ uv run pytest -q
 - telegram: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_IDS`, `TELEGRAM_TYPE_PROTOCOL`
 - database: `DB_*`
 - vpn panel: `PASARGUARD_*`, `VPN_PANEL_TYPE`
-- payments: `YOOKASSA_*`, `CRYPTOBOT_TOKEN`
+- payments: provider settings are stored in the database; `CRYPTOBOT_TOKEN` can be used for initial seed
 - domain/ssl: `DOMAIN`, `HTTPS_PORT`
 
 ## Что важно знать

@@ -1,9 +1,9 @@
 import click
-import asyncio
 from rich.console import Console
 from rich.table import Table
 from datetime import datetime
 from decimal import Decimal
+from app.cli import run_cli_async
 
 console = Console()
 
@@ -186,8 +186,7 @@ async def _revoke_sub(key_id: int):
         click.secho(f"✓ Подписка {key_id} отозвана", fg="green", bold=True)
 
 def list_subs(status="active", limit=20):
-    import asyncio
-    asyncio.run(_list_subs(status, limit))
+    run_cli_async(_list_subs(status, limit))
 
 def create(user_id=None, plan_id=None, days=None, name=None):
     if user_id is None:
@@ -205,19 +204,16 @@ def create(user_id=None, plan_id=None, days=None, name=None):
         days = None
         name = None
 
-    import asyncio
-    asyncio.run(_create_sub(user_id, plan_id, days, name))
+    run_cli_async(_create_sub(user_id, plan_id, days, name))
 
 def extend(key_id=None, days=None):
     if key_id is None:
         key_id = click.prompt("ID подписки", type=int)
     if days is None:
         days = click.prompt("Дней продления", type=int)
-    import asyncio
-    asyncio.run(_extend_sub(key_id, days))
+    run_cli_async(_extend_sub(key_id, days))
 
 def revoke(key_id=None):
     if key_id is None:
         key_id = click.prompt("ID подписки", type=int)
-    import asyncio
-    asyncio.run(_revoke_sub(key_id))
+    run_cli_async(_revoke_sub(key_id))

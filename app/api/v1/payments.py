@@ -15,14 +15,7 @@ router = APIRouter()
 
 
 async def _get_yookassa_webhook_secret(db: AsyncSession) -> str:
-    secret = await BotSettingsService(db).get("yookassa_secret_key_override") or ""
-    if secret:
-        return secret
-    from app.core.config import config as _yk_cfg
-
-    if _yk_cfg.yookassa and _yk_cfg.yookassa.yookassa_secret_key:
-        return _yk_cfg.yookassa.yookassa_secret_key.get_secret_value()
-    return ""
+    return await BotSettingsService(db).get("yookassa_secret_key_override") or ""
 
 
 async def _notify_topup_success(payment_user_id: int, amount, balance) -> None:

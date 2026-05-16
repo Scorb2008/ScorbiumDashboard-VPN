@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 from fastapi import UploadFile
+from sqlalchemy import select
 from starlette.requests import Request
 
 import app.api.panel.routes.backup as backup_routes
@@ -14,6 +15,8 @@ from app.api.panel.routes.backup import (
     backup_import,
     _prepare_restore_sql,
 )
+from app.models.bot_settings import BotSettings
+from app.services.bot_settings import sync_deployment_url_settings
 
 
 def test_prepare_restore_sql_strips_transaction_timeout_set():
@@ -83,6 +86,7 @@ def _make_request() -> Request:
 
 async def test_backup_import_success_without_request_db_session(monkeypatch):
     reset_cache = AsyncMock()
+    sync_urls = AsyncMock(return_value={})
 
     monkeypatch.setattr(backup_routes, "_require_permission", lambda request, permission: None)
     monkeypatch.setattr(
@@ -96,6 +100,7 @@ async def test_backup_import_success_without_request_db_session(monkeypatch):
         lambda *args, **kwargs: CompletedProcess(args=args[0], returncode=0, stdout=b"", stderr=b""),
     )
     monkeypatch.setattr(backup_routes, "_run_post_restore_migrations", lambda: (True, None))
+    monkeypatch.setattr(backup_routes, "_sync_deployment_settings_after_restore", sync_urls)
     monkeypatch.setattr(backup_routes, "reset_bot_settings_cache", reset_cache)
 
     response = await backup_import(
@@ -107,5 +112,43 @@ async def test_backup_import_success_without_request_db_session(monkeypatch):
     payload = json.loads(response.headers["HX-Trigger"])
 
     assert response.status_code == 200
+    sync_urls.assert_awaited_once()
     assert payload["showToast"]["type"] == "success"
     reset_cache.assert_awaited_once()
+
+
+async def test_sync_deployment_url_settings_overwrites_stale_restore_urls(session, monkeypatch):
+    session.add_all(
+        [
+            BotSettings(key="panel_url", value="https://old.example.com/panel/"),
+            BotSettings(key="admin_panel_url", value="https://old.example.com/panel/"),
+            BotSettings(key="cabinet_url", value="https://old.example.com/cabinet/"),
+        ]
+    )
+    await session.commit()
+
+    monkeypatch.setattr(
+        "app.services.bot_settings.config",
+        SimpleNamespace(web=SimpleNamespace(site_url="https://new.example.com")),
+    )
+
+    updated = await sync_deployment_url_settings(session, overwrite_existing=True)
+    await session.commit()
+
+    assert updated == {
+        "panel_url": "https://new.example.com/panel/",
+        "admin_panel_url": "https://new.example.com/panel/",
+        "cabinet_url": "https://new.example.com/cabinet/",
+    }
+
+    rows = {
+        row.key: row.value
+        for row in (
+            await session.execute(
+                select(BotSettings).where(
+                    BotSettings.key.in_(updated.keys())
+                )
+            )
+        ).scalars()
+    }
+    assert rows == updated

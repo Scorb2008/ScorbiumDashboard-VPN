@@ -31,7 +31,22 @@ async def _provision_with_retry(session, user_id: int, plan, max_retries: int = 
     return None
 
 
+async def _yookassa_polling_is_configured() -> bool:
+    async with AsyncSessionFactory() as session:
+        settings = BotSettingsService(session)
+        enabled = (await settings.get("ps_yookassa_enabled")) == "1"
+        if not enabled:
+            return False
+
+        shop_id = (await settings.get("yookassa_shop_id_override") or "").strip()
+        secret_key = (await settings.get("yookassa_secret_key_override") or "").strip()
+        return bool(shop_id and secret_key)
+
+
 async def check_pending_yookassa_payments() -> None:
+    if not await _yookassa_polling_is_configured():
+        return
+
     try:
         from app.services.yookassa import YookassaService
         yk = await YookassaService.create()

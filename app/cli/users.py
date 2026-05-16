@@ -1,4 +1,3 @@
-import asyncio
 from decimal import Decimal
 
 import click
@@ -6,6 +5,7 @@ from rich.console import Console
 from rich.table import Table
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
+from app.cli import run_cli_async
 
 console = Console()
 
@@ -316,38 +316,38 @@ async def _gift_subscription():
 
 
 def list_users(limit=20, offset=0, page=1):
-    asyncio.run(_list_users(limit, offset, page))
+    run_cli_async(_list_users(limit, offset, page))
 
 
 def search(query=None):
     if query is None:
         query = click.prompt("Поисковый запрос (ID, @username, или имя)")
-    asyncio.run(_search_user(query))
+    run_cli_async(_search_user(query))
 
 
 def info(user_id=None):
     if user_id is None:
         user_id = click.prompt("ID пользователя", type=int)
-    asyncio.run(_user_info(user_id))
+    run_cli_async(_user_info(user_id))
 
 
 def ban(user_id=None):
     if user_id is None:
         user_id = click.prompt("ID пользователя", type=int)
-    asyncio.run(_ban_user(user_id))
+    run_cli_async(_ban_user(user_id))
 
 
 def unban(user_id=None):
     if user_id is None:
         user_id = click.prompt("ID пользователя", type=int)
-    asyncio.run(_unban_user(user_id))
+    run_cli_async(_unban_user(user_id))
 
 
 def balance(user_id=None):
     if user_id is None:
         user_id = click.prompt("ID пользователя", type=int)
-    asyncio.run(_change_balance(user_id))
+    run_cli_async(_change_balance(user_id))
 
 
 def gift():
-    asyncio.run(_gift_subscription())
+    run_cli_async(_gift_subscription())

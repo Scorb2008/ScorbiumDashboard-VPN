@@ -1,7 +1,7 @@
 import click
-import asyncio
 from rich.console import Console
 from rich.table import Table
+from app.cli import run_cli_async
 
 console = Console()
 
@@ -105,8 +105,7 @@ async def _edit_plan(plan_id: int):
         click.secho(f"✓ Тариф {plan_id} обновлен", fg="green", bold=True)
 
 def list_plans():
-    import asyncio
-    asyncio.run(_list_plans())
+    run_cli_async(_list_plans())
 
 def create(name=None, duration=None, price=None, active=None):
     if name is None:
@@ -118,11 +117,9 @@ def create(name=None, duration=None, price=None, active=None):
     if active is None:
         active = click.confirm("Активен?", default=True)
 
-    import asyncio
-    asyncio.run(_create_plan(name, duration, price, active))
+    run_cli_async(_create_plan(name, duration, price, active))
 
 def edit(plan_id=None):
     if plan_id is None:
         plan_id = click.prompt("ID тарифа", type=int)
-    import asyncio
-    asyncio.run(_edit_plan(plan_id))
+    run_cli_async(_edit_plan(plan_id))

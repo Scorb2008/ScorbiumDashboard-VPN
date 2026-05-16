@@ -53,10 +53,6 @@ PasarGuard / Marzban:
   Логин: admin
   Пароль: ваш_пароль
 
-YooKassa (Enter = пропустить):
-  Shop ID: 1234567
-  Secret Key: test_...
-
 Домен: your-domain.com
 Email для SSL: your@email.com
 ```
@@ -80,6 +76,7 @@ Email для SSL: your@email.com
 3. Устанавливается `certbot` и получается SSL сертификат
 4. Запускается `nginx` с SSL
 5. Применяются миграции БД
+6. Платёжные системы настраиваются позже через админ-панель и сохраняются в БД
 
 ## Следующие шаги
 

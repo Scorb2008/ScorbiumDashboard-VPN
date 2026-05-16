@@ -1,10 +1,12 @@
 import click
-import asyncio
 import subprocess
 from rich.console import Console
 from rich.table import Table
+from pathlib import Path
+from app.cli import get_repo_root, run_cli_async
 
 console = Console()
+REPO_ROOT = get_repo_root()
 
 async def _db_stats():
     from app.core.database import AsyncSessionFactory
@@ -38,11 +40,11 @@ async def _db_stats():
         total_subs = result.scalar()
         
         # Payments stats
-        stmt = select(func.count(Payment.id)).where(Payment.status == "success")
+        stmt = select(func.count(Payment.id)).where(Payment.status == "succeeded")
         result = await session.execute(stmt)
         success_payments = result.scalar()
         
-        stmt = select(func.sum(Payment.amount)).where(Payment.status == "success")
+        stmt = select(func.sum(Payment.amount)).where(Payment.status == "succeeded")
         result = await session.execute(stmt)
         total_revenue = result.scalar() or 0
         
@@ -149,7 +151,7 @@ async def _migrate():
     try:
         result = subprocess.run(
             ["uv", "run", "python", "fix_alembic.py"],
-            cwd="/Users/itsskramb/ScorbiumDashboard",
+            cwd=REPO_ROOT,
             capture_output=True,
             text=True
         )
@@ -167,7 +169,7 @@ async def _migrate():
     try:
         result = subprocess.run(
             ["uv", "run", "alembic", "upgrade", "head"],
-            cwd="/Users/itsskramb/ScorbiumDashboard",
+            cwd=REPO_ROOT,
             capture_output=True,
             text=True
         )
@@ -179,13 +181,10 @@ async def _migrate():
         click.secho(f"  ✗ Ошибка: {e}", fg="red")
 
 def stats():
-    import asyncio
-    asyncio.run(_db_stats())
+    run_cli_async(_db_stats())
 
 def clear():
-    import asyncio
-    asyncio.run(_clear_data())
+    run_cli_async(_clear_data())
 
 def migrate():
-    import asyncio
-    asyncio.run(_migrate())
+    run_cli_async(_migrate())

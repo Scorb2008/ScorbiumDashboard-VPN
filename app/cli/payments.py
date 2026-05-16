@@ -1,9 +1,9 @@
 import click
-import asyncio
 from rich.console import Console
 from rich.table import Table
 from datetime import datetime, timedelta
 from decimal import Decimal
+from app.cli import run_cli_async
 
 console = Console()
 
@@ -159,9 +159,7 @@ async def _payment_stats():
                 click.echo(f"  {provider_text}: {amount:.2f} ({count} платежей)")
 
 def list_payments(limit=20):
-    import asyncio
-    asyncio.run(_list_payments(limit))
+    run_cli_async(_list_payments(limit))
 
 def stats():
-    import asyncio
-    asyncio.run(_payment_stats())
+    run_cli_async(_payment_stats())

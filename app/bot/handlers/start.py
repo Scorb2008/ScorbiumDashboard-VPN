@@ -255,8 +255,9 @@ async def topup_menu(callback: CallbackQuery) -> None:
         lang = await _get_lang_from_session(callback.from_user.id, session)
         settings = await BotSettingsService(session).get_all()
         has_yookassa = bool(
-            settings.get("yookassa_shop_id")
-            or (config.yookassa and config.yookassa.yookassa_shop_id)
+            settings.get("ps_yookassa_enabled", "0") == "1"
+            and settings.get("yookassa_shop_id_override")
+            and settings.get("yookassa_secret_key_override")
         )
         has_cryptobot = bool(settings.get("cryptobot_token", "").strip())
 
@@ -334,18 +335,12 @@ async def _show_topup_payment(
 
         rate = await TelegramStarsService.get_rate(session)
 
-    from app.core.config import config as _cfg
-
-    _yk_env = _cfg.yookassa
-    _yk_env_ok = bool(
-        _yk_env and _yk_env.yookassa_shop_id and _yk_env.yookassa_secret_key
-    )
     _yk_db_ok = bool(
         settings.get("yookassa_shop_id_override")
         and settings.get("yookassa_secret_key_override")
     )
     _yk_toggle = settings.get("ps_yookassa_enabled", "0") == "1"
-    _yk_configured = _yk_env_ok or _yk_db_ok
+    _yk_configured = _yk_db_ok
     has_yookassa = _yk_toggle and _yk_configured
 
     _sbp_toggle = settings.get("ps_sbp_enabled", "0") == "1"
@@ -370,31 +365,6 @@ async def _show_topup_payment(
                 callback_data=f"topup:pay:yookassa:{amount}",
             )
         )
-    _yk_db_ok = bool(
-        settings.get("yookassa_shop_id_override")
-        and settings.get("yookassa_secret_key_override")
-    )
-    _yk_toggle = settings.get("ps_yookassa_enabled", "0") == "1"
-    _yk_configured = _yk_env_ok or _yk_db_ok
-    has_yookassa = _yk_toggle and _yk_configured
-
-    _sbp_toggle = settings.get("ps_sbp_enabled", "0") == "1"
-    has_sbp = _sbp_toggle and _yk_configured
-
-    _cb_toggle = settings.get("ps_cryptobot_enabled", "0") == "1"
-    has_cryptobot = _cb_toggle and bool(settings.get("cryptobot_token", "").strip())
-
-    stars_amount = TelegramStarsService.rub_to_stars(float(amount), rate=rate)
-
-    from app.core.config import config as _cfg
-
-    has_yookassa = bool(
-        _cfg.yookassa
-        and _cfg.yookassa.yookassa_shop_id
-        and _cfg.yookassa.yookassa_secret_key
-    )
-    has_cryptobot = bool(settings.get("cryptobot_token", "").strip())
-
     builder = InlineKeyboardBuilder()
 
     if has_yookassa:

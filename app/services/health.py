@@ -215,9 +215,14 @@ class HealthService:
 
     async def _check_yookassa(self, entry: HealthEntry):
         import httpx
+        from app.core.database import AsyncSessionFactory
+        from app.services.bot_settings import BotSettingsService
 
-        shop_id = config.yookassa.yookassa_shop_id
-        secret = config.yookassa.yookassa_secret_key
+        async with AsyncSessionFactory() as session:
+            svc = BotSettingsService(session)
+            shop_id = (await svc.get("yookassa_shop_id_override") or "").strip()
+            secret = (await svc.get("yookassa_secret_key_override") or "").strip()
+
         if not shop_id or not secret:
             entry.warn(0, "Не настроена")
             return
@@ -226,7 +231,7 @@ class HealthService:
             try:
                 resp = await client.get(
                     "https://api.yookassa.ru/v3/me",
-                    auth=(str(shop_id), secret.get_secret_value()),
+                    auth=(str(shop_id), secret),
                 )
                 latency = (time.time() - start) * 1000
                 if resp.status_code in (200, 401):

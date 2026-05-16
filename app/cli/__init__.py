@@ -1,6 +1,10 @@
 import os
 import socket
 from pathlib import Path
+from typing import Awaitable, TypeVar
+import asyncio
+
+T = TypeVar("T")
 
 
 def _read_env_db_host() -> str:
@@ -35,3 +39,25 @@ def bootstrap_cli_environment() -> None:
         return
     except socket.gaierror:
         os.environ["DB_HOST"] = "127.0.0.1"
+
+
+def get_repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def run_cli_async(awaitable: Awaitable[T]) -> T:
+    """Run a CLI coroutine and always dispose the shared async DB engine."""
+
+    async def _runner() -> T:
+        try:
+            return await awaitable
+        finally:
+            try:
+                from app.core.database import close_db
+
+                await close_db()
+            except Exception:
+                # CLI cleanup must not hide the original command result/error.
+                pass
+
+    return asyncio.run(_runner())

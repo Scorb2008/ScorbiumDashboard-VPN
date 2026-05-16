@@ -140,15 +140,6 @@ async def ps_test_yookassa(request: Request, db: AsyncSession = Depends(get_db))
     secret_key = await svc.get("yookassa_secret_key_override") or ""
 
     if not shop_id_str or not secret_key:
-        if (
-            config.yookassa
-            and config.yookassa.yookassa_shop_id
-            and config.yookassa.yookassa_secret_key
-        ):
-            shop_id_str = str(config.yookassa.yookassa_shop_id)
-            secret_key = config.yookassa.yookassa_secret_key.get_secret_value()
-
-    if not shop_id_str or not secret_key:
         return JSONResponse(
             {"ok": False, "message": "ЮКасса не настроена"}, status_code=400
         )

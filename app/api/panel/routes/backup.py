@@ -17,7 +17,10 @@ from app.models.payment import Payment
 from app.models.support import SupportTicket
 from app.models.user import User
 from app.models.vpn_key import VpnKey
-from app.services.bot_settings import reset_bot_settings_cache
+from app.services.bot_settings import (
+    reset_bot_settings_cache,
+    sync_deployment_url_settings,
+)
 
 from .shared import _require_permission, _toast, _base_ctx, templates
 
@@ -155,6 +158,18 @@ def _run_post_restore_migrations() -> tuple[bool, str | None]:
     return True, None
 
 
+async def _sync_deployment_settings_after_restore() -> dict[str, str]:
+    from app.core.database import AsyncSessionFactory
+
+    async with AsyncSessionFactory() as session:
+        updated = await sync_deployment_url_settings(
+            session,
+            overwrite_existing=True,
+        )
+        await session.commit()
+        return updated
+
+
 @router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def backup_page(request: Request, db: AsyncSession = Depends(get_db)):
@@ -259,6 +274,7 @@ async def backup_import(
             _toast(resp, f"Импорт выполнен, но миграции не применились: {migrations_error}", "error")
             return resp
 
+        await _sync_deployment_settings_after_restore()
         await reset_bot_settings_cache()
         resp = Response(status_code=200)
         _toast(resp, "База данных восстановлена и приведена к текущей схеме")

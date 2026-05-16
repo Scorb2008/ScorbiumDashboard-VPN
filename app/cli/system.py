@@ -1,11 +1,15 @@
 import click
-import asyncio
 import subprocess
 from rich.console import Console
 from rich.table import Table
 from datetime import datetime
+from pathlib import Path
+import shutil
+
+from app.cli import get_repo_root, run_cli_async
 
 console = Console()
+REPO_ROOT = get_repo_root()
 
 
 def _telegram_token_value():
@@ -156,37 +160,71 @@ async def _remove_admin(admin_id: int):
 async def _show_logs(lines: int):
     click.echo(f"Последние {lines} строк логов:")
     click.echo("")
-    
-    try:
-        result = subprocess.run(
-            ["docker", "compose", "logs", "--tail", str(lines), "app"],
-            cwd="/Users/itsskramb/ScorbiumDashboard",
-            capture_output=True,
-            text=True
+
+    log_dir = REPO_ROOT / "logs"
+
+    def _print_log_files() -> bool:
+        if not log_dir.exists():
+            return False
+
+        candidates = sorted(
+            [path for path in log_dir.glob("app_*.log*") if path.is_file()],
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
         )
-        
-        if result.returncode == 0:
-            click.echo(result.stdout)
+        if not candidates:
+            return False
+
+        shown = 0
+        for path in candidates:
+            if path.suffix == ".zip":
+                continue
+
+            try:
+                with path.open("r", encoding="utf-8", errors="ignore") as f:
+                    chunk = f.readlines()
+            except OSError:
+                continue
+
+            remaining = lines - shown
+            if remaining <= 0:
+                break
+
+            tail = chunk[-remaining:]
+            for line in tail:
+                click.echo(line.rstrip())
+            shown += len(tail)
+
+            if shown >= lines:
+                break
+
+        return shown > 0
+
+    try:
+        if shutil.which("docker"):
+            result = subprocess.run(
+                ["docker", "compose", "logs", "--tail", str(lines), "app"],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True
+            )
+
+            if result.returncode == 0:
+                click.echo(result.stdout)
+                return
+
+        if _print_log_files():
+            return
         else:
-            import os
-            log_file = "/Users/itsskramb/ScorbiumDashboard/app.log"
-            if os.path.exists(log_file):
-                with open(log_file, 'r') as f:
-                    all_lines = f.readlines()
-                    for line in all_lines[-lines:]:
-                        click.echo(line.rstrip())
-            else:
-                click.secho("Логи недоступны (docker не запущен или файл логов не найден)", fg="yellow")
+            click.secho("Логи недоступны (docker недоступен и файлов логов не найдено)", fg="yellow")
     except Exception as e:
         click.secho(f"Ошибка при чтении логов: {e}", fg="red")
 
 def health():
-    import asyncio
-    asyncio.run(_health_check())
+    run_cli_async(_health_check())
 
 def admins():
-    import asyncio
-    asyncio.run(_list_admins())
+    run_cli_async(_list_admins())
 
 def add_admin(tg_id=None, role="admin", name=None):
     if tg_id is None:
@@ -195,17 +233,14 @@ def add_admin(tg_id=None, role="admin", name=None):
         role = click.prompt("Роль", default="admin")
     if name is None:
         name = click.prompt("Имя")
-    import asyncio
-    asyncio.run(_add_admin(tg_id, role, name))
+    run_cli_async(_add_admin(tg_id, role, name))
 
 def remove_admin(admin_id=None):
     if admin_id is None:
         admin_id = click.prompt("ID администратора", type=int)
-    import asyncio
-    asyncio.run(_remove_admin(admin_id))
+    run_cli_async(_remove_admin(admin_id))
 
 def logs(lines=50):
     if lines is None:
         lines = click.prompt("Количество строк", type=int, default=50)
-    import asyncio
-    asyncio.run(_show_logs(lines))
+    run_cli_async(_show_logs(lines))
