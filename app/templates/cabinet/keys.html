@@ -14,15 +14,23 @@
   <div class="rf">
     {% for key in keys %}
     {% set t = (key.download or 0) + (key.upload or 0) %}
+    {% if key.status == 'active' %}
+    {% set status_label = 'Активна' %}
+    {% set status_class = 'bdg-g' %}
+    {% elif key.status == 'expired' %}
+    {% set status_label = 'Истекла' %}
+    {% set status_class = 'bdg-b' %}
+    {% else %}
+    {% set status_label = 'Откл.' %}
+    {% set status_class = 'bdg-w' %}
+    {% endif %}
     <div class="kc">
       <div class="kh">
-        <div>
+        <div class="kh-copy">
           <div class="kn">{{ key.name or 'VPN подписка' }}</div>
           <div class="ks">{{ key.pasarguard_key_id or '' }}</div>
         </div>
-        {% if key.status == 'active' %}<span class="bdg bdg-g">Активна</span>
-        {% elif key.status == 'expired' %}<span class="bdg bdg-b">Истекла</span>
-        {% else %}<span class="bdg bdg-w">Откл.</span>{% endif %}
+        <span class="bdg {{ status_class }}">{{ status_label }}</span>
       </div>
       <div class="kb">
         <div class="kr"><span class="kl">Создан</span><span class="kv">{{ key.created_at.strftime('%d.%m.%Y') if key.created_at else '—' }}</span></div>
@@ -33,19 +41,11 @@
       <div class="kf">
         {% if key.access_url and key.access_url != 'pending' %}
         <div class="cp">
-          <textarea
-            class="inp"
-            onclick="copyInputValue(this, 'Ссылка скопирована'); return false;"
-            onfocus="this.select(); this.setSelectionRange(0, this.value.length);"
-            title="Нажмите, чтобы скопировать ссылку"
-            rows="3"
-            spellcheck="false"
-            autocapitalize="off"
-            autocomplete="off"
-            autocorrect="off"
-          >{{ key.access_url }}</textarea>
-          <button class="btn btn-p" type="button" data-copy-url="{{ key.access_url }}" data-copy-success="Ссылка скопирована" onclick="copyText(this.dataset.copyUrl || '', this.dataset.copySuccess || 'Ссылка скопирована'); return false;"><i class="bi bi-copy"></i><span>Копировать</span></button>
-          <a class="btn btn-o" href="{{ key.access_url }}" data-open-url="{{ key.access_url }}" onclick="return openInputValue(this, this.dataset.openUrl || this.href)"><i class="bi bi-box-arrow-up-right"></i><span>Открыть</span></a>
+          <div class="cp-url" title="{{ key.access_url }}">{{ key.access_url }}</div>
+          <div class="cp-actions">
+            <button class="btn btn-p btn-sm" type="button" data-copy-url="{{ key.access_url }}" data-copy-success="Ссылка скопирована" onclick="copyText(this.dataset.copyUrl || '', this.dataset.copySuccess || 'Ссылка скопирована'); return false;"><i class="bi bi-copy"></i><span>Копировать</span></button>
+            <a class="btn btn-o btn-sm" href="{{ key.access_url }}" data-open-url="{{ key.access_url }}" onclick="return openInputValue(this, this.dataset.openUrl || this.href)"><i class="bi bi-box-arrow-up-right"></i><span>Открыть</span></a>
+          </div>
         </div>
         {% else %}
         <div class="ib"><i class="bi bi-hourglass-split cg"></i><div><strong>Подготовка</strong><span class="muted">Ключ появится автоматически</span></div></div>

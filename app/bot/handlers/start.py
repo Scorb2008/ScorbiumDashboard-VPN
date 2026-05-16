@@ -85,13 +85,15 @@ async def cmd_start(message: Message) -> None:
 
                 bonus_value = Decimal(bonus_value_str)
                 bonus_days = int(bonus_value) if bonus_type == "days" else 0
-                await ref_svc.create(
+                ref = await ref_svc.create(
                     referrer_id=referrer.id,
                     referred_id=user.id,
                     bonus_days=bonus_days,
                     bonus_type=bonus_type,
                     bonus_value=bonus_value,
                 )
+                if ref:
+                    await ref_svc.pay_bonus(ref.id)
 
         await session.commit()
 

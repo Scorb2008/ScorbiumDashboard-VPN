@@ -87,15 +87,15 @@ class VpnKeyService:
     async def refresh_traffic_for_keys(self, keys: list[VpnKey]) -> None:
         if not keys:
             return
-        if not await self._supports_traffic_columns():
-            return
+        traffic_columns_supported = await self._supports_traffic_columns()
 
         for key in keys:
             if not key.pasarguard_key_id:
                 continue
             try:
                 marz_user = await self._get_panel().get_user(key.pasarguard_key_id)
-                if not marz_user:
+                self._sync_key_status_from_panel(key, marz_user)
+                if not marz_user or not traffic_columns_supported:
                     continue
                 download = marz_user.get("download", 0) or 0
                 upload = marz_user.get("upload", 0) or 0
@@ -103,6 +103,23 @@ class VpnKeyService:
                 key.upload = upload if isinstance(upload, int) else int(upload)
             except Exception as e:
                 log.warning(f"Traffic refresh error key {key.id}: {e}")
+
+    def _sync_key_status_from_panel(self, key: VpnKey, marz_user: dict | None) -> None:
+        if not marz_user:
+            key.status = VpnKeyStatus.REVOKED.value
+            return
+
+        raw_status = (
+            marz_user.get("_normalized_status")
+            or marz_user.get("status", "")
+        ).lower()
+
+        if raw_status == "active":
+            key.status = VpnKeyStatus.ACTIVE.value
+            return
+
+        if raw_status in ("expired", "limited", "disabled", "revoked"):
+            key.status = VpnKeyStatus.EXPIRED.value
 
     async def count_active(self) -> int:
         result = await self.session.execute(

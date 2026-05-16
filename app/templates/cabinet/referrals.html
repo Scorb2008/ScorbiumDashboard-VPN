@@ -12,6 +12,10 @@
       <div><div class="st-v">{{ referrals|length }}</div><div class="st-l">Приглашено</div></div>
     </div>
     <div class="cd-sm st">
+      <div class="st-i"><i class="bi bi-gift"></i></div>
+      <div><div class="st-v">{{ current_bonus_label }}</div><div class="st-l">Награда за 1 реферала</div></div>
+    </div>
+    <div class="cd-sm st">
       <div class="st-i"><i class="bi bi-code"></i></div>
       <div><div class="st-v">{{ user.referral_code or '—' }}</div><div class="st-l">Код</div></div>
     </div>
@@ -40,6 +44,7 @@
       <div>
         <strong>ID {{ ref.referred_id }}</strong>
         <div class="cm" style="font-size:.75rem">{{ ref.created_at.strftime('%d.%m.%Y') if ref.created_at else '—' }}</div>
+        <div class="cm" style="font-size:.75rem">Награда: {{ referral_service.format_bonus_label(ref.bonus_type, ref.bonus_value, lang=user.language or 'ru') }}</div>
       </div>
       <span class="bdg bdg-{{ 'g' if ref.is_paid else 'w' }}">{{ 'Начислен' if ref.is_paid else 'Ожидает' }}</span>
     </div>

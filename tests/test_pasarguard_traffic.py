@@ -4,6 +4,7 @@ import pytest
 
 from app.services.pasarguard.pasarguard import PasarguardService
 from app.services.vpn_key import VpnKeyService
+from app.models.vpn_key import VpnKeyStatus
 
 
 def test_pasarguard_normalizes_used_traffic_into_download_upload():
@@ -40,6 +41,28 @@ async def test_refresh_traffic_for_keys_uses_pasarguard_payload(session, sample_
     assert sample_vpn_key.download == 222
     assert sample_vpn_key.upload == 333
     panel.get_user.assert_awaited_once_with(sample_vpn_key.pasarguard_key_id)
+
+
+@pytest.mark.asyncio
+async def test_refresh_traffic_for_keys_updates_stale_status_from_pasarguard(
+    session, sample_vpn_key
+):
+    service = VpnKeyService(session)
+    service._traffic_columns_supported = True
+    sample_vpn_key.status = VpnKeyStatus.REVOKED.value
+
+    panel = AsyncMock()
+    panel.get_user.return_value = {
+        "username": sample_vpn_key.pasarguard_key_id,
+        "status": "active",
+        "download": 1,
+        "upload": 2,
+    }
+    service._marzban = panel
+
+    await service.refresh_traffic_for_keys([sample_vpn_key])
+
+    assert sample_vpn_key.status == VpnKeyStatus.ACTIVE.value
 
 
 @pytest.mark.asyncio

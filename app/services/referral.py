@@ -66,6 +66,40 @@ class ReferralService:
     MAX_REFERRALS_PER_USER = 500
     MAX_BONUS_VALUE = Decimal("999999")
 
+    @staticmethod
+    def normalize_bonus_type(bonus_type: str | None) -> str:
+        allowed = {
+            ReferralBonusType.DAYS.value,
+            ReferralBonusType.BALANCE.value,
+            ReferralBonusType.PERCENT.value,
+        }
+        normalized = (bonus_type or "").strip().lower()
+        return normalized if normalized in allowed else ReferralBonusType.DAYS.value
+
+    @classmethod
+    def format_bonus_label(
+        cls,
+        bonus_type: str | None,
+        bonus_value: Decimal | int | str | None,
+        *,
+        lang: str = "ru",
+    ) -> str:
+        normalized_type = cls.normalize_bonus_type(bonus_type)
+        value = Decimal(str(bonus_value or 0))
+
+        if normalized_type == ReferralBonusType.BALANCE.value:
+            return f"{value.normalize()} ₽" if value == value.to_integral() else f"{value} ₽"
+        if normalized_type == ReferralBonusType.PERCENT.value:
+            return f"{value.normalize()}%" if value == value.to_integral() else f"{value}%"
+
+        days_word = {
+            "ru": "дн.",
+            "en": "days",
+            "fa": "روز",
+        }.get(lang, "days")
+        days_value = int(value)
+        return f"{days_value} {days_word}"
+
     async def create(
         self,
         referrer_id: int,
@@ -77,6 +111,8 @@ class ReferralService:
         if referrer_id == referred_id:
             log.warning(f"Referral fraud: user {referrer_id} referred themselves")
             return None
+
+        bonus_type = self.normalize_bonus_type(bonus_type)
 
         # Validate bonus
         if bonus_value <= 0:
@@ -120,6 +156,7 @@ class ReferralService:
         user_svc = UserService(self.session)
 
         bonus_type = ref.bonus_type or "days"
+        bonus_type = self.normalize_bonus_type(bonus_type)
         bonus_value = ref.bonus_value or Decimal("0")
 
         if not bonus_value or bonus_value <= 0:

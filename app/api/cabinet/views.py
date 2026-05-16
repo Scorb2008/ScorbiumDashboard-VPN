@@ -589,16 +589,25 @@ async def cabinet_referrals(request: Request, db: AsyncSession = Depends(get_db)
     user = await _require_active_user(request, db)
     if not user:
         return RedirectResponse(url=_cabinet_redirect_url(request), status_code=302)
-    refs = await ReferralService(db).get_for_user(user.id)
+    ref_svc = ReferralService(db)
+    refs = await ref_svc.get_for_user(user.id)
     top = await ReferralService(db).get_top(limit=20)
     settings = await BotSettingsService(db).get_all()
     bot_username = await _ensure_bot_username(db, settings)
     if bot_username:
         settings["bot_username"] = bot_username
+    bonus_type = settings.get("referral_bonus_type", "days")
+    bonus_value = settings.get("referral_bonus_value", "3")
+    current_bonus_label = ref_svc.format_bonus_label(
+        bonus_type,
+        bonus_value,
+        lang=user.language or "ru",
+    )
     response = templates.TemplateResponse("cabinet/referrals.html", {
         "request": request, "app_name": config.web.app_name,
         "user": user, "referrals": refs, "top_referrers": top,
-        "settings": settings, "is_mini_app": _is_mini_app(request),
+        "settings": settings, "current_bonus_label": current_bonus_label,
+        "referral_service": ref_svc, "is_mini_app": _is_mini_app(request),
     })
     _persist_cabinet_session(request, response, user)
     return response
