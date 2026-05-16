@@ -18,6 +18,15 @@ error()   { echo -e "${RED}[ERR]${RESET}  $*" >&2; exit 1; }
 
 NGINX_GENERATED_CONF="nginx/nginx.generated.conf"
 
+prepare_generated_nginx_conf() {
+    mkdir -p "$(dirname "$NGINX_GENERATED_CONF")"
+    if [[ -d "$NGINX_GENERATED_CONF" ]]; then
+        warn "${NGINX_GENERATED_CONF} оказался директорией. Удаляю и пересоздаю как файл..."
+        rm -rf "$NGINX_GENERATED_CONF"
+    fi
+    : > "$NGINX_GENERATED_CONF"
+}
+
 echo -e "${BOLD}${CYAN}"
 echo "╔═══════════════════════════════════════════════════════════╗"
 echo "║       Scorbium Dashboard VPN  — Setup & Deploy            ║"
@@ -283,36 +292,70 @@ fi
 info "Генерирую .env..."
 
 cat > .env <<EOF
+# =============================================================================
+#  Scorbium Dashboard VPN — Environment Configuration
+#  Generated automatically by setup.sh
+# =============================================================================
+
+# ── Application ───────────────────────────────────────────────────────────────
 APP_NAME=${APP_NAME}
 APP_VERSION=${APP_VERSION}
 SERVER_HOST=0.0.0.0
 SERVER_PORT=8000
 ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+
+# ── Security ──────────────────────────────────────────────────────────────────
+JWT_SECRET_KEY=${JWT_SECRET_KEY}
 WEB_SUPERADMIN_USERNAME=${WEB_USER}
 WEB_SUPERADMIN_PASSWORD=${WEB_PASS}
-JWT_SECRET_KEY=${JWT_SECRET_KEY}
+
+# Metrics API key (optional - if set, /metrics endpoint requires Bearer token)
+METRICS_API_KEY=
+
+# Sentry DSN (optional - for error tracking)
+SENTRY_DSN=
+SENTRY_ENV=production
+
+# ── Telegram Bot ──────────────────────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN=${BOT_TOKEN}
 TELEGRAM_ADMIN_IDS=${ADMIN_IDS}
 TELEGRAM_TYPE_PROTOCOL=${TG_PROTOCOL}
 TELEGRAM_WEBHOOK_URL=${WEBHOOK_URL}
 TELEGRAM_WEBHOOK_PATH=/webhook/bot
+
+# ── VPN Panel (Marzban / Pasarguard) ──────────────────────────────────────────
 PASARGUARD_ADMIN_PANEL=${PASAR_URL}
 PASARGUARD_ADMIN_LOGIN=${PASAR_LOGIN}
 PASARGUARD_ADMIN_PASSWORD=${PASAR_PASS}
 PASARGUARD_API_KEY=
-VPN_PANEL_TYPE=marzban
-HTTPS_PORT=${HTTPS_PORT}
-DOMAIN=${DOMAIN}
+VPN_PANEL_TYPE=${VPN_PANEL_TYPE}
+
+# ── Database ──────────────────────────────────────────────────────────────────
 DB_ENGINE=postgresql
 DB_NAME=${DB_NAME}
 DB_HOST=db
 DB_PORT=5432
 DB_USER=${DB_USER}
 DB_PASSWORD=${DB_PASS}
+
+# ── Payment Systems ───────────────────────────────────────────────────────────
+# Configure payment providers from the admin panel after first login.
+CRYPTOBOT_TOKEN=
+
+# ── Domain / SSL ──────────────────────────────────────────────────────────────
+HTTPS_PORT=${HTTPS_PORT}
+DOMAIN=${DOMAIN}
+
+# ── Logging ───────────────────────────────────────────────────────────────────
 LOG_PATH=logs
 LOG_ROTATION=1 day
 LOG_RETENTION=30 days
 LOG_LEVEL=INFO
+
+# ── Redis (optional - enables shared production rate limiting) ───────────────
+# If you enable the optional Redis profile in docker-compose.prod.yml, use:
+# REDIS_URL=redis://redis:6379/0
+REDIS_URL=
 EOF
 
 # Secure .env permissions
@@ -325,6 +368,7 @@ mkdir -p logs nginx/ssl certbot_www
 # ── Генерация nginx.conf (продакшен) ──────────────────────────────────────────
 if [[ "$MODE" == "1" ]]; then
     info "Генерирую nginx.conf для ${DOMAIN}:${HTTPS_PORT}..."
+    prepare_generated_nginx_conf
 
     if [[ "$HTTPS_PORT" == "443" ]]; then
         REDIR='return 301 https://$host$request_uri;'

@@ -54,6 +54,15 @@ confirm_action() {
 COMPOSE_FILE="docker-compose.prod.yml"
 NGINX_GENERATED_CONF="nginx/nginx.generated.conf"
 
+prepare_generated_nginx_conf() {
+    mkdir -p "$(dirname "$NGINX_GENERATED_CONF")"
+    if [[ -d "$NGINX_GENERATED_CONF" ]]; then
+        warn "${NGINX_GENERATED_CONF} оказался директорией. Удаляю и пересоздаю как файл..."
+        rm -rf "$NGINX_GENERATED_CONF"
+    fi
+    : > "$NGINX_GENERATED_CONF"
+}
+
 echo -e "${BOLD}${CYAN}"
 echo "╔═══════════════════════════════════════════════════════════╗"
 echo "║       Scorbium Dashboard VPN  — Update                    ║"
@@ -261,6 +270,7 @@ fi
 
 # ── [3/6] nginx.conf ─────────────────────────────────────────────────────────
 info "[3/6] Генерирую nginx.conf..."
+prepare_generated_nginx_conf
 
 CERT_PATH="nginx/ssl/live/${DOMAIN}/fullchain.pem"
 if [[ ! -f "$CERT_PATH" ]]; then
