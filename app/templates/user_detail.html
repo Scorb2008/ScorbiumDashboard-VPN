@@ -3,6 +3,30 @@
 {% block page_title %}<i class="bi bi-person me-2" style="color:var(--accent)"></i>Пользователь #{{ user.id }}{% endblock %}
 
 {% block content %}
+<style>
+  .user-detail-actions .btn {
+    border-radius: 999px;
+    font-weight: 700;
+  }
+
+  .user-detail-green {
+    background: linear-gradient(135deg, rgba(0, 212, 170, .18), rgba(16, 185, 129, .1));
+    border: 1px solid rgba(0, 212, 170, .28);
+    color: var(--accent);
+  }
+
+  .user-detail-green:hover {
+    border-color: rgba(0, 212, 170, .5);
+    color: #7fffe5;
+    background: linear-gradient(135deg, rgba(0, 212, 170, .26), rgba(16, 185, 129, .14));
+  }
+
+  .user-detail-mini {
+    color: var(--text-muted);
+    font-size: .76rem;
+    line-height: 1.5;
+  }
+</style>
 <div class="row g-3">
 
   <!-- Info card -->
@@ -14,7 +38,7 @@
         </div>
         <div>
           <div class="fw-semibold" style="color:var(--text)">{{ user.full_name }}</div>
-          <div style="color:var(--text-muted);font-size:.8rem">{% if user.username %}@{{ user.username }}{% else %}без username{% endif %}</div>
+          <div class="user-detail-mini">{% if user.username %}@{{ user.username }}{% else %}без username{% endif %} · профиль клиента</div>
         </div>
         {% if user.is_banned %}
           <span class="badge badge-custom badge-expired ms-auto">Забанен</span>
@@ -34,9 +58,9 @@
       </div>
 
       <!-- Actions -->
-      <div class="d-flex flex-column gap-2">
+      <div class="d-flex flex-column gap-2 user-detail-actions">
         {% if user.is_banned %}
-        <button class="btn btn-sm btn-outline-success w-100"
+        <button class="btn btn-sm user-detail-green w-100"
           hx-post="/panel/users/{{ user.id }}/unban" hx-swap="none"
           onclick="location.reload()">
           <i class="bi bi-unlock me-1"></i>Разбанить
@@ -49,11 +73,11 @@
         </button>
         {% endif %}
 
-        <button class="btn btn-sm btn-outline-secondary w-100" data-bs-toggle="modal" data-bs-target="#balanceModal">
+        <button class="btn btn-sm user-detail-green w-100" data-bs-toggle="modal" data-bs-target="#balanceModal">
           <i class="bi bi-currency-ruble me-1"></i>Изменить баланс
         </button>
 
-        <button class="btn btn-sm btn-outline-secondary w-100" data-bs-toggle="modal" data-bs-target="#msgModal">
+        <button class="btn btn-sm user-detail-green w-100" data-bs-toggle="modal" data-bs-target="#msgModal">
           <i class="bi bi-chat me-1"></i>Написать сообщение
         </button>
       </div>
@@ -61,7 +85,8 @@
 
     <!-- Gift subscription -->
     <div class="card p-3 mb-3">
-      <div class="fw-semibold mb-3" style="color:var(--text)"><i class="bi bi-gift me-2 text-muted"></i>Подарить по тарифу</div>
+      <div class="fw-semibold mb-1" style="color:var(--text)"><i class="bi bi-gift me-2" style="color:var(--accent)"></i>Подарить по тарифу</div>
+      <p class="user-detail-mini mb-3">Выдаёт готовую подписку по выбранному тарифу.</p>
       <form hx-post="/panel/users/{{ user.id }}/gift-subscription" hx-swap="none">
         <select name="plan_id" class="form-select mb-2" required>
           {% for plan in plans %}
@@ -76,7 +101,8 @@
 
     <!-- Gift by days -->
     <div class="card p-3">
-      <div class="fw-semibold mb-3" style="color:var(--text)"><i class="bi bi-calendar-heart me-2 text-muted"></i>Подарить по дням</div>
+      <div class="fw-semibold mb-1" style="color:var(--text)"><i class="bi bi-calendar-heart me-2" style="color:var(--accent)"></i>Подарить по дням</div>
+      <p class="user-detail-mini mb-3">Быстрый бонус без привязки к тарифу.</p>
       <form hx-post="/panel/users/{{ user.id }}/gift-days" hx-swap="none">
         <div class="mb-2">
           <input type="number" name="days" class="form-control" placeholder="Дней" min="1" max="3650" required />
@@ -119,11 +145,11 @@
               <td style="color:var(--text-muted)">{{ sub.expires_at.strftime('%d.%m.%Y %H:%M') if sub.expires_at else '∞' }}</td>
               <td>
                 <div class="d-flex gap-1">
-                  <button class="btn btn-xs btn-outline-accent" title="Скопировать URL" onclick="copyKeyUrl('{{ sub.access_url }}')">
+                  <button class="btn btn-xs user-detail-green" title="Скопировать URL" onclick="copyKeyUrl('{{ sub.access_url }}')">
                     <i class="bi bi-clipboard"></i>
                   </button>
                   {% if st != 'revoked' %}
-                  <button class="btn btn-xs btn-outline-accent" title="Продлить" onclick="openExtendModal({{ sub.id }}, '{{ sub.plan.name if sub.plan else sub.name or '' }}')">
+                  <button class="btn btn-xs user-detail-green" title="Продлить" onclick="openExtendModal({{ sub.id }}, '{{ sub.plan.name if sub.plan else sub.name or '' }}')">
                     <i class="bi bi-clock-history"></i>
                   </button>
                   {% endif %}
