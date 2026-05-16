@@ -29,6 +29,17 @@ body {
 }
 
 a { color: inherit; text-decoration: none; }
+a:focus-visible,
+.nav-lnk:focus-visible,
+.nav-out:focus-visible,
+.btn:focus-visible,
+.pay-a:focus-visible,
+.pc:focus-visible,
+.lb:focus-visible,
+.bk:focus-visible {
+  outline: 2px solid rgba(88, 242, 200, 0.9);
+  outline-offset: 2px;
+}
 
 .wrap { max-width: 940px; margin: 0 auto; padding: 16px 12px 90px; }
 .wrap-sm { max-width: 600px; margin: 0 auto; padding: 16px 12px 90px; }
@@ -210,6 +221,13 @@ a { color: inherit; text-decoration: none; }
   cursor: pointer;
   transition: .12s;
 }
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: .55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
 .btn-p {
   background: linear-gradient(135deg, var(--accent), #8ac6ff);
   color: #051118;
@@ -220,8 +238,8 @@ a { color: inherit; text-decoration: none; }
   border: 1px solid rgba(159,193,255,.12);
   color: var(--text);
 }
-.btn-p:hover { transform: translateY(-1px); filter: brightness(1.03); }
-.btn-o:hover { border-color: var(--border-hover); background: rgba(255,255,255,.08); }
+.btn-p:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.03); }
+.btn-o:hover:not(:disabled) { border-color: var(--border-hover); background: rgba(255,255,255,.08); }
 .btn-w { width: 100%; }
 .btn-sm {
   padding: 9px 12px;
