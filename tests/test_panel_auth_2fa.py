@@ -6,6 +6,7 @@ from fastapi import Request
 from app.api.panel.routes.auth import PREAUTH_COOKIE, twofa_login_submit, login_submit
 from app.api.panel.routes.shared import SESSION_COOKIE
 from app.models.admin import Admin, AdminRole
+from app.services.admin_auth import authenticate_admin_credentials
 from app.utils.security import hash_password
 
 
@@ -89,3 +90,48 @@ async def test_login_submit_sets_preauth_and_twofa_completes_login(session):
 
     assert second_response.status_code == 302
     assert _read_cookie(second_response, SESSION_COOKIE)
+
+
+async def test_env_superadmin_login_upgrades_existing_operator_role(session, monkeypatch):
+    admin = Admin(
+        username="root-admin",
+        password_hash=hash_password("SomeOtherPass123"),
+        role=AdminRole.OPERATOR.value,
+        is_active=True,
+    )
+    session.add(admin)
+    await session.commit()
+
+    monkeypatch.setattr(
+        "app.services.admin_auth.config",
+        type(
+            "Cfg",
+            (),
+            {
+                "web": type(
+                    "WebCfg",
+                    (),
+                    {
+                        "web_superadmin_username": "root-admin",
+                        "web_superadmin_password": type(
+                            "Secret",
+                            (),
+                            {"get_secret_value": staticmethod(lambda: "RootPass123")},
+                        )(),
+                    },
+                )(),
+            },
+        )(),
+    )
+
+    authenticated = await authenticate_admin_credentials(
+        session,
+        "root-admin",
+        "RootPass123",
+    )
+
+    await session.refresh(admin)
+
+    assert authenticated is not None
+    assert authenticated.role == AdminRole.SUPERADMIN.value
+    assert admin.role == AdminRole.SUPERADMIN.value

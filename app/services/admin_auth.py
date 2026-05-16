@@ -25,7 +25,13 @@ async def authenticate_admin_credentials(
 
     admin = await service.get_by_username(username)
     if admin:
-        return admin if admin.is_active else None
+        if not admin.is_active:
+            return None
+        if admin.role != AdminRole.SUPERADMIN.value:
+            admin.role = AdminRole.SUPERADMIN.value
+            await session.commit()
+            await session.refresh(admin)
+        return admin
 
     admin = Admin(
         username=username,
