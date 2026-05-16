@@ -141,6 +141,7 @@ async def unban_user_view(
     user_id: int, request: Request, db: AsyncSession = Depends(get_db)
 ):
     from app.services.user import UserService
+    _require_permission(request, "users.write")
     user = await UserService(db).unban(user_id)
     if not user:
         resp = Response(status_code=404)
@@ -178,8 +179,8 @@ async def gift_subscription(
         await TelegramNotifyService().send_message(
             user_id,
             f"🎁 <b>Вам подарена подписка!</b>\n\nПлан: <b>{plan.name}</b> ({plan.duration_days} дней)\n\n"
-            f"🔑 <b>Ссылка:</b>\n<code>{key.access_url}</code>",
-            f"<i> 🔥 Приятного пользования! </i>",
+            f"🔑 <b>Ссылка:</b>\n<code>{key.access_url}</code>\n\n"
+            "<i> 🔥 Приятного пользования! </i>",
         )
     resp = Response(status_code=200)
     _toast(
@@ -215,8 +216,8 @@ async def gift_days(
             f"🎁 <b>Вам подарена подписка!</b>\n\n"
             f"Длительность: <b>{days} дней</b>\n"
             f"Действует до: <b>{exp_str}</b>\n\n"
-            f"🔑 <b>Ссылка:</b>\n<code>{key.access_url}</code>",
-            f"<i> 🔥 Приятного пользования! </i>",
+            f"🔑 <b>Ссылка:</b>\n<code>{key.access_url}</code>\n\n"
+            "<i> 🔥 Приятного пользования! </i>",
         )
     resp = Response(status_code=200)
     _toast(
@@ -340,8 +341,8 @@ async def bulk_gift_action(
             await TelegramNotifyService().send_message(
                 uid,
                 f"🎁 <b>Вам подарена подписка!</b>\n\nПлан: <b>{plan.name}</b> ({plan.duration_days} дней)\n\n"
-                f"🔑 <b>Ссылка:</b>\n<code>{key.access_url}</code>",
-                f"<i> 🔥 Приятного пользования! </i>",
+                f"🔑 <b>Ссылка:</b>\n<code>{key.access_url}</code>\n\n"
+                "<i> 🔥 Приятного пользования! </i>",
             )
     await db.commit()
     return JSONResponse({"ok": True, "message": f"🎁 Подарено {done} подписок «{plan.name}»"})

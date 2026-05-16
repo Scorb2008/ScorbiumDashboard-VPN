@@ -7,15 +7,6 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message, CallbackQuery, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-
-async def _safe_answer(callback: CallbackQuery) -> None:
-    """Safely answer callback query, ignoring timeout errors."""
-    try:
-        await callback.answer()
-    except Exception:
-        pass
-
-
 from app.bot.keyboards.main import back_kb
 from app.bot.utils.menu import get_main_menu_kb as _get_menu_kb
 from app.bot.handlers.admin import _is_admin
@@ -33,6 +24,14 @@ from app.core.config import config
 from app.utils.html_utils import escape_html, truncate
 
 router = Router()
+
+
+async def _safe_answer(callback: CallbackQuery) -> None:
+    """Safely answer callback query, ignoring timeout errors."""
+    try:
+        await callback.answer()
+    except Exception:
+        pass
 
 
 class PromoState(StatesGroup):
@@ -236,7 +235,7 @@ async def toggle_autorenew(callback: CallbackQuery) -> None:
     enabled = action == "on"
 
     async with AsyncSessionFactory() as session:
-        user = await UserService(session).set_autorenew(callback.from_user.id, enabled)
+        await UserService(session).set_autorenew(callback.from_user.id, enabled)
         await session.commit()
         lang = await _get_lang_from_session(callback.from_user.id, session)
 
@@ -255,13 +254,6 @@ _TOPUP_AMOUNTS = [100, 200, 500, 1000, 2000, 5000]
 async def topup_menu(callback: CallbackQuery) -> None:
     async with AsyncSessionFactory() as session:
         lang = await _get_lang_from_session(callback.from_user.id, session)
-        settings = await BotSettingsService(session).get_all()
-        has_yookassa = bool(
-            settings.get("ps_yookassa_enabled", "0") == "1"
-            and settings.get("yookassa_shop_id_override")
-            and settings.get("yookassa_secret_key_override")
-        )
-        has_cryptobot = bool(settings.get("cryptobot_token", "").strip())
 
     builder = InlineKeyboardBuilder()
     # Быстрые суммы
@@ -471,11 +463,14 @@ async def process_promo(message: Message, state: FSMContext) -> None:
         if promo:
             pt = str(promo.promo_type)
             if pt == "balance":
-                await UserService(session).add_balance(
-                    message.from_user.id, promo.value
-                )
-                await promo_service.consume(promo, user_id=message.from_user.id)
-                result_text = t("promo_balance", lang, value=promo.value)
+                consumed = await promo_service.consume(promo, user_id=message.from_user.id)
+                if not consumed:
+                    result_text = validation.message or t("promo_invalid", lang)
+                else:
+                    await UserService(session).add_balance(
+                        message.from_user.id, promo.value
+                    )
+                    result_text = t("promo_balance", lang, value=promo.value)
             elif pt == "days":
                 keys = await VpnKeyService(session).get_active_for_user(message.from_user.id)
                 if not keys:
@@ -491,9 +486,12 @@ async def process_promo(message: Message, state: FSMContext) -> None:
                         )
                     )
                 else:
-                    await VpnKeyService(session).extend(keys[0].id, int(promo.value))
-                    await promo_service.consume(promo, user_id=message.from_user.id)
-                    result_text = t("promo_days", lang, value=int(promo.value))
+                    consumed = await promo_service.consume(promo, user_id=message.from_user.id)
+                    if not consumed:
+                        result_text = validation.message or t("promo_invalid", lang)
+                    else:
+                        await VpnKeyService(session).extend(keys[0].id, int(promo.value))
+                        result_text = t("promo_days", lang, value=int(promo.value))
             else:
                 result_text = (
                     "✅ Скидочный промокод сохраните для оплаты в личном кабинете"

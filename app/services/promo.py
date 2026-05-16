@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Optional
 from sqlalchemy import select
-from sqlalchemy.exc import ProgrammingError
+from sqlalchemy.exc import IntegrityError, ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.promo import PromoCode
@@ -125,11 +125,33 @@ class PromoService:
 
         return PromoValidationResult(promo, None)
 
-    async def consume(self, promo: PromoCode, user_id: Optional[int] = None) -> Optional[PromoCode]:
+    async def consume(
+        self,
+        promo: PromoCode,
+        user_id: Optional[int] = None,
+        *,
+        plan_id: Optional[int] = None,
+    ) -> Optional[PromoCode]:
+        """Consume a promo atomically.
+
+        The row lock prevents two concurrent requests from both passing the
+        max_uses/current_uses check before either one increments the counter.
+        """
+        usage_tracking = await self._can_use_usage_tracking() if user_id else False
+        result = await self.session.execute(
+            select(PromoCode)
+            .where(PromoCode.id == promo.id)
+            .with_for_update()
+        )
+        locked_promo = result.scalar_one_or_none()
+        if not locked_promo:
+            return None
+
         validation = await self.validate_for_user(
-            promo.code,
+            locked_promo.code,
             user_id=user_id,
-            promo_type=str(promo.promo_type),
+            promo_type=str(locked_promo.promo_type),
+            plan_id=plan_id,
         )
         if not validation.promo:
             return None
@@ -140,9 +162,14 @@ class PromoService:
         stored_promo.current_uses += 1
         await self.session.flush()
 
-        if user_id and await self._can_use_usage_tracking():
+        if user_id and usage_tracking:
             self.session.add(PromoUsage(promo_id=stored_promo.id, user_id=user_id))
-            await self.session.flush()
+            try:
+                await self.session.flush()
+            except IntegrityError:
+                await self.session.rollback()
+                log.warning(f"Promo {stored_promo.code} duplicate usage blocked for user {user_id}")
+                return None
         return stored_promo
 
     async def apply(self, code: str, user_id: Optional[int] = None) -> Optional[PromoCode]:

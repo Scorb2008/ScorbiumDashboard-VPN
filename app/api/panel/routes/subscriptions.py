@@ -90,8 +90,8 @@ async def create_subscription_days(
         await TelegramNotifyService().send_message(
             user_id,
             f"🔑 <b>Ваш VPN-ключ готов!</b>\n\nДлительность: <b>{days} дней</b>\n"
-            f"📅 Действует до: <b>{exp_str}</b>\n\n<code>{key.access_url}</code>",
-            f"<i> 🔥 Приятного пользования! </i>"
+            f"📅 Действует до: <b>{exp_str}</b>\n\n<code>{key.access_url}</code>\n\n"
+            "<i> 🔥 Приятного пользования! </i>"
         )
     resp = Response(status_code=200)
     _toast(resp, "Подписка выдана" if key else "Ошибка создания ключа")

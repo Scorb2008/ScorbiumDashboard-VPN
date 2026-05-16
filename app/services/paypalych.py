@@ -171,6 +171,13 @@ class PayPalychService:
         """Check if Platega is configured."""
         return bool(self.api_token)
 
+    @staticmethod
+    def from_settings(settings: dict) -> Optional["PayPalychService"]:
+        token = (settings.get("paypalych_api_token") or "").strip()
+        if not token:
+            return None
+        return PayPalychService(token)
+
     async def test_connection(self) -> Dict[str, Any]:
         """Test API connection by getting balance."""
         if not self.is_configured():

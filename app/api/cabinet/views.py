@@ -248,7 +248,7 @@ async def _create_cabinet_yookassa_payment(
         )
 
         if promo:
-            consumed = await PromoService(db).consume(promo, user.id)
+            consumed = await PromoService(db).consume(promo, user.id, plan_id=plan.id)
             if not consumed:
                 await db.rollback()
                 return JSONResponse({"ok": False, "message": "Промокод уже использован"}, status_code=400)
@@ -495,11 +495,11 @@ async def cabinet_promo_apply(
             })
 
         if promo_type == PromoType.BALANCE.value:
-            await UserService(db).add_balance(user.id, promo.value)
             consumed = await promo_service.consume(promo, user.id)
             if not consumed:
                 await db.rollback()
                 return JSONResponse({"ok": False, "message": "Промокод уже использован"}, status_code=400)
+            await UserService(db).add_balance(user.id, promo.value)
             await db.commit()
             return JSONResponse({
                 "ok": True,
@@ -514,15 +514,15 @@ async def cabinet_promo_apply(
                 "message": "Для промокода на дни нужна хотя бы одна подписка",
             }, status_code=400)
 
-        updated_key = await VpnKeyService(db).extend(target_key.id, int(Decimal(str(promo.value))))
-        if not updated_key:
-            await db.rollback()
-            return JSONResponse({"ok": False, "message": "Не удалось продлить подписку"}, status_code=500)
-
         consumed = await promo_service.consume(promo, user.id)
         if not consumed:
             await db.rollback()
             return JSONResponse({"ok": False, "message": "Промокод уже использован"}, status_code=400)
+
+        updated_key = await VpnKeyService(db).extend(target_key.id, int(Decimal(str(promo.value))))
+        if not updated_key:
+            await db.rollback()
+            return JSONResponse({"ok": False, "message": "Не удалось продлить подписку"}, status_code=500)
 
         await db.commit()
         return JSONResponse({
@@ -798,7 +798,7 @@ async def cabinet_pay_balance(
                 return JSONResponse({"ok": False, "message": "Недостаточно средств"}, status_code=400)
 
         if promo:
-            consumed = await PromoService(db).consume(promo, user.id)
+            consumed = await PromoService(db).consume(promo, user.id, plan_id=plan.id)
             if not consumed:
                 await db.rollback()
                 return JSONResponse({"ok": False, "message": "Промокод уже использован"}, status_code=400)

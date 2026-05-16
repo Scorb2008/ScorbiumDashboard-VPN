@@ -164,6 +164,14 @@ class PlategaService:
         """Check if Platega is configured."""
         return bool(self.merchant_id and self.api_secret)
 
+    @staticmethod
+    def from_settings(settings: dict) -> Optional["PlategaService"]:
+        merchant_id = (settings.get("platega_merchant_id") or "").strip()
+        secret = (settings.get("platega_secret") or "").strip()
+        if not merchant_id or not secret:
+            return None
+        return PlategaService(merchant_id, secret)
+
     async def test_connection(self) -> Dict[str, Any]:
         """Test API connection by getting balance."""
         if not self.is_configured():

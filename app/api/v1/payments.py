@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from decimal import Decimal, InvalidOperation
 from typing import Optional
 
 from app.api.dependencies import get_db, get_current_admin
@@ -21,6 +22,94 @@ async def _get_yookassa_webhook_secret(db: AsyncSession) -> str:
         return override
     fallback = config.yookassa.yookassa_secret_key
     return fallback.get_secret_value().strip() if fallback else ""
+
+
+def _money_equal(left, right) -> bool:
+    try:
+        return Decimal(str(left)).quantize(Decimal("0.01")) == Decimal(str(right)).quantize(Decimal("0.01"))
+    except (InvalidOperation, TypeError, ValueError):
+        return False
+
+
+async def _verify_remote_provider_payment(
+    db: AsyncSession,
+    *,
+    provider: str,
+    external_id: str,
+    payment_id: int,
+) -> bool:
+    """Verify unsigned provider callbacks against the provider API.
+
+    Some aggregators do not send a webhook HMAC in this integration. Before
+    provisioning access we ask the provider API for the authoritative status,
+    and compare it with our pending payment amount.
+    """
+    payment = await PaymentService(db).get_by_id(payment_id)
+    if not payment:
+        log.warning(f"{provider} webhook: payment {payment_id} not found before remote verification")
+        return False
+
+    settings = await BotSettingsService(db).get_all()
+
+    try:
+        if provider == "platega":
+            from app.services.platega import PlategaService
+
+            svc = PlategaService.from_settings(settings)
+            if not svc:
+                log.error("Platega webhook: service not configured")
+                return False
+            remote = await svc.get_transaction_status(external_id)
+            status_raw = str(remote.get("status", "")).upper()
+            amount_raw = (remote.get("payment_details") or {}).get("amount")
+            if not remote.get("ok") or status_raw not in {"SUCCESS", "PAID", "COMPLETED"}:
+                log.warning(f"Platega webhook: remote status is not paid for {external_id}: {status_raw}")
+                return False
+            if amount_raw is not None and not _money_equal(amount_raw, payment.amount):
+                log.warning(f"Platega webhook: amount mismatch for payment {payment_id}")
+                return False
+            return True
+
+        if provider == "paypalych":
+            from app.services.paypalych import PayPalychService
+
+            svc = PayPalychService.from_settings(settings)
+            if not svc:
+                log.error("PayPalych webhook: service not configured")
+                return False
+            remote = await svc.get_bill_status(external_id)
+            status_raw = str(remote.get("status", "")).upper()
+            if not remote.get("ok") or status_raw not in {"PAID", "SUCCESS", "COMPLETED"}:
+                log.warning(f"PayPalych webhook: remote status is not paid for {external_id}: {status_raw}")
+                return False
+            amount_raw = remote.get("amount")
+            if amount_raw is not None and not _money_equal(amount_raw, payment.amount):
+                log.warning(f"PayPalych webhook: amount mismatch for payment {payment_id}")
+                return False
+            return True
+
+        if provider == "aikassa":
+            from app.services.aikassa import AiKassaService
+
+            svc = AiKassaService.from_settings(settings)
+            if not svc:
+                log.error("AiKassa webhook: service not configured")
+                return False
+            remote = await svc.get_invoice(external_id)
+            status_raw = str((remote or {}).get("status", "")).lower()
+            if not remote or status_raw not in {"paid", "success", "completed"}:
+                log.warning(f"AiKassa webhook: remote status is not paid for {external_id}: {status_raw}")
+                return False
+            amount_raw = remote.get("amount")
+            if amount_raw is not None and not _money_equal(amount_raw, payment.amount):
+                log.warning(f"AiKassa webhook: amount mismatch for payment {payment_id}")
+                return False
+            return True
+    except Exception as exc:
+        log.error(f"{provider} webhook: remote verification failed: {exc}")
+        return False
+
+    return False
 
 
 async def _notify_topup_success(payment_user_id: int, amount, balance) -> None:
@@ -487,6 +576,14 @@ async def platega_webhook(request: Request, db: AsyncSession = Depends(get_db)) 
             log.error(f"Platega webhook: unknown payload format: {payload_raw}")
             return "OK"
 
+        if not await _verify_remote_provider_payment(
+            db,
+            provider="platega",
+            external_id=str(transaction_id),
+            payment_id=payment_id,
+        ):
+            return "OK"
+
         payment, key, just_confirmed, just_processed = await _finalize_subscription_payment(
             db,
             int(payment_id),
@@ -552,6 +649,14 @@ async def paypalych_webhook(request: Request, db: AsyncSession = Depends(get_db)
             log.error(f"PayPalych webhook: unknown custom format: {custom_raw}")
             return "OK"
 
+        if not await _verify_remote_provider_payment(
+            db,
+            provider="paypalych",
+            external_id=str(bill_id),
+            payment_id=payment_id,
+        ):
+            return "OK"
+
         payment, key, just_confirmed, just_processed = await _finalize_subscription_payment(
             db,
             int(payment_id),
@@ -610,6 +715,14 @@ async def aikassa_webhook(request: Request, db: AsyncSession = Depends(get_db)) 
             extend_key_id = int(parts[3]) if len(parts) > 3 else None
         else:
             log.error(f"AiKassa webhook: unknown orderId format: {payload_raw}")
+            return "OK"
+
+        if not await _verify_remote_provider_payment(
+            db,
+            provider="aikassa",
+            external_id=str(invoice_id),
+            payment_id=payment_id,
+        ):
             return "OK"
 
         payment, key, just_confirmed, just_processed = await _finalize_subscription_payment(
