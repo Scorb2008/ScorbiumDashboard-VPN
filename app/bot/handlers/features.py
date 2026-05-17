@@ -1,6 +1,7 @@
 """
 Уникальные фичи VPN бота:
-- /status    — статус всех подписок + дней осталось
+- /status    — статус всех подписок + трафик + дней осталось
+- /payments  — история платежей пользователя
 - /ping      — пинг до VPN серверов (через Marzban nodes)
 - /top       — топ рефереров (мотивация приглашать)
 - /gift      — подарить подписку другу по username
@@ -19,57 +20,182 @@ from app.services.vpn_key import VpnKeyService
 from app.services.user import UserService
 from app.services.referral import ReferralService
 from app.services.bot_settings import BotSettingsService
+from app.services.payment import PaymentService
+from app.services.i18n import t, get_lang
 from app.bot.utils.menu import get_main_menu_kb as _get_menu_kb
 from app.bot.handlers.admin import _is_admin
 
 router = Router()
 
 
-# ── /status — статус подписок ─────────────────────────────────────────────────
+def _fmt_traffic(bytes_val: int) -> str:
+    gb = bytes_val / (1024 ** 3)
+    if gb >= 1000:
+        return f"{gb / 1024:.2f} TB"
+    if gb >= 1:
+        return f"{gb:.2f} GB"
+    mb = bytes_val / (1024 ** 2)
+    if mb >= 1:
+        return f"{mb:.0f} MB"
+    return f"{bytes_val} B"
+
+
+async def _get_traffic_for_key(pasarguard_key_id: str) -> dict | None:
+    try:
+        from app.services.pasarguard.pasarguard import PasarguardService
+        panel = PasarguardService()
+        user_data = await panel.get_user(pasarguard_key_id)
+        if user_data:
+            download = user_data.get("download", 0) or 0
+            upload = user_data.get("upload", 0) or 0
+            total = download + upload
+            return {"used": _fmt_traffic(total), "total_bytes": total}
+    except Exception:
+        pass
+    return None
+
+
+# ── /status — быстрый статус подписок с трафиком ──────────────────────────────
 
 
 @router.message(Command("status"))
 async def cmd_status(message: Message) -> None:
     async with AsyncSessionFactory() as session:
         keys = await VpnKeyService(session).get_active_for_user(message.from_user.id)
+        settings = await BotSettingsService(session).get_all()
+        user = await UserService(session).get_by_id(message.from_user.id)
+        user_lang = user.language if user and user.language else None
+        lang = get_lang(settings, user_lang)
 
     if not keys:
         await message.answer(
-            "📦 <b>Нет активных подписок</b>\n\nИспользуй /buy чтобы купить подписку.",
+            t("status_title", lang) + "\n\n" + t("status_no_subs", lang) + "\n\n" + t("btn_buy", lang) + ": /buy",
             parse_mode="HTML",
         )
         return
 
     now = datetime.now(timezone.utc)
-    lines = ["📊 <b>Статус ваших подписок:</b>\n"]
+    lines = [f"{t('status_title', lang)}\n"]
 
     for k in keys:
         name = k.name or f"Подписка #{k.id}"
+        lines.append(f"🔑 <b>{name}</b>")
+
         if k.expires_at:
             delta = k.expires_at - now
             days = delta.days
             hours = delta.seconds // 3600
             if days > 7:
-                time_str = f"✅ {days} дн."
+                time_str = t("status_days_left", lang, days=days)
                 icon = "🟢"
             elif days > 0:
-                time_str = f"⚠️ {days} дн. {hours} ч."
+                time_str = f"{days} дн. {hours} ч."
                 icon = "🟡"
             else:
-                time_str = f"🔴 {hours} ч."
+                time_str = t("status_hours_left", lang, hours=hours)
                 icon = "🔴"
             exp_str = k.expires_at.strftime("%d.%m.%Y")
-            lines.append(f"{icon} <b>{name}</b>\n   До: {exp_str} ({time_str})")
+            lines.append(f"   {icon} {t('status_expires', lang, date=exp_str, time_left=time_str)}")
         else:
-            lines.append(f"🟢 <b>{name}</b>\n   Бессрочная")
+            lines.append(f"   🟢 {t('status_lifetime', lang)}")
+
+        if k.pasarguard_key_id:
+            traffic = await _get_traffic_for_key(k.pasarguard_key_id)
+            if traffic:
+                lines.append(f"   {t('status_traffic_used', lang)}: <b>{traffic['used']}</b>")
+        lines.append("")
 
     builder = InlineKeyboardBuilder()
-    builder.row(InlineKeyboardButton(text="🔑 Мои подписки", callback_data="my_keys"))
-    builder.row(InlineKeyboardButton(text="💳 Продлить", callback_data="buy"))
+    builder.row(InlineKeyboardButton(text=t("btn_my_keys", lang), callback_data="my_keys"))
+    builder.row(InlineKeyboardButton(text=t("btn_buy", lang), callback_data="buy"))
 
     await message.answer(
         "\n".join(lines), reply_markup=builder.as_markup(), parse_mode="HTML"
     )
+
+
+@router.callback_query(F.data == "status_cmd")
+async def cb_status(callback: CallbackQuery) -> None:
+    await callback.answer()
+    await cmd_status(callback.message)
+
+
+# ── /payments — история платежей ─────────────────────────────────────────────
+
+
+PAYMENT_PROVIDER_LABELS = {
+    "yookassa": "pay_provider_yookassa",
+    "yookassa_sbp": "pay_provider_yookassa_sbp",
+    "cryptobot": "pay_provider_cryptobot",
+    "freekassa": "pay_provider_freekassa",
+    "telegram_stars": "pay_provider_telegram_stars",
+    "balance": "pay_provider_balance",
+    "topup": "pay_provider_balance",
+}
+
+PAYMENT_STATUS_LABELS = {
+    "succeeded": "pay_status_succeeded",
+    "pending": "pay_status_pending",
+    "failed": "pay_status_failed",
+    "cancelled": "pay_status_failed",
+    "refunded": "pay_status_refunded",
+}
+
+
+@router.message(Command("payments", "платежи"))
+async def cmd_payments(message: Message) -> None:
+    async with AsyncSessionFactory() as session:
+        settings = await BotSettingsService(session).get_all()
+        user = await UserService(session).get_by_id(message.from_user.id)
+        user_lang = user.language if user and user.language else None
+        lang = get_lang(settings, user_lang)
+        payments = await PaymentService(session).get_all(
+            user_id=message.from_user.id, limit=10
+        )
+
+    if not payments:
+        await message.answer(
+            t("payments_title", lang) + "\n\n" + t("payments_empty", lang),
+            parse_mode="HTML",
+        )
+        return
+
+    lines = [f"{t('payments_title', lang)}\n"]
+
+    for p in payments:
+        amount = float(p.amount) if p.amount else 0
+        date_str = p.created_at.strftime("%d.%m.%Y %H:%M") if p.created_at else "—"
+
+        provider_key = PAYMENT_PROVIDER_LABELS.get(
+            p.provider.lower() if p.provider else "", p.provider or "—"
+        )
+        provider_label = t(provider_key, lang)
+
+        status_key = PAYMENT_STATUS_LABELS.get(
+            p.status.lower() if p.status else "", p.status or "—"
+        )
+        status_label = t(status_key, lang)
+
+        pay_type = "📦" if p.payment_type == "subscription" else "💰"
+
+        lines.append(
+            f"{pay_type} <b>{amount:.2f} ₽</b> — {provider_label}\n"
+            f"   📅 {date_str} | {status_label}"
+        )
+
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text=t("btn_balance", lang), callback_data="balance"))
+    builder.row(InlineKeyboardButton(text=t("back_main", lang), callback_data="back_main"))
+
+    await message.answer(
+        "\n".join(lines), reply_markup=builder.as_markup(), parse_mode="HTML"
+    )
+
+
+@router.callback_query(F.data == "payments_cmd")
+async def cb_payments(callback: CallbackQuery) -> None:
+    await callback.answer()
+    await cmd_payments(callback.message)
 
 
 # ── /ping — пинг до серверов ──────────────────────────────────────────────────
@@ -83,7 +209,6 @@ async def cmd_ping(message: Message) -> None:
 
     try:
         panel = get_vpn_panel()
-        # Only Marzban/Pasarguard has nodes endpoint
         from app.services.pasarguard.pasarguard import PasarguardService
 
         if isinstance(panel, PasarguardService):
@@ -99,7 +224,6 @@ async def cmd_ping(message: Message) -> None:
         nodes = []
 
     if not nodes:
-        # Fallback: ping the main panel
         try:
             import httpx
             from app.core.config import config
@@ -295,6 +419,12 @@ async def gift_buy(callback: CallbackQuery) -> None:
             return
 
         key = await VpnKeyService(session).provision(user_id=target_id, plan=plan)
+
+        if not key:
+            await session.rollback()
+            await callback.answer("❌ Ошибка создания ключа", show_alert=True)
+            return
+
         await session.commit()
 
         target = await UserService(session).get_by_id(target_id)
@@ -373,12 +503,6 @@ async def cb_top(callback: CallbackQuery) -> None:
         await callback.message.edit_text(text, parse_mode="HTML")
     except Exception:
         await callback.message.answer(text, parse_mode="HTML")
-
-
-@router.callback_query(F.data == "status_cmd")
-async def cb_status(callback: CallbackQuery) -> None:
-    await callback.answer()
-    await cmd_status(callback.message)
 
 
 # ── Серверы ───────────────────────────────────────────────────────────────────

@@ -1,9 +1,11 @@
 """Утилита для получения главного меню с настройками из БД."""
 
 import json
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from aiogram.types import InlineKeyboardMarkup
 from app.bot.keyboards.main import main_menu_kb, _DEFAULT_LAYOUT
 from app.services.bot_settings import BotSettingsService
+from app.core.config import config
 
 _BUTTON_IDS = [
     "my_keys",
@@ -19,7 +21,8 @@ _BUTTON_IDS = [
     "status",
     "language",
     "trial",
-    "miniapp",
+    "cabinet",
+    "admin_panel",
 ]
 
 # Переводы лейблов кнопок по умолчанию
@@ -38,7 +41,8 @@ _BTN_LABELS: dict[str, dict[str, str]] = {
         "status": "📊 Статус",
         "language": "🌐 Язык",
         "trial": "🎁 Пробный период",
-        "miniapp": "🌐 Mini App",
+        "cabinet": "📱 Кабинет",
+        "admin_panel": "⚙️ Админ панель",
     },
     "en": {
         "my_keys": "🔑 My subscriptions",
@@ -54,7 +58,8 @@ _BTN_LABELS: dict[str, dict[str, str]] = {
         "status": "📊 Status",
         "language": "🌐 Language",
         "trial": "🎁 Trial period",
-        "miniapp": "🌐 Mini App",
+        "cabinet": "📱 Cabinet",
+        "admin_panel": "⚙️ Admin panel",
     },
     "fa": {
         "my_keys": "🔑 اشتراک‌های من",
@@ -70,9 +75,28 @@ _BTN_LABELS: dict[str, dict[str, str]] = {
         "status": "📊 وضعیت",
         "language": "🌐 زبان",
         "trial": "🎁 دوره آزمایشی",
-        "miniapp": "🌐 Mini App",
+        "cabinet": "📱 کابینت",
+        "admin_panel": "⚙️ پنل مدیریت",
     },
 }
+
+
+def _resolve_url(settings: dict, key: str, fallback_path: str) -> str:
+    """Resolve a URL from settings, falling back to site_url + path."""
+    url = settings.get(key, "").strip()
+    if url:
+        return url
+    site = config.web.site_url
+    if site:
+        return site.rstrip("/") + fallback_path
+    return ""
+
+
+def _append_query_param(url: str, key: str, value: str) -> str:
+    parts = urlsplit(url)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query[key] = value
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
 
 def _translate_layout(layout: list, lang: str, settings: dict) -> list:
@@ -82,7 +106,6 @@ def _translate_layout(layout: list, lang: str, settings: dict) -> list:
         new_row = []
         for b in row:
             bid = b.get("id", "")
-            # Check admin override in settings: i18n_{lang}_btn_{id}
             override = settings.get(f"i18n_{lang}_btn_{bid}", "").strip()
             default_label = _BTN_LABELS.get(lang, _BTN_LABELS["ru"]).get(
                 bid, b.get("label", "")
@@ -90,6 +113,33 @@ def _translate_layout(layout: list, lang: str, settings: dict) -> list:
             label = override if override else default_label
             new_row.append({**b, "label": label})
         result.append(new_row)
+    return result
+
+
+def _resolve_layout_urls(layout: list, settings: dict, is_admin: bool) -> list:
+    """Resolve cabinet and admin_panel URLs, remove if no URL, hide admin_panel for non-admins."""
+    result = []
+    for row in layout:
+        new_row = []
+        for b in row:
+            bid = b.get("id", "")
+            if bid == "cabinet":
+                url = _resolve_url(settings, "cabinet_url", "/cabinet/")
+                if not url:
+                    continue
+                url = _append_query_param(url, "miniapp", "1")
+                new_row.append({**b, "web_app": url, "url": "", "callback": ""})
+            elif bid == "admin_panel":
+                if not is_admin:
+                    continue
+                url = _resolve_url(settings, "admin_panel_url", "/panel/")
+                if not url:
+                    continue
+                new_row.append({**b, "url": url, "web_app": "", "callback": ""})
+            else:
+                new_row.append(b)
+        if new_row:
+            result.append(new_row)
     return result
 
 
@@ -116,7 +166,10 @@ async def get_main_menu_kb(
         has_keys = result.scalar_one_or_none() is not None
         if has_keys:
             layout = [[b for b in row if b.get("id") != "trial"] for row in layout]
-            layout = [row for row in layout if row]  # убираем пустые ряды
+            layout = [row for row in layout if row]
+
+    # Resolve cabinet and admin_panel URLs from settings
+    layout = _resolve_layout_urls(layout, s, is_admin)
 
     # Translate labels
     layout = _translate_layout(layout, lang, s)
@@ -129,26 +182,8 @@ async def get_main_menu_kb(
 
     return main_menu_kb(
         support_url=s.get("support_url", ""),
-        miniapp_url=_build_miniapp_url(s),
         layout=layout,
         styles=styles,
         emojis=emojis,
         is_admin=is_admin,
     )
-
-
-def _build_miniapp_url(settings: dict) -> str:
-    """Build miniapp URL from settings or env."""
-    # First check database settings
-    db_url = settings.get("panel_url", "").strip()
-    if db_url:
-        return db_url.rstrip("/") + "/app/"
-
-    # Then check environment variable
-    from app.core.configs.pasarguard_config import _PasarGuardConfig
-
-    env_url = _PasarGuardConfig().pasarguard_admin_panel
-    if env_url:
-        return str(env_url).rstrip("/") + "/app/"
-
-    return ""

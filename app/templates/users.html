@@ -3,15 +3,205 @@
 {% block page_title %}<i class="bi bi-people me-2" style="color:var(--accent)"></i>Пользователи{% endblock %}
 
 {% block content %}
+<style>
+  .users-panel-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .users-panel-name {
+    color: var(--text);
+    font-weight: 700;
+    letter-spacing: -.01em;
+  }
+
+  .users-panel-username,
+  .users-panel-subtle {
+    color: var(--text-muted);
+    font-size: .74rem;
+  }
+
+  .users-panel-wallet {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: .35rem;
+    padding: .22rem .55rem;
+    border-radius: 999px;
+    background: rgba(0, 212, 170, .08);
+    color: var(--accent);
+    border: 1px solid rgba(0, 212, 170, .16);
+    font-size: .72rem;
+    font-weight: 700;
+  }
+
+  .users-panel-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 220px;
+  }
+
+  .users-panel-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 30px;
+    padding: .34rem .62rem;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 212, 170, .24);
+    background: linear-gradient(135deg, rgba(0, 212, 170, .14), rgba(16, 185, 129, .08));
+    color: var(--accent);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .01em;
+    text-decoration: none;
+    transition: transform .16s ease, border-color .16s ease, background .16s ease;
+  }
+
+  .users-panel-action:hover {
+    transform: translateY(-1px);
+    border-color: rgba(0, 212, 170, .48);
+    background: linear-gradient(135deg, rgba(0, 212, 170, .22), rgba(16, 185, 129, .12));
+    color: #7fffe5;
+  }
+
+  .users-panel-action.is-danger {
+    border-color: rgba(239, 68, 68, .25);
+    background: rgba(239, 68, 68, .08);
+    color: #f87171;
+  }
+
+  .users-panel-action.is-danger:hover {
+    border-color: rgba(239, 68, 68, .5);
+    background: rgba(239, 68, 68, .14);
+    color: #fca5a5;
+  }
+
+  .users-panel-action.is-muted {
+    border-color: rgba(148, 163, 184, .16);
+    background: rgba(148, 163, 184, .06);
+    color: var(--text-secondary);
+  }
+
+  .users-panel-action i {
+    font-size: .82rem;
+  }
+
+  #bulkBar {
+    width: min(calc(100vw - 24px), 880px);
+  }
+
+  .users-panel-bulk {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .users-panel-bulk-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .users-panel-action.is-success {
+    border-color: rgba(0, 212, 170, .28);
+    background: linear-gradient(135deg, rgba(0, 212, 170, .2), rgba(16, 185, 129, .12));
+    color: #9bffea;
+  }
+
+  .users-panel-action.is-success:hover {
+    border-color: rgba(0, 212, 170, .56);
+    background: linear-gradient(135deg, rgba(0, 212, 170, .3), rgba(16, 185, 129, .18));
+    color: #d9fff7;
+  }
+
+  .users-panel-action.is-warning {
+    border-color: rgba(250, 204, 21, .26);
+    background: rgba(250, 204, 21, .1);
+    color: #fde68a;
+  }
+
+  .users-panel-action.is-warning:hover {
+    border-color: rgba(250, 204, 21, .44);
+    background: rgba(250, 204, 21, .16);
+    color: #fef3c7;
+  }
+
+  .users-panel-action.is-info {
+    border-color: rgba(96, 165, 250, .24);
+    background: rgba(96, 165, 250, .1);
+    color: #bfdbfe;
+  }
+
+  .users-panel-action.is-info:hover {
+    border-color: rgba(96, 165, 250, .42);
+    background: rgba(96, 165, 250, .16);
+    color: #dbeafe;
+  }
+
+  @media (max-width: 767px) {
+    .users-panel-bulk {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .users-panel-bulk-actions {
+      width: 100%;
+    }
+
+    .users-panel-bulk-actions .users-panel-action {
+      flex: 1 1 calc(50% - 8px);
+      justify-content: center;
+    }
+  }
+</style>
+<!-- Advanced filters -->
+<div class="card p-3 mb-3" id="filterPanel" style="display:none">
+  <div class="row g-2 align-items-end">
+    <div class="col-sm-2">
+      <label class="form-label" style="font-size:.75rem;color:var(--text-muted)">Статус</label>
+      <select class="form-select form-select-sm" id="filterStatus">
+        <option value="">Все</option>
+        <option value="active">Активные</option>
+        <option value="banned">Забаненные</option>
+      </select>
+    </div>
+    <div class="col-sm-2">
+      <label class="form-label" style="font-size:.75rem;color:var(--text-muted)">Подписок ≥</label>
+      <input type="number" class="form-control form-control-sm" id="filterKeys" placeholder="0" min="0" />
+    </div>
+    <div class="col-sm-2">
+      <label class="form-label" style="font-size:.75rem;color:var(--text-muted)">Баланс ≥ ₽</label>
+      <input type="number" class="form-control form-control-sm" id="filterBalance" placeholder="0" min="0" step="0.01" />
+    </div>
+    <div class="col-sm-3">
+      <label class="form-label" style="font-size:.75rem;color:var(--text-muted)">Регистрация с</label>
+      <input type="date" class="form-control form-control-sm" id="filterDateFrom" />
+    </div>
+    <div class="col-sm-2">
+      <button class="btn btn-sm btn-accent w-100" onclick="applyFilters()"><i class="bi bi-funnel me-1"></i>Применить</button>
+    </div>
+    <div class="col-sm-1">
+      <button class="btn btn-sm btn-outline-secondary w-100" onclick="clearFilters()"><i class="bi bi-x"></i></button>
+    </div>
+  </div>
+</div>
+
 <div class="card">
   <div class="card-header d-flex align-items-center justify-content-between px-3 py-2 flex-wrap gap-2">
-    <span>Все пользователи</span>
+    <span><i class="bi bi-person-lines-fill me-2" style="color:var(--accent)"></i>Все пользователи</span>
     <div class="d-flex gap-2 align-items-center">
+      <button class="users-panel-action is-muted" onclick="toggleFilters()" title="Расширенные фильтры">
+        <i class="bi bi-funnel"></i><span>Фильтры</span>
+      </button>
       <div class="dropdown">
-        <button class="btn btn-sm btn-outline dropdown-toggle" type="button" data-bs-toggle="dropdown">
+        <button class="users-panel-action dropdown-toggle" type="button" data-bs-toggle="dropdown">
           <i class="bi bi-download me-1"></i>Экспорт
         </button>
-        <ul class="dropdown-menu dropdown-menu-dark" style="background:var(--card-bg);border-color:var(--border)">
+        <ul class="dropdown-menu dropdown-menu-dark" style="background:var(--bg-elevated);border-color:var(--border)">
           <li><a class="dropdown-item" href="/panel/export/users?format=csv" style="color:var(--text)">CSV</a></li>
           <li><a class="dropdown-item" href="/panel/export/users?format=xlsx" style="color:var(--text)">Excel</a></li>
         </ul>
@@ -26,8 +216,9 @@
     <table class="table mb-0">
       <thead>
         <tr>
+          <th style="width:40px"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>
           <th>Telegram ID</th><th>Имя</th><th>Username</th>
-          <th>Подписок</th><th>Платежей</th><th>Статус / Баланс</th><th>Действия</th>
+          <th>Подписки</th><th>Платежи</th><th>Статус и баланс</th><th>Действия</th>
         </tr>
       </thead>
       <tbody id="users-tbody">
@@ -37,13 +228,83 @@
   </div>
 </div>
 
+<!-- Bulk action bar -->
+<div id="bulkBar" class="position-fixed bottom-0 start-50 translate-middle-x mb-3 px-3 py-2 rounded-3 shadow-lg"
+     style="background:var(--bg-elevated);border:1px solid var(--border-glow);display:none;z-index:1050;backdrop-filter:blur(20px)">
+  <div class="users-panel-bulk">
+    <span style="font-size:.85rem;font-weight:700;color:var(--accent)"><span id="bulkCount">0</span> выбрано</span>
+    <div class="vr" style="opacity:.2"></div>
+    <div class="users-panel-bulk-actions">
+      <button class="users-panel-action is-danger" onclick="bulkAction('ban')" title="Забанить">
+        <i class="bi bi-ban"></i><span>Бан</span>
+      </button>
+      <button class="users-panel-action is-success" onclick="bulkAction('unban')" title="Разбанить">
+        <i class="bi bi-unlock"></i><span>Разбан</span>
+      </button>
+      <button class="users-panel-action is-warning" onclick="openBulkBalance()" title="Пополнить баланс">
+        <i class="bi bi-plus-circle"></i><span>Баланс</span>
+      </button>
+      <button class="users-panel-action is-info" onclick="openBulkGift()" title="Подарить подписку">
+        <i class="bi bi-gift"></i><span>Подписка</span>
+      </button>
+      <button class="users-panel-action is-muted" onclick="clearSelection()" title="Снять выделение">
+        <i class="bi bi-x-lg"></i><span>Сбросить</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Bulk Balance Modal ── -->
+<div class="modal fade" id="bulkBalanceModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content" style="background:var(--bg-elevated);border:1px solid var(--border)">
+      <div class="modal-header border-0">
+        <h6 class="modal-title"><i class="bi bi-wallet2 me-2" style="color:var(--warning)"></i>Массовое пополнение</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" style="filter:invert(1)"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">Сумма (₽) на каждого</label>
+        <input type="number" id="bulkBalAmount" class="form-control" placeholder="100" min="0.01" step="0.01" />
+      </div>
+      <div class="modal-footer border-0">
+        <button class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+        <button class="btn btn-sm btn-accent" onclick="doBulkBalance()"><i class="bi bi-check me-1"></i>Пополнить</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Bulk Gift Modal ── -->
+<div class="modal fade" id="bulkGiftModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content" style="background:var(--bg-elevated);border:1px solid var(--border)">
+      <div class="modal-header border-0">
+        <h6 class="modal-title"><i class="bi bi-gift-fill me-2" style="color:var(--accent)"></i>Массовая подписка</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" style="filter:invert(1)"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">Тариф</label>
+        <select id="bulkGiftPlan" class="form-select">
+          {% for plan in plans %}
+          <option value="{{ plan.id }}">{{ plan.name }} ({{ plan.duration_days }} дн.)</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="modal-footer border-0">
+        <button class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+        <button class="btn btn-sm btn-accent" onclick="doBulkGift()"><i class="bi bi-check me-1"></i>Подарить</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Message Modal ── -->
 <div class="modal fade" id="msgModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content" style="background:#1a1f2e;border:1px solid rgba(255,255,255,.08)">
+    <div class="modal-content" style="background:var(--bg-elevated);border:1px solid var(--border)">
       <div class="modal-header border-0">
-        <h6 class="modal-title text-white"><i class="bi bi-chat me-2"></i>Отправить сообщение</h6>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <h6 class="modal-title"><i class="bi bi-chat-dots-fill me-2" style="color:var(--accent)"></i>Отправить сообщение</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" style="filter:invert(1)"></button>
       </div>
       <div class="modal-body">
         <input type="hidden" id="msg-user-id" />
@@ -61,13 +322,13 @@
 <!-- ── Balance Modal ── -->
 <div class="modal fade" id="balanceModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-sm">
-    <div class="modal-content" style="background:#1a1f2e;border:1px solid rgba(255,255,255,.08)">
+    <div class="modal-content" style="background:var(--bg-elevated);border:1px solid var(--border)">
       <div class="modal-header border-0">
-        <h6 class="modal-title text-white"><i class="bi bi-currency-ruble me-2"></i>Управление балансом</h6>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <h6 class="modal-title"><i class="bi bi-wallet2 me-2" style="color:var(--warning)"></i>Баланс</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" style="filter:invert(1)"></button>
       </div>
       <div class="modal-body">
-        <p style="color:#8892a4;font-size:.85rem">Текущий баланс: <b id="bal-current" class="text-white"></b> ₽</p>
+        <p style="font-size:.85rem">Текущий баланс: <b id="bal-current" style="color:var(--text)"></b> ₽</p>
         <label class="form-label">Сумма (₽)</label>
         <input type="number" id="bal-amount" class="form-control" placeholder="100" min="0.01" step="0.01" />
       </div>
@@ -87,10 +348,10 @@
 <!-- ── Gift Subscription Modal ── -->
 <div class="modal fade" id="giftModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-sm">
-    <div class="modal-content" style="background:#1a1f2e;border:1px solid rgba(255,255,255,.08)">
+    <div class="modal-content" style="background:var(--bg-elevated);border:1px solid var(--border)">
       <div class="modal-header border-0">
-        <h6 class="modal-title text-white"><i class="bi bi-gift me-2"></i>Подарить подписку</h6>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <h6 class="modal-title"><i class="bi bi-gift-fill me-2" style="color:var(--accent)"></i>Подарить подписку</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" style="filter:invert(1)"></button>
       </div>
       <form id="giftForm" hx-swap="none">
         <div class="modal-body">
@@ -116,6 +377,89 @@
 <script>
 let _balUserId = null;
 
+function toggleAll(cb) {
+  document.querySelectorAll('.user-check').forEach(c => { c.checked = cb.checked; });
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const checked = document.querySelectorAll('.user-check:checked');
+  const bar = document.getElementById('bulkBar');
+  document.getElementById('bulkCount').textContent = checked.length;
+  bar.style.display = checked.length > 0 ? 'block' : 'none';
+}
+
+function getSelectedIds() {
+  return Array.from(document.querySelectorAll('.user-check:checked')).map(c => parseInt(c.value));
+}
+
+function clearSelection() {
+  document.querySelectorAll('.user-check').forEach(c => c.checked = false);
+  document.getElementById('selectAll').checked = false;
+  updateBulkBar();
+}
+
+async function bulkAction(action) {
+  const ids = getSelectedIds();
+  if (!ids.length) return;
+  if (!confirm(`Выполнить "${action}" для ${ids.length} пользователей?`)) return;
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  try {
+    const r = await fetch('/panel/users/bulk', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf},
+      body: JSON.stringify({action, user_ids: ids})
+    });
+    const data = await r.json();
+    showToast(data.message || 'Готово', r.ok ? 'success' : 'error');
+    if (r.ok) setTimeout(() => location.reload(), 600);
+  } catch(e) { showToast('Ошибка: ' + e.message, 'error'); }
+}
+
+function openBulkBalance() {
+  document.getElementById('bulkBalAmount').value = '';
+  new bootstrap.Modal(document.getElementById('bulkBalanceModal')).show();
+}
+
+async function doBulkBalance() {
+  const amount = document.getElementById('bulkBalAmount').value;
+  if (!amount || parseFloat(amount) <= 0) return;
+  const ids = getSelectedIds();
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  try {
+    const r = await fetch('/panel/users/bulk-balance', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf},
+      body: JSON.stringify({user_ids: ids, amount: parseFloat(amount)})
+    });
+    const data = await r.json();
+    showToast(data.message || 'Готово', r.ok ? 'success' : 'error');
+    bootstrap.Modal.getInstance(document.getElementById('bulkBalanceModal')).hide();
+    if (r.ok) setTimeout(() => location.reload(), 600);
+  } catch(e) { showToast('Ошибка: ' + e.message, 'error'); }
+}
+
+function openBulkGift() {
+  new bootstrap.Modal(document.getElementById('bulkGiftModal')).show();
+}
+
+async function doBulkGift() {
+  const planId = document.getElementById('bulkGiftPlan').value;
+  const ids = getSelectedIds();
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  try {
+    const r = await fetch('/panel/users/bulk-gift', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf},
+      body: JSON.stringify({user_ids: ids, plan_id: parseInt(planId)})
+    });
+    const data = await r.json();
+    showToast(data.message || 'Готово', r.ok ? 'success' : 'error');
+    bootstrap.Modal.getInstance(document.getElementById('bulkGiftModal')).hide();
+    if (r.ok) setTimeout(() => location.reload(), 600);
+  } catch(e) { showToast('Ошибка: ' + e.message, 'error'); }
+}
+
 function openMsgModal(userId) {
   document.getElementById('msg-user-id').value = userId;
   document.getElementById('msg-text').value = '';
@@ -129,7 +473,9 @@ async function sendMsg() {
   const fd = new FormData();
   fd.append('chat_id', uid);
   fd.append('text', text);
-  const r = await fetch('/panel/telegram/send', { method: 'POST', body: fd });
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  const csrf = meta ? meta.getAttribute('content') : '';
+  const r = await fetch('/panel/telegram/send', { method: 'POST', body: fd, headers:{'X-CSRF-Token':csrf}, credentials:'same-origin' });
   bootstrap.Modal.getInstance(document.getElementById('msgModal')).hide();
   showToast(r.ok ? 'Сообщение отправлено' : 'Ошибка отправки', r.ok ? 'success' : 'error');
 }
@@ -149,7 +495,9 @@ async function changeBalance(action) {
   const url = action === 'add'
     ? `/panel/users/${_balUserId}/add-balance`
     : `/panel/users/${_balUserId}/deduct-balance`;
-  const r = await fetch(url, { method: 'POST', body: fd });
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  const csrf = meta ? meta.getAttribute('content') : '';
+  const r = await fetch(url, { method: 'POST', body: fd, headers:{'X-CSRF-Token':csrf}, credentials:'same-origin' });
   bootstrap.Modal.getInstance(document.getElementById('balanceModal')).hide();
   if (r.ok) {
     showToast(action === 'add' ? `Баланс пополнен на ${amount} ₽` : `Снято ${amount} ₽`, 'success');
@@ -170,5 +518,37 @@ function openGiftModal(userId) {
 document.getElementById('giftForm').addEventListener('htmx:afterRequest', function(e) {
   bootstrap.Modal.getInstance(document.getElementById('giftModal'))?.hide();
 });
+
+// ── Advanced Filters ──
+function toggleFilters() {
+  const panel = document.getElementById('filterPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function applyFilters() {
+  const status = document.getElementById('filterStatus').value;
+  const keys = document.getElementById('filterKeys').value;
+  const balance = document.getElementById('filterBalance').value;
+  const dateFrom = document.getElementById('filterDateFrom').value;
+
+  const rows = document.querySelectorAll('#users-tbody tr[data-user]');
+  rows.forEach(row => {
+    let show = true;
+    if (status === 'active' && row.dataset.banned === 'true') show = false;
+    if (status === 'banned' && row.dataset.banned !== 'true') show = false;
+    if (keys && parseInt(row.dataset.keys || '0') < parseInt(keys)) show = false;
+    if (balance && parseFloat(row.dataset.balance || '0') < parseFloat(balance)) show = false;
+    if (dateFrom && new Date(row.dataset.created || '') < new Date(dateFrom)) show = false;
+    row.style.display = show ? '' : 'none';
+  });
+}
+
+function clearFilters() {
+  document.getElementById('filterStatus').value = '';
+  document.getElementById('filterKeys').value = '';
+  document.getElementById('filterBalance').value = '';
+  document.getElementById('filterDateFrom').value = '';
+  document.querySelectorAll('#users-tbody tr').forEach(r => r.style.display = '');
+}
 </script>
 {% endblock %}

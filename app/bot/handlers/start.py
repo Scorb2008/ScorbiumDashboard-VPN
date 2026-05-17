@@ -7,15 +7,6 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message, CallbackQuery, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-
-async def _safe_answer(callback: CallbackQuery) -> None:
-    """Safely answer callback query, ignoring timeout errors."""
-    try:
-        await _safe_answer(callback)
-    except Exception:
-        pass
-
-
 from app.bot.keyboards.main import back_kb
 from app.bot.utils.menu import get_main_menu_kb as _get_menu_kb
 from app.bot.handlers.admin import _is_admin
@@ -26,12 +17,21 @@ from app.services.referral import ReferralService
 from app.services.promo import PromoService
 from app.services.bot_settings import BotSettingsService
 from app.services.support import SupportService
+from app.services.vpn_key import VpnKeyService
 from app.services.telegram_notify import TelegramNotifyService
 from app.services.i18n import t, get_lang
 from app.core.config import config
 from app.utils.html_utils import escape_html, truncate
 
 router = Router()
+
+
+async def _safe_answer(callback: CallbackQuery) -> None:
+    """Safely answer callback query, ignoring timeout errors."""
+    try:
+        await callback.answer()
+    except Exception:
+        pass
 
 
 class PromoState(StatesGroup):
@@ -84,13 +84,15 @@ async def cmd_start(message: Message) -> None:
 
                 bonus_value = Decimal(bonus_value_str)
                 bonus_days = int(bonus_value) if bonus_type == "days" else 0
-                await ref_svc.create(
+                ref = await ref_svc.create(
                     referrer_id=referrer.id,
                     referred_id=user.id,
                     bonus_days=bonus_days,
                     bonus_type=bonus_type,
                     bonus_value=bonus_value,
                 )
+                if ref:
+                    await ref_svc.pay_bonus(ref.id)
 
         await session.commit()
 
@@ -233,7 +235,7 @@ async def toggle_autorenew(callback: CallbackQuery) -> None:
     enabled = action == "on"
 
     async with AsyncSessionFactory() as session:
-        user = await UserService(session).set_autorenew(callback.from_user.id, enabled)
+        await UserService(session).set_autorenew(callback.from_user.id, enabled)
         await session.commit()
         lang = await _get_lang_from_session(callback.from_user.id, session)
 
@@ -252,12 +254,6 @@ _TOPUP_AMOUNTS = [100, 200, 500, 1000, 2000, 5000]
 async def topup_menu(callback: CallbackQuery) -> None:
     async with AsyncSessionFactory() as session:
         lang = await _get_lang_from_session(callback.from_user.id, session)
-        settings = await BotSettingsService(session).get_all()
-        has_yookassa = bool(
-            settings.get("yookassa_shop_id")
-            or (config.yookassa and config.yookassa.yookassa_shop_id)
-        )
-        has_cryptobot = bool(settings.get("cryptobot_token", "").strip())
 
     builder = InlineKeyboardBuilder()
     # Быстрые суммы
@@ -333,18 +329,12 @@ async def _show_topup_payment(
 
         rate = await TelegramStarsService.get_rate(session)
 
-    from app.core.config import config as _cfg
-
-    _yk_env = _cfg.yookassa
-    _yk_env_ok = bool(
-        _yk_env and _yk_env.yookassa_shop_id and _yk_env.yookassa_secret_key
-    )
     _yk_db_ok = bool(
         settings.get("yookassa_shop_id_override")
         and settings.get("yookassa_secret_key_override")
     )
     _yk_toggle = settings.get("ps_yookassa_enabled", "0") == "1"
-    _yk_configured = _yk_env_ok or _yk_db_ok
+    _yk_configured = _yk_db_ok
     has_yookassa = _yk_toggle and _yk_configured
 
     _sbp_toggle = settings.get("ps_sbp_enabled", "0") == "1"
@@ -369,31 +359,6 @@ async def _show_topup_payment(
                 callback_data=f"topup:pay:yookassa:{amount}",
             )
         )
-    _yk_db_ok = bool(
-        settings.get("yookassa_shop_id_override")
-        and settings.get("yookassa_secret_key_override")
-    )
-    _yk_toggle = settings.get("ps_yookassa_enabled", "0") == "1"
-    _yk_configured = _yk_env_ok or _yk_db_ok
-    has_yookassa = _yk_toggle and _yk_configured
-
-    _sbp_toggle = settings.get("ps_sbp_enabled", "0") == "1"
-    has_sbp = _sbp_toggle and _yk_configured
-
-    _cb_toggle = settings.get("ps_cryptobot_enabled", "0") == "1"
-    has_cryptobot = _cb_toggle and bool(settings.get("cryptobot_token", "").strip())
-
-    stars_amount = TelegramStarsService.rub_to_stars(float(amount), rate=rate)
-
-    from app.core.config import config as _cfg
-
-    has_yookassa = bool(
-        _cfg.yookassa
-        and _cfg.yookassa.yookassa_shop_id
-        and _cfg.yookassa.yookassa_secret_key
-    )
-    has_cryptobot = bool(settings.get("cryptobot_token", "").strip())
-
     builder = InlineKeyboardBuilder()
 
     if has_yookassa:
@@ -427,6 +392,22 @@ async def _show_topup_payment(
             InlineKeyboardButton(
                 text=crypto_labels.get(lang, crypto_labels["ru"]),
                 callback_data=f"topup:pay:crypto:{amount}",
+            )
+        )
+
+    has_freekassa = settings.get("ps_freekassa_enabled", "0") == "1" and bool(
+        settings.get("freekassa_shop_id", "").strip()
+    )
+    if has_freekassa:
+        fk_labels = {
+            "ru": "🟢 FreeKassa",
+            "en": "🟢 FreeKassa",
+            "fa": "🟢 FreeKassa",
+        }
+        builder.row(
+            InlineKeyboardButton(
+                text=fk_labels.get(lang, fk_labels["ru"]),
+                callback_data=f"topup:pay:freekassa:{amount}",
             )
         )
 
@@ -476,21 +457,54 @@ async def process_promo(message: Message, state: FSMContext) -> None:
     code = message.text.strip().upper()
     async with AsyncSessionFactory() as session:
         lang = await _get_lang_from_session(message.from_user.id, session)
-        promo = await PromoService(session).apply(code)
+        promo_service = PromoService(session)
+        validation = await promo_service.validate_for_user(code, user_id=message.from_user.id)
+        promo = validation.promo
         if promo:
             pt = str(promo.promo_type)
             if pt == "balance":
-                await UserService(session).add_balance(
-                    message.from_user.id, promo.value
-                )
-                result_text = t("promo_balance", lang, value=promo.value)
+                consumed = await promo_service.consume(promo, user_id=message.from_user.id)
+                if not consumed:
+                    result_text = validation.message or t("promo_invalid", lang)
+                else:
+                    await UserService(session).add_balance(
+                        message.from_user.id, promo.value
+                    )
+                    result_text = t("promo_balance", lang, value=promo.value)
             elif pt == "days":
-                result_text = t("promo_days", lang, value=int(promo.value))
+                keys = await VpnKeyService(session).get_active_for_user(message.from_user.id)
+                if not keys:
+                    keys = await VpnKeyService(session).get_all_for_user(message.from_user.id)
+                if not keys:
+                    result_text = (
+                        "❌ Для промокода на дни нужна хотя бы одна подписка"
+                        if lang == "ru"
+                        else (
+                            "❌ You need at least one subscription to use a days promo"
+                            if lang == "en"
+                            else "❌ برای استفاده از کد روز، حداقل یک اشتراک لازم است"
+                        )
+                    )
+                else:
+                    consumed = await promo_service.consume(promo, user_id=message.from_user.id)
+                    if not consumed:
+                        result_text = validation.message or t("promo_invalid", lang)
+                    else:
+                        await VpnKeyService(session).extend(keys[0].id, int(promo.value))
+                        result_text = t("promo_days", lang, value=int(promo.value))
             else:
-                result_text = t("promo_discount", lang, value=promo.value)
+                result_text = (
+                    "✅ Скидочный промокод сохраните для оплаты в личном кабинете"
+                    if lang == "ru"
+                    else (
+                        "✅ Use this discount promo code during checkout in the web cabinet"
+                        if lang == "en"
+                        else "✅ این کد تخفیف را هنگام پرداخت در کابین وب استفاده کنید"
+                    )
+                )
             await session.commit()
         else:
-            result_text = t("promo_invalid", lang)
+            result_text = validation.message or t("promo_invalid", lang)
         kb = await _get_menu_kb(
             session,
             lang=lang,

@@ -4,8 +4,8 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>{% block title %}{{ app_name | default('VPN Panel') }}{% endblock %}</title>
-  <link rel="shortcut icon" href="/static/img/favicon.ico" type="image/x-icon" />
-  <link rel="icon" href="/static/img/favicon.ico" type="image/x-icon" />
+  <link rel="icon" type="image/svg+xml" href="/static/img/logo.svg" />
+  <link rel="shortcut icon" href="/static/img/logo.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -92,12 +92,14 @@
       letter-spacing: -0.02em;
     }
     .sidebar-brand .logo-icon {
-      width: 38px; height: 38px; border-radius: 12px;
+      width: 40px; height: 40px; border-radius: 12px;
       background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
       display: flex; align-items: center; justify-content: center;
-      font-size: 1.1rem; color: #fff; flex-shrink: 0;
-      box-shadow: 0 4px 16px rgba(0, 212, 170, 0.35);
+      font-size: 1.2rem; color: #fff; flex-shrink: 0;
+      box-shadow: 0 4px 16px rgba(0,212,170,0.35);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
     }
+    .sidebar-brand .logo-icon:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(0,212,170,0.25); }
     .sidebar-nav { padding: .5rem 0; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
     .nav-section {
       font-size: .65rem; font-weight: 700; letter-spacing: 1.5px;
@@ -116,6 +118,12 @@
       color: var(--accent);
       background: linear-gradient(135deg, rgba(0, 212, 170, 0.1), rgba(14, 165, 233, 0.05));
       box-shadow: inset 0 0 0 1px var(--border-glow);
+    }
+    .nav-item a.active::before {
+      content: ''; position: absolute; left: 0; top: 50%;
+      transform: translateY(-50%); width: 3px; height: 60%;
+      background: var(--accent); border-radius: 0 3px 3px 0;
+      box-shadow: 0 0 8px var(--accent-glow);
     }
     .nav-item a i { font-size: 1rem; width: 1.1rem; text-align: center; flex-shrink: 0; }
     .nav-badge {
@@ -257,6 +265,12 @@
       color: #fff; filter: brightness(1.1);
     }
     .btn-accent:active { transform: translateY(0); }
+    .btn-outline-accent {
+      background: rgba(0,212,170,.08); border: 1px solid rgba(0,212,170,.25);
+      color: var(--accent); font-size: .75rem; font-weight: 500;
+      border-radius: 8px; transition: all .2s; padding: .2rem .5rem;
+    }
+    .btn-outline-accent:hover { background: rgba(0,212,170,.15); border-color: var(--accent); }
     .btn-outline {
       background: transparent; border: 1px solid var(--border);
       color: var(--text-secondary); font-size: .8rem; font-weight: 500;
@@ -344,14 +358,64 @@
       .card { border-radius: 12px; }
       .stat-card { padding: 1rem; }
     }
+
+    /* Page loading overlay */
+    .page-loader {
+      position: fixed; inset: 0; z-index: 9999;
+      background: var(--bg);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      transition: opacity .4s ease, visibility .4s ease;
+    }
+    .page-loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    .loader-ring {
+      width: 48px; height: 48px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    .loader-text {
+      margin-top: 1rem; font-size: .85rem;
+      color: var(--text-muted); font-weight: 500;
+    }
+    .sidebar-logo-img {
+      width: 40px; height: 40px; border-radius: 12px;
+      object-fit: contain; flex-shrink: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+      animation: logoFade 0.4s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .sidebar-logo-img:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,212,170,0.15); }
+    @keyframes logoFade {
+      from { opacity: 0; transform: scale(0.85); }
+      to { opacity: 1; transform: scale(1); }
+    }
   </style>
   {% block head %}{% endblock %}
 </head>
 <body>
+
+<!-- Page loading overlay -->
+<div class="page-loader" id="pageLoader">
+  <div class="loader-ring"></div>
+  <div class="loader-text">Загрузка...</div>
+</div>
+
+{% if csrf_token %}
+<meta name="csrf-token" content="{{ csrf_token }}">
+{% endif %}
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-brand">
+    {% if custom_logo %}
+    <img src="{{ custom_logo }}" alt="Logo" class="sidebar-logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+    <span class="logo-icon" style="display:none"><i class="bi bi-shield-lock-fill"></i></span>
+    {% else %}
     <span class="logo-icon"><i class="bi bi-shield-lock-fill"></i></span>
+    {% endif %}
     <span>{{ app_name | default('VPN') | truncate(16, true, '') }}</span>
     <button class="hamburger ms-auto d-md-none" onclick="closeSidebar()" style="display:flex"><i class="bi bi-x-lg"></i></button>
   </div>
@@ -371,6 +435,7 @@
     {% endif %}
     {% if has_perm(admin_role, 'payments') %}
     <div class="nav-item"><a href="/panel/payments" class="{% if active == 'payments' %}active{% endif %}"><i class="bi bi-credit-card-fill"></i> Платежи{% if pending_payments %}<span class="nav-badge nav-badge-warn">{{ pending_payments }}</span>{% endif %}</a></div>
+    <div class="nav-item"><a href="/panel/payments/stats" class="{% if active == 'payments_stats' %}active{% endif %}"><i class="bi bi-bar-chart-fill"></i> Аналитика</a></div>
     {% endif %}
 
     <div class="nav-section">Сервис</div>
@@ -386,9 +451,6 @@
     {% if has_perm(admin_role, 'referrals') %}
     <div class="nav-item"><a href="/panel/referrals" class="{% if active == 'referrals' %}active{% endif %}"><i class="bi bi-diagram-3-fill"></i> Рефералы</a></div>
     {% endif %}
-    {% if has_perm(admin_role, 'vpn.read') %}
-    <div class="nav-item"><a href="/panel/vpn" class="{% if active == 'vpn' %}active{% endif %}"><i class="bi bi-key-fill"></i> VPN ключи</a></div>
-    {% endif %}
 
     <div class="nav-section">Система</div>
     {% if has_perm(admin_role, 'vpn.read') %}
@@ -401,10 +463,16 @@
     {% else %}
     <div class="nav-item"><a href="/panel/pasarguard" class="{% if active == 'pasarguard' %}active{% endif %}"><i class="bi bi-hdd-network-fill"></i> PasarGuard</a></div>
     {% endif %}
-    <div class="nav-item"><a href="/panel/backup" class="{% if active == 'backup' %}active{% endif %}"><i class="bi bi-database-fill-down"></i> Резерв. копия</a></div>
+    <div class="nav-item"><a href="/panel/backup" class="{% if active == 'backup' %}active{% endif %}"><i class="bi bi-database-fill-gear"></i> База данных</a></div>
     {% endif %}
     {% if admin_role == 'superadmin' %}
     <div class="nav-item"><a href="/panel/admins" class="{% if active == 'admins' %}active{% endif %}"><i class="bi bi-shield-lock"></i> Администраторы</a></div>
+    {% endif %}
+    {% if has_perm(admin_role, 'system') %}
+    <div class="nav-item"><a href="/panel/audit" class="{% if active == 'audit' %}active{% endif %}"><i class="bi bi-journal-text"></i> Аудит</a></div>
+    <div class="nav-item"><a href="/panel/2fa" class="{% if active == '2fa' %}active{% endif %}"><i class="bi bi-shield-lock-fill"></i> 2FA</a></div>
+    <div class="nav-item"><a href="/panel/monitoring" class="{% if active == 'monitoring' %}active{% endif %}"><i class="bi bi-activity"></i> Мониторинг</a></div>
+    <div class="nav-item"><a href="/panel/notifications" class="{% if active == 'notifications' %}active{% endif %}"><i class="bi bi-bell-fill"></i> Уведомления{% if open_alerts %}<span class="nav-badge nav-badge-warn">{{ open_alerts }}</span>{% endif %}</a></div>
     {% endif %}
     <div class="nav-item"><a href="/docs" target="_blank"><i class="bi bi-code-slash"></i> API Docs</a></div>
   </nav>
@@ -423,10 +491,31 @@
       <span class="topbar-title">{% block page_title %}{% endblock %}</span>
     </div>
     <div class="d-flex align-items-center gap-3">
-      <span style="font-size:.8rem;color:var(--text-muted)"><i class="bi bi-clock me-1"></i>{{ current_time | default('12:00') }}</span>
+      <div class="dropdown">
+        <span class="topbar-time" id="clockDisplay" data-bs-toggle="dropdown" style="cursor:pointer">
+          <i class="bi bi-clock me-1"></i>{{ current_time | default('12:00') }}
+        </span>
+        <ul class="dropdown-menu dropdown-menu-end" id="timezoneMenu" style="background:var(--bg-card);border-color:var(--border);min-width:180px">
+          <li class="dropdown-item tz-select" data-tz="Europe/Moscow" style="color:var(--text-muted);font-size:.78rem;cursor:pointer">
+            <i class="bi bi-globe me-1" style="color:var(--accent)"></i>Москва
+            <span class="float-end" style="color:var(--text);font-weight:600" id="tzMoscow">{{ time_moscow | default('00:00') }}</span>
+          </li>
+          <li class="dropdown-item tz-select" data-tz="Asia/Tehran" style="color:var(--text-muted);font-size:.78rem;cursor:pointer">
+            <i class="bi bi-globe me-1" style="color:var(--warning)"></i>Тегеран
+            <span class="float-end" style="color:var(--text);font-weight:600" id="tzTehran">{{ time_tehran | default('00:00') }}</span>
+          </li>
+          <li class="dropdown-item tz-select" data-tz="America/New_York" style="color:var(--text-muted);font-size:.78rem;cursor:pointer">
+            <i class="bi bi-globe me-1" style="color:var(--info)"></i>Нью-Йорк
+            <span class="float-end" style="color:var(--text);font-weight:600" id="tzNewYork">{{ time_us | default('00:00') }}</span>
+          </li>
+        </ul>
+      </div>
       {% if open_tickets %}
       <a href="/panel/support" class="text-decoration-none" style="font-size:.75rem;color:var(--danger)"><i class="bi bi-bell-fill me-1"></i>{{ open_tickets }}</a>
       {% endif %}
+      <button class="btn btn-sm p-0" style="color:var(--text-muted);background:none;border:none" id="notifBell" onclick="toggleBrowserNotif()" title="Уведомления браузера">
+        <i class="bi bi-bell" id="notifBellIcon"></i>
+      </button>
     </div>
   </header>
   <main class="page-content">{% block content %}{% endblock %}</main>
@@ -447,6 +536,94 @@
     if (icon) icon.className = getTheme() === 'dark' ? 'bi bi-moon-stars-fill' : 'bi bi-sun-fill';
   }
   (function() { const saved = localStorage.getItem('theme'); if (saved) setTheme(saved); else updateThemeIcon(); })();
+
+  // ── Timezone Clock ──
+  (function() {
+    var tzMap = {
+      'Europe/Moscow': { label: 'Москва', el: document.getElementById('tzMoscow') },
+      'Asia/Tehran': { label: 'Тегеран', el: document.getElementById('tzTehran') },
+      'America/New_York': { label: 'Нью-Йорк', el: document.getElementById('tzNewYork') }
+    };
+    var clockDisplay = document.getElementById('clockDisplay');
+    var menu = document.getElementById('timezoneMenu');
+    var savedTz = localStorage.getItem('timezone') || 'Europe/Moscow';
+    var currentTz = savedTz;
+
+    function formatTime(tz) {
+      try {
+        return new Intl.DateTimeFormat('ru-RU', {
+          hour: '2-digit', minute: '2-digit', second: '2-digit',
+          timeZone: tz, hour12: false
+        }).format(new Date());
+      } catch (e) {
+        return '--:--:--';
+      }
+    }
+
+    function updateClock() {
+      if (!clockDisplay) return;
+      var time = formatTime(currentTz);
+      var tzInfo = tzMap[currentTz];
+      var tzLabel = tzInfo ? tzInfo.label : currentTz;
+      var icon = clockDisplay.querySelector('i');
+      clockDisplay.innerHTML = '';
+      if (icon) {
+        var newIcon = document.createElement('i');
+        newIcon.className = 'bi bi-clock me-1';
+        clockDisplay.appendChild(newIcon);
+      }
+      clockDisplay.appendChild(document.createTextNode(time));
+      clockDisplay.setAttribute('title', tzLabel);
+
+      // Update all dropdown items in background
+      for (var tz in tzMap) {
+        if (tzMap[tz].el) {
+          tzMap[tz].el.textContent = formatTime(tz);
+        }
+      }
+    }
+
+    function setActiveTz(tz) {
+      currentTz = tz;
+      localStorage.setItem('timezone', tz);
+      // Update active state in dropdown
+      var items = menu ? menu.querySelectorAll('.tz-select') : [];
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        if (item.getAttribute('data-tz') === tz) {
+          item.style.background = 'var(--accent-glow)';
+          item.style.color = 'var(--accent)';
+          var check = item.querySelector('.tz-check');
+          if (!check) {
+            check = document.createElement('i');
+            check.className = 'bi bi-check2 tz-check';
+            check.style.cssText = 'float:right;margin-left:.5rem';
+            item.appendChild(check);
+          }
+        } else {
+          item.style.background = '';
+          item.style.color = '';
+          var oldCheck = item.querySelector('.tz-check');
+          if (oldCheck) oldCheck.remove();
+        }
+      }
+      updateClock();
+    }
+
+    if (menu) {
+      menu.addEventListener('click', function(e) {
+        var item = e.target.closest('.tz-select');
+        if (item) {
+          e.preventDefault();
+          setActiveTz(item.getAttribute('data-tz'));
+        }
+      });
+    }
+
+    setActiveTz(currentTz);
+    updateClock();
+    setInterval(updateClock, 1000);
+  })();
   function openSidebar() { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('show'); }
   function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('show'); }
   function showToast(msg, type) {
@@ -472,6 +649,30 @@
   }
   document.body.addEventListener('showToast', function(e) { showToast(e.detail.msg, e.detail.type || 'success'); });
 
+  // ── CSRF Protection ──
+  (function() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) {
+      var token = meta.getAttribute('content');
+      document.body.addEventListener('htmx:configRequest', function(e) {
+        e.detail.headers['X-CSRF-Token'] = token;
+      });
+    }
+  })();
+
+  // ── HTMX Error Handling ──
+  document.body.addEventListener('htmx:responseError', function(e) {
+    var msg = 'Ошибка запроса';
+    try {
+      var d = JSON.parse(e.detail.xhr.responseText);
+      msg = d.detail || d.message || msg;
+    } catch(err) {}
+    showToast(msg, 'error');
+  });
+  document.body.addEventListener('htmx:sendError', function() {
+    showToast('Нет соединения с сервером', 'error');
+  });
+
   // ── WebSocket Notifications ──
   (function() {
     let ws = null;
@@ -481,7 +682,7 @@
     function createStatusDot() {
       const dot = document.createElement('span');
       dot.id = 'ws-status';
-      dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block;margin-left:.5rem;transition:background .3s';
+      dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:var(--text-muted);display:inline-block;margin-left:.5rem;transition:background .3s';
       const topbarRight = document.querySelector('.topbar .d-flex.align-items-center.gap-3');
       if (topbarRight) topbarRight.prepend(dot);
       return dot;
@@ -516,7 +717,11 @@
               new_user: (d) => `👤 Новый пользователь: ${d.full_name || ''}`,
             };
             const fn = mapping[msg.type];
-            if (fn) showToast(fn(msg.data || {}), 'info');
+            if (fn) {
+              const text = fn(msg.data || {});
+              showToast(text, 'info');
+              sendBrowserNotification(text);
+            }
           } catch (e) {}
         };
 
@@ -536,6 +741,53 @@
 
     connect();
   })();
+
+  // ── Browser Notifications ──
+  function sendBrowserNotification(body) {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('Scorbium Panel', { body, icon: '/static/img/logo.svg', badge: '/static/img/logo.svg' });
+    }
+  }
+
+  function toggleBrowserNotif() {
+    if (!('Notification' in window)) {
+      showToast('Браузер не поддерживает уведомления', 'error');
+      return;
+    }
+    if (Notification.permission === 'granted') {
+      showToast('Уведомления уже включены', 'info');
+      return;
+    }
+    Notification.requestPermission().then(perm => {
+      if (perm === 'granted') {
+        showToast('Уведомления включены!', 'success');
+        new Notification('Scorbium Panel', { body: 'Уведомления панели работают!', icon: '/static/img/logo.svg' });
+      } else {
+        showToast('Уведомления заблокированы', 'error');
+      }
+    });
+  }
+
+  // Update bell icon on load
+  (function() {
+    const icon = document.getElementById('notifBellIcon');
+    if (!icon || !('Notification' in window)) return;
+    if (Notification.permission === 'granted') {
+      icon.className = 'bi bi-bell-fill';
+      icon.style.color = 'var(--accent)';
+    }
+  })();
+
+  // Hide page loader
+  window.addEventListener('load', function() {
+    var loader = document.getElementById('pageLoader');
+    if (loader) loader.classList.add('hidden');
+  });
+  // Fallback: hide after 3s even if load event didn't fire
+  setTimeout(function() {
+    var loader = document.getElementById('pageLoader');
+    if (loader) loader.classList.add('hidden');
+  }, 3000);
 </script>
 {% block scripts %}{% endblock %}
 </body>

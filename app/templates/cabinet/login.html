@@ -1,0 +1,206 @@
+{% extends "cabinet/base.html" %}
+{% block title %}Вход - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="lp">
+  <div class="lc">
+    <div class="lg">
+      <div class="lb2">
+        <div class="ll2">
+          {% if custom_logo %}
+          <img src="{{ custom_logo }}" alt="Logo" style="width:100%;height:100%;object-fit:contain;padding:10px;border-radius:inherit;display:block" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+          <span style="display:none;width:100%;height:100%;align-items:center;justify-content:center"><i class="bi bi-telegram"></i></span>
+          {% else %}
+          <i class="bi bi-telegram"></i>
+          {% endif %}
+        </div>
+        <div>
+          <h1 class="lt">{{ app_name }}</h1>
+          <p class="lst">VPN-кабинет</p>
+        </div>
+        <div class="lf2">
+          <div class="lfi"><i class="bi bi-lightning-charge cg"></i><div><strong>Вход через Telegram</strong><div class="muted">Без паролей</div></div></div>
+          <div class="lfi"><i class="bi bi-key cg"></i><div><strong>Подписки</strong><div class="muted">Управление и инструкции</div></div></div>
+          <div class="lfi"><i class="bi bi-headset cg"></i><div><strong>Поддержка</strong><div class="muted">История обращений</div></div></div>
+        </div>
+      </div>
+
+      <div class="lp2">
+        <h2>Вход</h2>
+        {% if error %}<div class="ib" style="border-color:rgba(255,111,145,.25);color:var(--bad)">{{ error }}</div>{% endif %}
+
+        <div id="login-status" class="r" style="display:none">
+          <i class="bi bi-arrow-repeat spin" style="animation:spin 1s linear infinite"></i>
+          <span id="login-status-text">Подключение...</span>
+        </div>
+
+        <div id="miniapp-status" style="display:none" class="s">
+          <div class="ib"><i class="bi bi-phone cg"></i><div><strong>MiniApp</strong><span class="muted">Вход через initData без отдельной авторизации</span></div></div>
+          <div class="r">
+            <button id="miniapp-retry" class="btn btn-p" style="display:none" onclick="startMiniAppLogin(true)"><i class="bi bi-arrow-clockwise"></i> Повторить</button>
+            <a href="/cabinet/" id="miniapp-home" class="btn btn-o" style="display:none">Открыть</a>
+          </div>
+        </div>
+
+        {% set bu = settings.get('bot_username', '') %}
+        <div id="web-login" class="s" {% if is_mini_app %}style="display:none"{% endif %}>
+          {% if bu %}
+          <div id="telegram-login" style="display:flex;justify-content:center">
+            <script async src="/static/js/telegram-widget.js"
+              data-telegram-login="{{ bu }}"
+              data-size="large"
+              data-radius="14"
+              data-onauth="onTelegramAuth(user)"
+              data-request-access="write"></script>
+          </div>
+          {% endif %}
+          {% if telegram_client_id %}
+          <button id="login-btn" class="btn btn-p btn-w" onclick="handleLoginClick()" {% if bu %}style="display:none"{% endif %}><i class="bi bi-person-check"></i> Войти</button>
+          {% endif %}
+          {% if not bu and not telegram_client_id %}
+          <div class="ib"><i class="bi bi-exclamation-triangle cr"></i><span>Вход через Telegram не настроен</span></div>
+          {% endif %}
+        </div>
+
+        <p id="login-hint" class="lh">{% if is_mini_app %}Нажмите «Повторить»{% else %}Безопасный вход через Telegram{% endif %}</p>
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+@keyframes spin { from { transform:rotate(0deg) } to { transform:rotate(360deg) } }
+</style>
+{% endblock %}
+
+{% block head %}
+{% if telegram_client_id %}
+<script src="https://telegram.org/js/telegram-login.js"></script>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+function setMiniAppControls(opts) {
+  var retry = document.getElementById('miniapp-retry');
+  var home = document.getElementById('miniapp-home');
+  if (retry) retry.style.display = opts && opts.retry ? '' : 'none';
+  if (home) home.style.display = opts && opts.home ? '' : 'none';
+}
+
+function setLoginState(m) {
+  document.getElementById('login-status').style.display = '';
+  document.getElementById('login-status-text').textContent = m;
+}
+function showWebLoginFallback() {
+  document.getElementById('login-status').style.display = 'none';
+  var webLogin = document.getElementById('web-login');
+  var b = document.getElementById('login-btn');
+  var w = document.getElementById('telegram-login');
+  if (webLogin) webLogin.style.display = '';
+  if (b) b.style.display = '';
+  if (w) w.style.display = '';
+  setMiniAppControls({ retry:false, home:false });
+}
+function showMiniAppFailure(m) {
+  document.getElementById('miniapp-status').style.display = '';
+  setMiniAppControls({ retry:true, home:true });
+  document.getElementById('login-hint').style.display = '';
+  document.getElementById('login-hint').textContent = 'Если кабинет не загрузился, попробуйте ещё раз или откройте mini app заново из Telegram';
+  setLoginState(m || 'Ошибка');
+}
+async function startMiniAppLogin(force) {
+  document.getElementById('miniapp-status').style.display = '';
+  setMiniAppControls({ retry:false, home:false });
+  setLoginState('Подключение...');
+  try {
+    rememberMiniAppInitData(getMiniAppInitData());
+    var r = await syncMiniAppSession({force:!!force, silent:false});
+    if (r.ok) {
+      setMiniAppControls({ retry:false, home:true });
+      window.location.replace(r.redirect || cabinetUrl('/cabinet/?miniapp=1'));
+    }
+    else { showMiniAppFailure(r.message || 'Ошибка'); }
+  } catch(e) { showMiniAppFailure('Ошибка сети'); }
+}
+async function bootMiniAppLogin() {
+  var attempts = 0;
+  document.getElementById('miniapp-status').style.display = '';
+  document.getElementById('web-login').style.display = 'none';
+  document.getElementById('login-hint').style.display = 'none';
+  setLoginState('Ожидание Telegram...');
+
+  while (attempts < 25) {
+    var tg = getTelegramWebApp();
+    var initData = (tg && tg.initData) || getTelegramHashParam('tgWebAppData');
+    if (initData) {
+      var hasInitDataInUrl = false;
+      try {
+        hasInitDataInUrl = new URL(window.location.href).searchParams.has(window.CABINET_BOOT.initDataParam);
+      } catch (e) {}
+      rememberMiniAppInitData(initData);
+      if (!hasInitDataInUrl) {
+        setLoginState('Загрузка кабинета...');
+        window.location.replace(cabinetUrl('/cabinet/?miniapp=1'));
+        return;
+      }
+      await startMiniAppLogin(true);
+      return;
+    }
+    attempts += 1;
+    await new Promise(function(resolve) { setTimeout(resolve, 200); });
+  }
+
+  showMiniAppFailure('Telegram не передал initData');
+}
+
+(function() {
+  if (isMiniAppRuntime()) {
+    bootMiniAppLogin();
+    return;
+  }
+  showWebLoginFallback();
+})();
+if (!isMiniAppRuntime()) {
+  setTimeout(function() {
+    if (isMiniAppRuntime()) return;
+    if (document.querySelector('#telegram-login') && !document.querySelector('#telegram-login iframe')) {
+      var b = document.getElementById('login-btn');
+      if (b) b.style.display = '';
+    }
+  }, 1800);
+}
+function onTelegramAuth(user) {
+  setLoginState('Проверка...');
+  var w = document.getElementById('telegram-login');
+  var b = document.getElementById('login-btn');
+  if (w) w.style.display = 'none';
+  if (b) b.style.display = 'none';
+  cabinetJson('/cabinet/auth', {method:'POST', body:JSON.stringify(user)})
+    .then(function(r) { if (r.data.ok) { window.location.replace(cabinetUrl(r.data.redirect || '/cabinet/')); } else { showToast(r.data.message || 'Ошибка','error'); showWebLoginFallback(); }})
+    .catch(function() { showToast('Ошибка сети','error'); showWebLoginFallback(); });
+}
+(function() {
+  var origin = 'https://oauth.telegram.org';
+  window.addEventListener('message', function(e) {
+    if (e.origin !== origin) return;
+    try { var d = JSON.parse(e.data); if (d.event === 'auth_user' && d.auth_data) onTelegramAuth(d.auth_data); } catch(err) {}
+  });
+})();
+{% if telegram_client_id %}
+var oidcInitialized = false;
+var TG_CLIENT_ID = {{ telegram_client_id }};
+var TG_REDIRECT_URI = window.location.origin + '/cabinet/';
+function handleLoginClick() {
+  if (!oidcInitialized) { Telegram.Login.init({client_id:TG_CLIENT_ID, redirect_uri:TG_REDIRECT_URI, request_access:['write']}, onOidcCallback); oidcInitialized = true; }
+  Telegram.Login.open(onOidcCallback);
+}
+function onOidcCallback(data) {
+  if (data.error) { showToast(data.error,'error'); return; }
+  if (!data.id_token) return;
+  setLoginState('Подтверждение...');
+  document.getElementById('login-btn').style.display = 'none';
+  document.getElementById('login-hint').style.display = 'none';
+  cabinetJson('/cabinet/auth', {method:'POST', body:JSON.stringify({id_token:data.id_token})})
+    .then(function(r) { if (r.data.ok) { window.location.replace(cabinetUrl(r.data.redirect || '/cabinet/')); } else { showToast(r.data.message||'Ошибка','error'); showWebLoginFallback(); }})
+    .catch(function() { showToast('Ошибка сети','error'); showWebLoginFallback(); });
+}
+{% endif %}
+{% endblock %}

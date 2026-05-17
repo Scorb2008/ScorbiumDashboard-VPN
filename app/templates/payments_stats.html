@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Аналитика платежей — VPN Panel{% endblock %}
+{% block page_title %}<i class="bi bi-bar-chart me-2" style="color:var(--accent)"></i>Аналитика платежей{% endblock %}
+
+{% block content %}
+<!-- Period selector -->
+<div class="d-flex gap-2 mb-3">
+  {% for label, days in [('24ч', 1), ('7д', 7), ('30д', 30), ('90д', 90), ('Всё время', 3650)] %}
+  <button class="btn btn-sm {{ 'btn-accent' if days == 30 else 'btn-outline' }}" onclick="setPeriod({{ days }}, this)">{{ label }}</button>
+  {% endfor %}
+</div>
+
+<!-- Summary cards -->
+<div class="row g-3 mb-3">
+  <div class="col-sm-3">
+    <div class="card p-3 d-flex align-items-center gap-2">
+      <div style="width:42px;height:42px;background:rgba(0,212,170,.15);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#00d4aa"><i class="bi bi-currency-dollar"></i></div>
+      <div>
+        <div class="fw-semibold" style="color:var(--text)" id="totalRevenue">{{ stats.total_revenue }}</div>
+        <div style="font-size:.75rem;color:var(--text-muted)">Общий доход (₽)</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-3">
+    <div class="card p-3 d-flex align-items-center gap-2">
+      <div style="width:42px;height:42px;background:rgba(14,165,233,.15);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#0ea5e9"><i class="bi bi-receipt"></i></div>
+      <div>
+        <div class="fw-semibold" style="color:var(--text)" id="totalPayments">{{ stats.total_payments }}</div>
+        <div style="font-size:.75rem;color:var(--text-muted)">Платежей</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-3">
+    <div class="card p-3 d-flex align-items-center gap-2">
+      <div style="width:42px;height:42px;background:rgba(168,85,247,.15);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#a855f7"><i class="bi bi-calculator"></i></div>
+      <div>
+        <div class="fw-semibold" style="color:var(--text)" id="avgPayment">{{ stats.avg_payment }}</div>
+        <div style="font-size:.75rem;color:var(--text-muted)">Средний чек (₽)</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-3">
+    <div class="card p-3 d-flex align-items-center gap-2">
+      <div style="width:42px;height:42px;background:rgba(245,158,11,.15);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#f59e0b"><i class="bi bi-percent"></i></div>
+      <div>
+        <div class="fw-semibold" style="color:var(--text)" id="successRate">{{ stats.success_rate }}%</div>
+        <div style="font-size:.75rem;color:var(--text-muted)">Успешность</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Provider comparison table -->
+<div class="card mb-3">
+  <div class="card-header px-3 py-2"><i class="bi bi-columns-gap me-2" style="color:var(--accent)"></i>Сравнение платёжных систем</div>
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>Система</th>
+          <th>Платежей</th>
+          <th>Успешных</th>
+          <th>Доход (₽)</th>
+          <th>Средний чек</th>
+          <th>Доля</th>
+          <th>Визуализация</th>
+        </tr>
+      </thead>
+      <tbody id="provider-tbody">
+        {% for p in providers %}
+        <tr>
+          <td>
+            {% set icons = {'yookassa': 'bi-credit-card', 'yookassa_sbp': 'bi-bank', 'cryptobot': 'bi-currency-bitcoin', 'telegram_stars': 'bi-star', 'freekassa': 'bi-lightning', 'balance': 'bi-wallet2', 'topup': 'bi-plus-circle'} %}
+            <i class="bi {{ icons.get(p.provider, 'bi-question-circle') }} me-2" style="color:var(--accent)"></i>
+            <span style="text-transform:capitalize">{{ p.label }}</span>
+          </td>
+          <td>{{ p.count }}</td>
+          <td><span style="color:var(--success)">{{ p.success_count }}</span></td>
+          <td class="fw-semibold" style="color:var(--text)">{{ "%.2f"|format(p.revenue) }} ₽</td>
+          <td style="color:var(--text-muted)">{{ "%.2f"|format(p.avg_amount) }} ₽</td>
+          <td>
+            <span class="badge badge-custom" style="background:rgba(0,212,170,.12);color:#00d4aa">{{ p.share }}%</span>
+          </td>
+          <td style="min-width:150px">
+            <div class="progress" style="height:8px;background:rgba(255,255,255,.05)">
+              <div class="progress-bar" style="width:{{ p.share }}%;background:linear-gradient(90deg,#00d4aa,#0ea5e9)"></div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Revenue chart (simple CSS bar chart) -->
+<div class="card">
+  <div class="card-header px-3 py-2"><i class="bi bi-graph-up me-2" style="color:var(--accent)"></i>Доход по дням</div>
+  <div class="p-3" id="chartContainer" style="min-height:200px">
+    <div class="d-flex align-items-end gap-1" id="barChart" style="height:180px"></div>
+    <div class="d-flex gap-1 mt-2" id="barLabels" style="font-size:.65rem;color:var(--text-muted)"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const providerLabels = {
+  yookassa: 'YooKassa', yookassa_sbp: 'YooKassa СБП', cryptobot: 'CryptoBot',
+  telegram_stars: 'Telegram Stars', freekassa: 'FreeKassa', balance: 'Баланс', topup: 'Пополнение'
+};
+
+async function loadStats(days) {
+  try {
+    const r = await fetch(`/panel/payments/stats?days=${days}`);
+    if (!r.ok) return;
+    const data = await r.json();
+
+    document.getElementById('totalRevenue').textContent = data.total_revenue;
+    document.getElementById('totalPayments').textContent = data.total_payments;
+    document.getElementById('avgPayment').textContent = data.avg_payment;
+    document.getElementById('successRate').textContent = data.success_rate + '%';
+
+    // Update provider rows
+    const tbody = document.getElementById('provider-tbody');
+    tbody.innerHTML = data.providers.map(p => `
+      <tr>
+        <td><i class="bi bi-${p.icon || 'credit-card'} me-2" style="color:var(--accent)"></i>${p.label}</td>
+        <td>${p.count}</td>
+        <td style="color:var(--success)">${p.success_count}</td>
+        <td class="fw-semibold" style="color:var(--text)">${p.revenue.toFixed(2)} ₽</td>
+        <td style="color:var(--text-muted)">${p.avg_amount.toFixed(2)} ₽</td>
+        <td><span class="badge badge-custom" style="background:rgba(0,212,170,.12);color:#00d4aa">${p.share}%</span></td>
+        <td style="min-width:150px"><div class="progress" style="height:8px;background:rgba(255,255,255,.05)"><div class="progress-bar" style="width:${p.share}%;background:linear-gradient(90deg,#00d4aa,#0ea5e9)"></div></div></td>
+      </tr>
+    `).join('');
+
+    // Render bar chart
+    renderBarChart(data.daily);
+  } catch {}
+}
+
+function renderBarChart(daily) {
+  if (!daily || !daily.length) return;
+  const max = Math.max(...daily.map(d => d.amount), 1);
+  const chart = document.getElementById('barChart');
+  const labels = document.getElementById('barLabels');
+  chart.innerHTML = '';
+  labels.innerHTML = '';
+
+  daily.forEach(d => {
+    const h = Math.max((d.amount / max) * 160, 2);
+    const bar = document.createElement('div');
+    bar.style.cssText = `flex:1;background:linear-gradient(180deg,#00d4aa,#0ea5e9);border-radius:3px 3px 0 0;min-width:4px;height:${h}px;opacity:.85;transition:height .3s`;
+    bar.title = `${d.date}: ${d.amount.toFixed(2)} ₽`;
+    chart.appendChild(bar);
+
+    const lbl = document.createElement('span');
+    lbl.style.cssText = 'flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    lbl.textContent = d.date.slice(5);
+    labels.appendChild(lbl);
+  });
+}
+
+function setPeriod(days, btn) {
+  btn.parentElement.querySelectorAll('.btn').forEach(b => { b.className = 'btn btn-sm btn-outline'; });
+  btn.className = 'btn btn-sm btn-accent';
+  loadStats(days);
+}
+
+// Initial load
+loadStats(30);
+</script>
+{% endblock %}

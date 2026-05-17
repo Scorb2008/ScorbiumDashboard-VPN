@@ -16,7 +16,8 @@ class AppLogger:
         
         try:
             from app.core.config import config
-            assert config is not None
+            if config is None:
+                raise AttributeError("Configuration is not loaded")
             
             log_dir = config.utils.log_path 
             rotation = config.utils.log_rotation

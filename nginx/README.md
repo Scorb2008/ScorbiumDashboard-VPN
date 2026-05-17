@@ -1,47 +1,77 @@
-# Nginx + SSL Setup
+# Nginx в проекте
 
-## 1. Edit nginx.conf
+В этом репозитории nginx настраивается не вручную, а через скрипты проекта.
 
-Replace `YOUR_DOMAIN` with your actual domain in `nginx/nginx.conf`:
+## Какие файлы используются
+
+- `nginx/nginx.local.conf` — dev-конфиг для локального `docker compose`
+- `nginx/nginx.generated.conf` — prod-конфиг, который генерируют скрипты
+- `nginx/nginx.conf` — больше не используется в деплое и может оставаться только как справочный пример
+
+## Кто генерирует `nginx.generated.conf`
+
+- `setup.sh` — при первой прод-установке
+- `update.sh` — при каждом обновлении
+
+Из-за этого редактировать `nginx/nginx.generated.conf` руками обычно бессмысленно: скрипт его перезапишет.
+
+## Какой роутинг ожидается
+
+- `/panel/` → админ-панель
+- `/api/` → REST API
+- `/cabinet/` → пользовательский кабинет
+- `/webhook/bot` → Telegram webhook
+- `/ws/notifications` → websocket панели
+
+## Локальная разработка
+
+Для dev используется `docker-compose.yml`, который монтирует:
+
+```text
+./nginx/nginx.local.conf:/etc/nginx/nginx.conf
 ```
-server_name your-domain.com;
-ssl_certificate     /etc/nginx/ssl/live/your-domain.com/fullchain.pem;
-ssl_certificate_key /etc/nginx/ssl/live/your-domain.com/privkey.pem;
+
+Обычно панель доступна на:
+
+- [http://localhost/panel/](http://localhost/panel/)
+
+## Продакшен
+
+Для prod используется `docker-compose.prod.yml`, который монтирует:
+
+```text
+./nginx/nginx.generated.conf:/etc/nginx/nginx.conf
 ```
 
-## 2. First run — get SSL cert (HTTP only, no HTTPS yet)
+HTTPS-порт берется из `.env` через `HTTPS_PORT`, по умолчанию `443`.
 
-Temporarily comment out the HTTPS server block in nginx.conf, then:
+## Опциональный Redis
+
+Для shared rate limiting в prod можно дополнительно включить Redis profile:
 
 ```bash
-docker compose up -d nginx db app
-
-# Get certificate
-docker compose run --rm certbot certonly \
-  --webroot \
-  --webroot-path=/var/www/certbot \
-  --email your@email.com \
-  --agree-tos \
-  --no-eff-email \
-  -d your-domain.com
+docker compose -f docker-compose.prod.yml --profile redis up -d
 ```
 
-## 3. Uncomment HTTPS block, restart nginx
+Тогда в `.env` можно указать:
 
-```bash
-docker compose restart nginx
+```text
+REDIS_URL=redis://redis:6379/0
 ```
 
-## 4. Auto-renewal
+Если Redis не включен или недоступен, приложение автоматически откатывается на in-memory rate limiting.
 
-The certbot service runs `certbot renew` every 12 hours automatically.
+## SSL
 
-## 5. .env for production
+Скрипты ожидают сертификаты в одном из путей:
 
-```env
-SERVER_HOST=0.0.0.0
-SERVER_PORT=8000
-TELEGRAM_TYPE_PROTOCOL=webhook
-TELEGRAM_WEBHOOK_URL=https://your-domain.com/webhook/bot
-TELEGRAM_WEBHOOK_PATH=/webhook/bot
-```
+- `nginx/ssl/live/<domain>/fullchain.pem`
+- `nginx/ssl/live/<domain>/privkey.pem`
+
+Если сертификаты лежат в `/etc/letsencrypt/live/<domain>/`, `update.sh` умеет их оттуда скопировать.
+
+## Что не забыть
+
+- не редактировать `nginx.generated.conf` вручную перед обычным деплоем
+- после смены домена обновить `.env`
+- использовать `setup.sh` для первичной настройки и `update.sh` для обновлений

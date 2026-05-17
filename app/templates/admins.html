@@ -15,7 +15,9 @@
       <div class="card-body p-0" id="admins-table">
         {% include "partials/admins_table.html" %}
       </div>
-  </div>
+    </div>  <!-- ✅ закрыли card -->
+  </div>    <!-- ✅ закрыли col -->
+</div>      <!-- ✅ закрыли row -->
 
 <!-- Add Admin Modal -->
 <div class="modal fade" id="addAdminModal" tabindex="-1" aria-hidden="true">
@@ -44,11 +46,13 @@
               <option value="superadmin">Суперадмин (полный доступ)</option>
             </select>
           </div>
+        </div>
         <div class="modal-footer" style="border-top:1px solid var(--border)">
           <button type="button" class="btn btn-sm btn-outline" data-bs-dismiss="modal">Отмена</button>
           <button type="submit" class="btn btn-sm btn-accent">Создать</button>
         </div>
-      </form>
-    </div>
-</div>
+      </form> 
+    </div> 
+  </div> 
+</div> 
 {% endblock %}

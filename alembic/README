@@ -1,1 +1,22 @@
-Generic single-database configuration.
+Alembic migrations for Scorbium Dashboard.
+
+Important for this project:
+
+1. Do not run `alembic upgrade head` blindly.
+2. Run `fix_alembic.py` first.
+3. Then run the Alembic upgrade.
+
+Correct sequence:
+
+```bash
+docker compose run --rm app uv run python fix_alembic.py
+docker compose run --rm app uv run alembic upgrade head
+```
+
+Why this exists:
+
+- the project has a pre-existing migration history
+- deployed databases may already be in a state that does not match the raw Alembic revision table
+- `fix_alembic.py` stamps the expected revision before migration execution
+
+If you skip this step, you can get migration conflicts or a broken schema state.

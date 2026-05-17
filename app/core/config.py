@@ -2,7 +2,6 @@ from typing import Dict, Optional
 from typing_extensions import Any
 from functools import lru_cache
 
-from app.core.exceptions import *
 from app.utils.log import log
 
 class _Config:
@@ -47,13 +46,13 @@ class _Config:
             self.database_config = database
         return self.database_config
 
-    @property 
+    @property
     def yookassa(self) -> Any:
         if self.yookassa_config is None:
             from .configs import yookassa
             self.yookassa_config = yookassa
         return self.yookassa_config
-    
+
     @property 
     def utils(self) -> Any:
         if self.utils_config is None:
@@ -82,8 +81,8 @@ class _Config:
         self.database_config = None
         self.pasarguard_config = None
         self.telegram_config = None
-        self.utils_config = None
         self.yookassa_config = None
+        self.utils_config = None
         self.web_config = None
 
         self.initialized = False
@@ -112,6 +111,13 @@ class _Config:
         except Exception as e:
             results["pasarguard"] = False
             log.error(f"Error validating Pasarguard settings: {e}")
+
+        try:
+            _ = self.yookassa
+            results["yookassa"] = True
+        except Exception as e:
+            results["yookassa"] = False
+            log.error(f"Error validating Yookassa settings: {e}")
         
         try:
             _ = self.telegram
@@ -127,16 +133,13 @@ class _Config:
             results["utils"] = False
             log.error(f"Error validating utils settings: {e}")
         
-        try:
-            _ = self.yookassa
-            results["yookassa"] = True
-        except Exception as e:
-            results["yookassa"] = False
-            log.error(f"Error validating Yookassa settings: {e}")
         return results
 
     def __repr__(self):
-        return f"<Config: (telegram: {self.telegram}, pasarguard: {self.pasarguard}, database: {self.database}, web: {self.web})>"
+        return (
+            f"<Config: (telegram: {self.telegram}, pasarguard: {self.pasarguard}, "
+            f"database: {self.database}, yookassa: {self.yookassa}, web: {self.web})>"
+        )
 
 @lru_cache()
 def get_config() -> _Config:

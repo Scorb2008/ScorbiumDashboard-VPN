@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from decimal import Decimal
 from typing import Optional
@@ -6,16 +7,15 @@ import yookassa
 from yookassa import Payment as YKPayment
 from yookassa.domain.response import PaymentResponse
 
-from app.core.config import config
 from app.core.exceptions import YookassaPaymentError
 from app.utils.log import log
 
 
 async def _get_yookassa_credentials() -> Optional[dict]:
     """
-    Возвращает учётные данные ЮКассы.
-    Приоритет: bot_settings (DB) → .env конфиг.
-    Использует ORM — SQL-инъекции невозможны.
+    Returns credentials Yookassa.
+    Source of truth: bot_settings (DB).
+    Use ORM — SQL-injection impossible.
     """
     try:
         from app.core.database import AsyncSessionFactory
@@ -28,43 +28,37 @@ async def _get_yookassa_credentials() -> Optional[dict]:
                 return {"shop_id": int(shop_id_str), "secret_key": secret_key}
     except Exception as e:
         log.debug(f"YooKassa DB credentials lookup failed: {e}")
-
-    # Fallback to .env
-    if config.yookassa:
-        auth = config.yookassa.get_auth
-        if auth:
-            return auth
     return None
 
 
+_yookassa_lock = asyncio.Lock()
+
+
 def _configure_yookassa_sync(shop_id: int, secret_key: str) -> None:
+    """Configure YooKassa synchronously. Caller must hold _yookassa_lock."""
     yookassa.Configuration.account_id = shop_id
     yookassa.Configuration.secret_key = secret_key
 
 
 class YookassaService:
     def __init__(self, shop_id: Optional[int] = None, secret_key: Optional[str] = None) -> None:
-        """
-        Если shop_id/secret_key не переданы — используется _configure_yookassa() (env).
-        Для async-инициализации из БД используй YookassaService.create().
-        """
         if shop_id and secret_key:
             _configure_yookassa_sync(shop_id, secret_key)
             self._ready = True
         else:
-            self._ready = _configure_yookassa_env()
-            if not self._ready:
-                raise YookassaPaymentError("Yookassa is not configured. Check YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY.")
+            self._ready = False
+            raise YookassaPaymentError("Yookassa is not configured in bot settings.")
 
     @classmethod
     async def create(cls) -> "YookassaService":
-        """Async factory — подхватывает настройки из БД или .env."""
+        """Async factory — get settings from bot settings (DB)."""
         creds = await _get_yookassa_credentials()
         if not creds:
             raise YookassaPaymentError("Yookassa is not configured.")
-        return cls(shop_id=creds["shop_id"], secret_key=creds["secret_key"])
+        async with _yookassa_lock:
+            return cls(shop_id=creds["shop_id"], secret_key=creds["secret_key"])
 
-    def create_payment(
+    async def create_payment(
         self,
         amount: Decimal,
         description: str,
@@ -83,21 +77,27 @@ class YookassaService:
             }
             if payment_method:
                 data["payment_method_data"] = {"type": payment_method}
-            payment = YKPayment.create(data, idempotency_key=str(uuid.uuid4()))
-            log.info(f"Yookassa payment created: {payment.id}")
+            payment = await asyncio.wait_for(
+                asyncio.to_thread(YKPayment.create, data, idempotency_key=str(uuid.uuid4())),
+                timeout=30,
+            )
+            log.info("Yookassa payment created: %s", payment.id)
             return payment
+        except asyncio.TimeoutError:
+            log.error("Yookassa payment creation timed out")
+            raise YookassaPaymentError("Payment service timed out. Please try again.")
         except Exception as e:
-            log.error(f"Yookassa payment creation failed: {e}")
-            raise YookassaPaymentError(str(e))
+            log.error("Yookassa payment creation failed: %s", e)
+            raise YookassaPaymentError("Payment service unavailable. Please try again.")
 
-    def create_sbp_payment(
+    async def create_sbp_payment(
         self,
         amount: Decimal,
         description: str,
         return_url: str,
         metadata: Optional[dict] = None,
     ) -> PaymentResponse:
-        return self.create_payment(
+        return await self.create_payment(
             amount=amount,
             description=description,
             return_url=return_url,
@@ -105,29 +105,34 @@ class YookassaService:
             payment_method="sbp",
         )
 
-    def get_payment(self, payment_id: str) -> PaymentResponse:
+    async def get_payment(self, payment_id: str) -> PaymentResponse:
         try:
-            return YKPayment.find_one(payment_id)
+            return await asyncio.wait_for(
+                asyncio.to_thread(YKPayment.find_one, payment_id),
+                timeout=15,
+            )
+        except asyncio.TimeoutError:
+            log.error("Yookassa payment lookup timed out: %s", payment_id)
+            raise YookassaPaymentError("Payment service timed out.")
         except Exception as e:
-            raise YookassaPaymentError(str(e))
+            log.error("Yookassa payment lookup failed: %s", e)
+            raise YookassaPaymentError("Payment service unavailable.")
 
     @staticmethod
-    def _sync_get_payment(payment_id: str) -> PaymentResponse:
-        """Синхронная проверка платежа — используется в async контексте через await YookassaService.create()."""
+    async def _sync_get_payment(payment_id: str) -> PaymentResponse:
+        """Sync payment checker — used in async context through await YookassaService.create()."""
         try:
-            return YKPayment.find_one(payment_id)
+            return await asyncio.wait_for(
+                asyncio.to_thread(YKPayment.find_one, payment_id),
+                timeout=15,
+            )
+        except asyncio.TimeoutError:
+            log.error("Yookassa payment lookup timed out: %s", payment_id)
+            raise YookassaPaymentError("Payment service timed out.")
         except Exception as e:
-            raise YookassaPaymentError(str(e))
+            log.error("Yookassa payment lookup failed: %s", e)
+            raise YookassaPaymentError("Payment service unavailable.")
 
-    def is_succeeded(self, payment_id: str) -> bool:
-        return self.get_payment(payment_id).status == "succeeded"
-
-
-def _configure_yookassa_env() -> bool:
-    if not config.yookassa:
-        return False
-    auth = config.yookassa.get_auth
-    if not auth:
-        return False
-    _configure_yookassa_sync(auth["shop_id"], auth["secret_key"])
-    return True
+    async def is_succeeded(self, payment_id: str) -> bool:
+        payment = await self.get_payment(payment_id)
+        return payment.status == "succeeded"

@@ -1,4 +1,5 @@
 from decimal import Decimal
+from dataclasses import dataclass
 from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,12 +8,26 @@ from app.models.payment import Payment, PaymentProvider, PaymentStatus, PaymentT
 from app.models.plan import Plan
 
 
+@dataclass(frozen=True)
+class PaymentConfirmationResult:
+    payment: Optional[Payment]
+    just_confirmed: bool
+
+
 class PaymentService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
     async def get_by_id(self, payment_id: int) -> Optional[Payment]:
         result = await self.session.execute(select(Payment).where(Payment.id == payment_id))
+        return result.scalar_one_or_none()
+
+    async def get_by_id_for_update(self, payment_id: int) -> Optional[Payment]:
+        result = await self.session.execute(
+            select(Payment)
+            .where(Payment.id == payment_id)
+            .with_for_update()
+        )
         return result.scalar_one_or_none()
 
     async def get_by_external_id(self, external_id: str) -> Optional[Payment]:
@@ -47,7 +62,8 @@ class PaymentService:
                 Payment.payment_type == PaymentType.SUBSCRIPTION.value,
             )
         )
-        return result.scalar_one() or Decimal("0")
+        val = result.scalar()
+        return val if val is not None else Decimal("0")
 
     async def total_topups(self) -> Decimal:
         """Сумма всех пополнений баланса."""
@@ -57,7 +73,8 @@ class PaymentService:
                 Payment.payment_type == PaymentType.TOPUP.value,
             )
         )
-        return result.scalar_one() or Decimal("0")
+        val = result.scalar()
+        return val if val is not None else Decimal("0")
 
     async def count_by_status(self, status: PaymentStatus) -> int:
         result = await self.session.execute(
@@ -70,7 +87,10 @@ class PaymentService:
         user_id: int,
         plan: Plan,
         provider: PaymentProvider,
-        currency: str = "RUB",
+        currency: Optional[str] = None,
+        amount: Optional[Decimal] = None,
+        external_id: Optional[str] = None,
+        meta: Optional[str] = None,
     ) -> Payment:
         """Создать pending платёж за подписку."""
         from datetime import datetime, timezone, timedelta
@@ -81,6 +101,7 @@ class PaymentService:
                 Payment.status == PaymentStatus.PENDING.value,
                 Payment.provider == provider.value,
                 Payment.payment_type == PaymentType.SUBSCRIPTION.value,
+                Payment.created_at <= cutoff,
             )
         )
         for old in old_result.scalars().all():
@@ -90,9 +111,11 @@ class PaymentService:
             user_id=user_id,
             provider=provider.value,
             payment_type=PaymentType.SUBSCRIPTION.value,
-            amount=plan.price,
-            currency=currency,
+            amount=amount if amount is not None else plan.price,
+            currency=currency or plan.currency or "RUB",
             status=PaymentStatus.PENDING.value,
+            external_id=external_id,
+            meta=meta,
         )
         self.session.add(payment)
         await self.session.flush()
@@ -105,8 +128,11 @@ class PaymentService:
         provider: PaymentProvider,
         external_id: Optional[str] = None,
         currency: str = "RUB",
+        meta: Optional[str] = None,
     ) -> Payment:
         """Создать pending платёж пополнения баланса."""
+        from datetime import datetime, timezone, timedelta
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=15)
         # Отменяем старые pending topup от того же провайдера
         old_result = await self.session.execute(
             select(Payment).where(
@@ -114,6 +140,7 @@ class PaymentService:
                 Payment.status == PaymentStatus.PENDING.value,
                 Payment.provider == provider.value,
                 Payment.payment_type == PaymentType.TOPUP.value,
+                Payment.created_at <= cutoff,
             )
         )
         for old in old_result.scalars().all():
@@ -127,6 +154,7 @@ class PaymentService:
             currency=currency,
             status=PaymentStatus.PENDING.value,
             external_id=external_id,
+            meta=meta,
         )
         self.session.add(payment)
         await self.session.flush()
@@ -151,13 +179,44 @@ class PaymentService:
         return count
 
     async def confirm(self, payment_id: int, external_id: str) -> Optional[Payment]:
-        payment = await self.get_by_id(payment_id)
+        """Atomic confirm with double-spending protection.
+
+        Uses SELECT ... FOR UPDATE to prevent race conditions where
+        two webhooks could both confirm the same payment.
+        """
+        result = await self.confirm_once(payment_id, external_id)
+        return result.payment
+
+    async def confirm_topup(self, payment_id: int, external_id: str) -> Optional[Payment]:
+        """Atomic topup confirmation with FOR UPDATE lock."""
+        result = await self.confirm_topup_once(payment_id, external_id)
+        return result.payment
+
+    async def confirm_once(self, payment_id: int, external_id: str) -> PaymentConfirmationResult:
+        """Confirm a subscription payment exactly once.
+
+        Returns whether this call changed the payment from pending to succeeded.
+        Replayed or out-of-order webhooks keep returning the existing payment
+        without re-running side effects.
+        """
+        return await self._confirm_once(payment_id, external_id)
+
+    async def confirm_topup_once(self, payment_id: int, external_id: str) -> PaymentConfirmationResult:
+        """Confirm a top-up payment exactly once."""
+        return await self._confirm_once(payment_id, external_id)
+
+    async def _confirm_once(self, payment_id: int, external_id: str) -> PaymentConfirmationResult:
+        payment = await self.get_by_id_for_update(payment_id)
         if not payment:
-            return None
+            return PaymentConfirmationResult(payment=None, just_confirmed=False)
+        if payment.status == PaymentStatus.SUCCEEDED.value:
+            return PaymentConfirmationResult(payment=payment, just_confirmed=False)
+        if payment.status != PaymentStatus.PENDING.value:
+            return PaymentConfirmationResult(payment=payment, just_confirmed=False)
         payment.status = PaymentStatus.SUCCEEDED.value
         payment.external_id = external_id
         await self.session.flush()
-        return payment
+        return PaymentConfirmationResult(payment=payment, just_confirmed=True)
 
     async def fail(self, payment_id: int) -> Optional[Payment]:
         payment = await self.get_by_id(payment_id)
@@ -172,3 +231,7 @@ class PaymentService:
             payment.status = PaymentStatus.REFUNDED.value
             await self.session.flush()
         return payment
+
+    async def is_already_processed(self, payment_id: int) -> bool:
+        payment = await self.get_by_id(payment_id)
+        return payment is not None and payment.status == PaymentStatus.SUCCEEDED.value

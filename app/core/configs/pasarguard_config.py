@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional, Tuple
 from functools import lru_cache
 
 from app.utils.path import env_file
-from app.core.exceptions import *
+from app.core.exceptions import EnvException, PasarguardAuthError
 from app.utils.log import log
 
 class _PasarGuardConfig(BaseSettings):
@@ -140,9 +140,9 @@ class _PasarGuardConfig(BaseSettings):
     def assert_login_credentials(self) -> Tuple[str, SecretStr]:
         if self.pasarguard_admin_login is None or self.pasarguard_admin_password is None:
             raise EnvException("❌ Login credentials are not properly configured!")
-        
+
         return self.pasarguard_admin_login, self.pasarguard_admin_password
-    
+
     def get_api_client_config(self) -> Dict[str, Any]:
         """
         Get complete configuration for API client
@@ -199,5 +199,3 @@ except EnvException as e:
             - PASARGUARD_API_KEY
               """)
     raise
-
- 

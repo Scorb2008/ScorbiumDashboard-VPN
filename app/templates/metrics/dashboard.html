@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Dashboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', monospace; background: #0f0f23; color: #e0e0e0; padding: 20px; }
+        h1 { color: #fff; margin-bottom: 20px; font-size: 24px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }
+        .card { background: #1a1a3e; border-radius: 12px; padding: 20px; border: 1px solid #2a2a4e; }
+        .card-title { font-size: 14px; color: #888; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .value { font-size: 36px; font-weight: bold; color: #0f3460; margin: 10px 0; }
+        .value.warn { color: #f95959; }
+        .value.ok { color: #4ecca3; }
+        .progress { background: #2a2a4e; height: 24px; border-radius: 12px; overflow: hidden; margin: 10px 0; }
+        .progress-bar { height: 100%; background: linear-gradient(90deg, #0f3460, #533483); transition: width 0.5s ease; border-radius: 12px; }
+        .detail { font-size: 13px; color: #aaa; margin-top: 8px; }
+        .status { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .status.ok { background: #1a3a1a; color: #4ecca3; }
+        .status.error { background: #3a1a1a; color: #f95959; }
+        .status.unknown { background: #3a3a1a; color: #cccc00; }
+        .info-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #2a2a4e; font-size: 14px; }
+        .info-label { color: #888; }
+        .info-value { color: #e0e0e0; font-weight: 500; }
+        #status-bar { padding: 10px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; background: #1a1a3e; border: 1px solid #2a2a4e; }
+        #status-bar.connected { border-color: #4ecca3; }
+        #status-bar.disconnected { border-color: #f95959; }
+        .uptime { font-size: 18px; color: #533483; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>📊 Server Dashboard <span style="font-size: 14px; color: #888;">Real-time</span></h1>
+    
+    <div id="status-bar" class="disconnected">
+        <span id="status-text">Connecting...</span>
+    </div>
+
+    <div class="grid">
+        <!-- System Info -->
+        <div class="card">
+            <div class="card-title">🖥 System Info</div>
+            <div class="detail" id="sys-hostname">Hostname: --</div>
+            <div class="detail" id="sys-platform">Platform: --</div>
+            <div class="detail" id="sys-arch">Architecture: --</div>
+            <div class="detail" id="sys-uptime">Uptime: --</div>
+            <div class="detail" id="sys-load">Load Avg: --</div>
+            <div class="detail" id="sys-procs">Processes: --</div>
+        </div>
+
+        <!-- CPU -->
+        <div class="card">
+            <div class="card-title">💻 CPU Usage</div>
+            <div class="value" id="cpu-value">--</div>
+            <div class="progress"><div class="progress-bar" id="cpu-bar"></div></div>
+            <div class="detail">Load Average: <span id="cpu-load">--</span></div>
+        </div>
+
+        <!-- RAM -->
+        <div class="card">
+            <div class="card-title">🧠 RAM</div>
+            <div class="value" id="ram-value">--</div>
+            <div class="progress"><div class="progress-bar" id="ram-bar"></div></div>
+            <div class="detail" id="ram-detail">-- / -- GB</div>
+            <div class="detail">Available: <span id="ram-avail">--</span> GB</div>
+        </div>
+
+        <!-- Disk -->
+        <div class="card">
+            <div class="card-title">💾 Disk (Root)</div>
+            <div class="value" id="disk-value">--</div>
+            <div class="progress"><div class="progress-bar" id="disk-bar"></div></div>
+            <div class="detail" id="disk-detail">-- / -- GB</div>
+            <div class="detail">Free: <span id="disk-free">--</span> GB</div>
+            <div class="detail" id="disk-io">I/O: -- / -- MB</div>
+        </div>
+
+        <!-- Network -->
+        <div class="card">
+            <div class="card-title">🌐 Network</div>
+            <div class="detail">↑ Sent: <span id="net-sent">--</span> MB</div>
+            <div class="detail">↓ Recv: <span id="net-recv">--</span> MB</div>
+            <div class="detail">Packets: <span id="net-pkts">--</span> / <span id="net-pktr">--</span></div>
+            <div class="detail">Errors: <span id="net-errs">--</span> / <span id="net-errr">--</span></div>
+        </div>
+
+        <!-- Database -->
+        <div class="card">
+            <div class="card-title">🗄 Database</div>
+            <div style="margin-top: 15px;">
+                <span class="status" id="db-status">UNKNOWN</span>
+            </div>
+            <div class="detail" style="margin-top: 10px;">Status: <span id="db-text">Checking...</span></div>
+        </div>
+
+        <!-- Processes -->
+        <div class="card">
+            <div class="card-title">⚙️ Processes</div>
+            <div class="value" id="proc-count">--</div>
+            <div class="detail">Total running processes</div>
+        </div>
+    </div>
+
+    <script>
+        const ws = new WebSocket(`ws://${location.host}/ws/metrics`);
+        const statusBar = document.getElementById('status-bar');
+        const statusText = document.getElementById('status-text');
+
+        function formatUptime(seconds) {
+            const d = Math.floor(seconds / 86400);
+            const h = Math.floor((seconds % 86400) / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            return `${d}d ${h}h ${m}m`;
+        }
+
+        function setStatus(value, pct) {
+            const el = document.getElementById(value + '-value');
+            const bar = document.getElementById(value + '-bar');
+            if (el) {
+                el.textContent = pct + '%';
+                el.className = 'value ' + (pct > 80 ? 'warn' : 'ok');
+                if (bar) bar.style.width = pct + '%';
+            }
+        }
+
+        ws.onopen = () => {
+            statusBar.className = 'connected';
+            statusText.textContent = '✅ Connected to metrics stream';
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            
+            // System Info
+            if (data.system) {
+                document.getElementById('sys-hostname').textContent = 'Hostname: ' + (data.system.hostname || '--');
+                document.getElementById('sys-platform').textContent = 'Platform: ' + 
+                    (data.system.platform || '--') + ' ' + (data.system.platform_release || '');
+                document.getElementById('sys-arch').textContent = 'Architecture: ' + (data.system.architecture || '--');
+                
+                if (data.system.uptime_seconds) {
+                    document.getElementById('sys-uptime').textContent = 'Uptime: ' + formatUptime(data.system.uptime_seconds);
+                }
+                if (data.system.load_avg) {
+                    const la = data.system.load_avg;
+                    document.getElementById('sys-load').textContent = `Load Avg: ${la['1min'].toFixed(2)}, ${la['5min'].toFixed(2)}, ${la['15min'].toFixed(2)}`;
+                }
+            }
+            if (data.processes) {
+                document.getElementById('sys-procs').textContent = 'Processes: ' + data.processes;
+                document.getElementById('proc-count').textContent = data.processes;
+            }
+
+            // CPU
+            setStatus('cpu', data.cpu);
+            if (data.system && data.system.load_avg) {
+                document.getElementById('cpu-load').textContent = data.system.load_avg['1min'].toFixed(2);
+            }
+
+            // RAM
+            const ramPct = data.ram.percent;
+            setStatus('ram', ramPct);
+            document.getElementById('ram-detail').textContent = 
+                `${data.ram.used} / ${data.ram.total} GB`;
+            document.getElementById('ram-avail').textContent = data.ram.available;
+
+            // Disk
+            const diskPct = data.disk.percent;
+            setStatus('disk', diskPct);
+            document.getElementById('disk-detail').textContent = 
+                `${data.disk.used} / ${data.disk.total} GB`;
+            document.getElementById('disk-free').textContent = data.disk.free;
+            
+            if (data.disk_io) {
+                document.getElementById('disk-io').textContent = 
+                    `I/O: ↑${data.disk_io.read_mb} / ↓${data.disk_io.write_mb} MB`;
+            }
+
+            // Network
+            document.getElementById('net-sent').textContent = data.net.sent_mb;
+            document.getElementById('net-recv').textContent = data.net.recv_mb;
+            document.getElementById('net-pkts').textContent = data.net.packets_sent;
+            document.getElementById('net-pktr').textContent = data.net.packets_recv;
+            document.getElementById('net-errs').textContent = data.net.errors_out;
+            document.getElementById('net-errr').textContent = data.net.errors_in;
+
+            // Database
+            const dbStatus = document.getElementById('db-status');
+            const dbText = document.getElementById('db-text');
+            if (data.database === 'connected') {
+                dbStatus.textContent = 'CONNECTED';
+                dbStatus.className = 'status ok';
+                dbText.textContent = 'Database connection OK';
+            } else if (data.database === 'error') {
+                dbStatus.textContent = 'ERROR';
+                dbStatus.className = 'status error';
+                dbText.textContent = 'Database connection failed';
+            } else {
+                dbStatus.textContent = 'UNKNOWN';
+                dbStatus.className = 'status unknown';
+                dbText.textContent = 'Checking connection...';
+            }
+        };
+
+        ws.onclose = () => {
+            statusBar.className = 'disconnected';
+            statusText.textContent = '❌ Disconnected. Reconnecting...';
+            setTimeout(() => location.reload(), 3000);
+        };
+
+        ws.onerror = (error) => {
+            statusText.textContent = '❌ Connection error';
+        };
+    </script>
+</body>
+</html>

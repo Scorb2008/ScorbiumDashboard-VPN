@@ -1,9 +1,35 @@
-from typing import Optional
+from typing import Any, Optional
+import time
+import asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import config
 from app.models.bot_settings import BotSettings
 from app.utils.log import log
+
+_SENSITIVE_KEYS = {
+    "cryptobot_token",
+    "freekassa_api_key",
+    "freekassa_secret_word_1",
+    "freekassa_secret_word_2",
+    "aikassa_token",
+    "bot_token",
+    "telegram_bot_token",
+    "platega_merchant_id",
+    "platega_secret",
+    "paypalych_api_token",
+}
+
+_CACHE_TTL = 300
+_cache: Optional[dict] = None
+_cache_ts: float = 0
+_cache_lock = asyncio.Lock()
+_DEPLOYMENT_URL_PATHS = {
+    "panel_url": "/panel/",
+    "admin_panel_url": "/panel/",
+    "cabinet_url": "/cabinet/",
+}
 
 DEFAULTS = {
     "welcome_message": "👋 Привет, {name}!\n\nЭто VPN-бот. Выбери действие:",
@@ -39,16 +65,20 @@ DEFAULTS = {
     "photo_language": "",
     "photo_trial": "",
     "panel_url": "",
-    "keyboard_layout": "",  # JSON раскладка главного меню
-    "bot_language": "ru",  # Язык бота: ru | en | fa
-    "cryptobot_token": "",  # CryptoBot API токен
-    "stars_rate": "1.5",  # Курс: 1 Star = X рублей
+    "cabinet_url": "",
+    "admin_panel_url": "",
+    "keyboard_layout": "",
+    "bot_language": "ru", 
+    "cryptobot_token": "",
+    "stars_rate": "1.5",
     # ── Платёжные системы — включение/отключение ──────────────────────────
     "ps_yookassa_enabled": "0",
     "ps_cryptobot_enabled": "0",
     "ps_stars_enabled": "1",
     "ps_freekassa_enabled": "0",
     "ps_aikassa_enabled": "0",
+    "ps_platega_enabled": "0",
+    "ps_paypalych_enabled": "0",
     "ps_sbp_enabled": "0",
     # ── FreeKassa ─────────────────────────────────────────────────────────────
     "freekassa_shop_id": "",
@@ -59,12 +89,12 @@ DEFAULTS = {
     "aikassa_shop_id": "",
     "aikassa_token": "",
     # ── Пробный период ────────────────────────────────────────────────────────
-    "trial_enabled": "0",  # 1 = включён
-    "trial_days": "3",  # кол-во дней пробного периода
-    "trial_label": "🎁 Пробный период ({days} дн.)",  # текст кнопки
+    "trial_enabled": "0",
+    "trial_days": "3", 
+    "trial_label": "🎁 Пробный период ({days} дн.)",
     # ── Уведомления об истечении подписки ─────────────────────────────────────
-    "notify_expiry_enabled": "1",  # 1 = включены уведомления
-    "notify_expiry_days": "7,3,1",  # за сколько дней уведомлять (через запятую)
+    "notify_expiry_enabled": "1",
+    "notify_expiry_days": "7,3,1",
     "notify_expiry_message": "⚠️ <b>Подписка истекает через {days} дн.!</b>\n\n📦 {name}\n📅 Дата истечения: <b>{date}</b>\n\nПродлите подписку чтобы не потерять доступ.",
     # ── Стили inline кнопок ───────────────────────────────────────────────────
     "btn_style_buy": "success",
@@ -81,11 +111,11 @@ DEFAULTS = {
     "btn_style_status": "",
     "btn_style_language": "",
     # ── Maintenance Mode ───────────────────────────────────────────────────────
-    "maintenance_mode": "0",  # 1 = maintenance on, stop key provisioning
+    "maintenance_mode": "0", 
     "maintenance_message": "⛔️ Ведутся технические работы. Напишите через час.",
     # ── Traffic Abuse Analysis ─────────────────────────────────────────
-    "traffic_abuse_threshold_gb": "500",  # GB per day threshold for abuse alert
-    "traffic_abuse_speed_limit_mbps": "10",  # Speed limit in Mbps when triggered
+    "traffic_abuse_threshold_gb": "100", 
+    "traffic_abuse_speed_limit_mbps": "10",
     # ── Custom emoji ID для кнопок (Premium) ─────────────────────────────────
     "btn_emoji_buy": "",
     "btn_emoji_my_keys": "",
@@ -99,6 +129,17 @@ DEFAULTS = {
     "btn_emoji_top_referrers": "",
     "btn_emoji_status": "",
     "btn_emoji_language": "",
+    # ── Уведомления о мониторинге ─────────────────────────────────────────────
+    "notify_monitoring_enabled": "1",
+    "notify_svc_database": "1", 
+    "notify_svc_telegram_bot": "1",
+    "notify_svc_vpn_panel": "1",
+    "notify_svc_yookassa": "0", 
+    "notify_svc_cryptobot": "0",
+    "notify_cooldown_seconds": "300", 
+    "notify_on_degraded": "0",
+    # ── Telegram Chat ID для уведомлений ──────────────────────────────────────
+    "notify_chat_ids": "",
 }
 
 
@@ -107,23 +148,37 @@ class BotSettingsService:
         self.session = session
 
     async def get(self, key: str) -> Optional[str]:
-        result = await self.session.execute(
-            select(BotSettings).where(BotSettings.key == key)
-        )
-        row = result.scalar_one_or_none()
-        if row:
-            return row.value
-        return DEFAULTS.get(key)
+        all_settings = await self.get_all()
+        value = all_settings.get(key)
+        if value and key in _SENSITIVE_KEYS:
+            from app.services.encryption import decrypt_value, is_encrypted
+            if is_encrypted(value):
+                return decrypt_value(value)
+        return value
 
     async def get_all(self) -> dict:
-        result = await self.session.execute(select(BotSettings))
-        rows = {r.key: r.value for r in result.scalars().all()}
+        global _cache, _cache_ts, _cache_lock
+        now = time.time()
+        async with _cache_lock:
+            if _cache is not None and (now - _cache_ts) < _CACHE_TTL:
+                return _cache
 
-        merged = dict(DEFAULTS)
-        merged.update(rows)
-        return merged
+            result = await self.session.execute(select(BotSettings))
+            rows = {r.key: r.value for r in result.scalars().all()}
+
+            merged = dict(DEFAULTS)
+            merged.update(rows)
+            _cache = merged
+            _cache_ts = now
+            return merged
 
     async def set(self, key: str, value: str) -> None:
+        global _cache, _cache_ts, _cache_lock
+        if key in _SENSITIVE_KEYS and value:
+            from app.services.encryption import encrypt_value, is_encrypted
+            if not is_encrypted(value):
+                value = encrypt_value(value)
+
         result = await self.session.execute(
             select(BotSettings).where(BotSettings.key == key)
         )
@@ -133,10 +188,44 @@ class BotSettingsService:
         else:
             self.session.add(BotSettings(key=key, value=value))
         await self.session.flush()
+        async with _cache_lock:
+            _cache = None
+            _cache_ts = 0
+
+    async def set_raw(self, key: str, value: str) -> None:
+        """Set a value without encryption (for internal use)."""
+        global _cache, _cache_ts, _cache_lock
+        result = await self.session.execute(
+            select(BotSettings).where(BotSettings.key == key)
+        )
+        row = result.scalar_one_or_none()
+        if row:
+            row.value = value
+        else:
+            self.session.add(BotSettings(key=key, value=value))
+        await self.session.flush()
+        async with _cache_lock:
+            _cache = None
+            _cache_ts = 0
+
+    async def is_encrypted_in_db(self, key: str) -> bool:
+        """Check if a value is stored encrypted in the DB."""
+        result = await self.session.execute(
+            select(BotSettings).where(BotSettings.key == key)
+        )
+        row = result.scalar_one_or_none()
+        if not row or not row.value:
+            return False
+        from app.services.encryption import is_encrypted
+        return is_encrypted(row.value)
 
     async def set_many(self, data: dict) -> None:
+        global _cache, _cache_ts, _cache_lock
         for key, value in data.items():
             await self.set(key, value)
+        async with _cache_lock:
+            _cache = None
+            _cache_ts = 0
 
     async def is_maintenance_mode(self) -> bool:
         value = await self.get("maintenance_mode")
@@ -154,7 +243,53 @@ class BotSettingsService:
         return int(value) if value else 10
 
 
-async def create_traffic_analysis_service() -> "TrafficAnalysisService":
+def canonical_site_url(path: str) -> str:
+    site_url = (config.web.site_url or "").strip().rstrip("/")
+    if not site_url:
+        return ""
+    normalized_path = path if path.startswith("/") else f"/{path}"
+    return f"{site_url}{normalized_path}"
+
+
+async def sync_deployment_url_settings(
+    session: AsyncSession,
+    *,
+    overwrite_existing: bool = False,
+) -> dict[str, str]:
+    """Synchronize deployment-specific URLs with current SITE_URL.
+
+    These URLs are environment-specific and should not keep stale domains
+    after restoring a database backup from another server.
+    """
+    svc = BotSettingsService(session)
+    applied: dict[str, str] = {}
+
+    for key, path in _DEPLOYMENT_URL_PATHS.items():
+        target = canonical_site_url(path)
+        if not target:
+            continue
+
+        current = ((await svc.get(key)) or "").strip()
+        if not overwrite_existing and current:
+            continue
+        if current == target:
+            continue
+
+        await svc.set(key, target)
+        applied[key] = target
+
+    return applied
+
+
+async def reset_bot_settings_cache() -> None:
+    """Clear the process-wide bot settings cache after external DB changes."""
+    global _cache, _cache_ts, _cache_lock
+    async with _cache_lock:
+        _cache = None
+        _cache_ts = 0
+
+
+async def create_traffic_analysis_service() -> Any:
     from app.services.pasarguard.pasarguard import get_vpn_panel
 
     class TrafficAnalysisService:

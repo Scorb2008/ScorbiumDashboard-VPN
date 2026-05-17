@@ -1,0 +1,58 @@
+{% extends "cabinet/base.html" %}
+{% block title %}Тикет #{{ ticket.id }} - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="sl">
+  <a href="/cabinet/support" class="bk"><i class="bi bi-arrow-left"></i> Назад</a>
+
+  <div class="cd rb rw">
+    <div>
+      <h2 style="margin:0;font-size:1.05rem">{{ ticket.subject }}</h2>
+      <div class="cm" style="font-size:.78rem">#{{ ticket.id }} · {{ ticket.created_at.strftime('%d.%m.%Y') if ticket.created_at else '—' }}</div>
+    </div>
+    <span class="bdg bdg-{{ 'g' if ticket.status == 'closed' else 'w' }}">{{ ticket.status if ticket.status else 'open' }}</span>
+  </div>
+
+  <div class="cd">
+    <h3 style="margin:0 0 12px;font-size:.9rem">Переписка</h3>
+    {% if ticket.messages %}
+    <div class="s">
+      {% for msg in ticket.messages %}
+      <div class="msg {% if msg.is_admin %}msg-a{% else %}msg-u{% endif %}">
+        <div class="ms">{{ 'Поддержка' if msg.is_admin else 'Вы' }}</div>
+        <div class="mt">{{ msg.text }}</div>
+        <div class="mti">{{ msg.created_at.strftime('%d.%m.%Y %H:%M') if msg.created_at else '—' }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="ep"><div class="ei"><i class="bi bi-chat-left-dots"></i></div><p>Нет сообщений</p></div>
+    {% endif %}
+  </div>
+
+  <div class="cd">
+    <h3 style="margin:0 0 12px;font-size:.9rem">Ответить</h3>
+    <form onsubmit="return sendTicketMessage(event)" class="s">
+      <textarea id="ticket-message" class="inp" rows="3" placeholder="Напишите сообщение..." required></textarea>
+      <div class="r">
+        <button type="submit" class="btn btn-p"><i class="bi bi-send"></i> Отправить</button>
+        <div id="ticket-message-result"></div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+async function sendTicketMessage(event) {
+  event.preventDefault();
+  var t = document.getElementById('ticket-message').value.trim();
+  var r = document.getElementById('ticket-message-result');
+  var fd = new FormData(); fd.append('text', t);
+  try {
+    var res = await cabinetJson('/cabinet/support/{{ ticket.id }}/message', {method:'POST', body:fd});
+    if (res.data.ok) { setMsg(r, true, 'Отправлено'); setTimeout(function(){window.location.reload()},500); }
+    else { setMsg(r, false, res.data.message || 'Ошибка'); }
+  } catch(e) { setMsg(r, false, 'Ошибка сети'); }
+  return false;
+}
+{% endblock %}

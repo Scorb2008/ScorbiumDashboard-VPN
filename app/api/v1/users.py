@@ -29,6 +29,37 @@ async def list_users(
     return await UserService(db).get_all(limit=limit, offset=offset)
 
 
+@router.get("/{user_id}/keys", response_model=list[VpnKeyRead], summary="User VPN keys")
+async def user_keys(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> list[VpnKeyRead]:
+    return await VpnKeyService(db).get_all_for_user(user_id)
+
+
+@router.get("/{user_id}/payments", response_model=list[PaymentRead], summary="User payments")
+async def user_payments(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> list[PaymentRead]:
+    return await PaymentService(db).get_all(user_id=user_id)
+
+
+@router.post("/{user_id}/message", summary="Send Telegram message to user")
+async def send_message(
+    user_id: int,
+    body: SendMessageBody,
+    _: str = Depends(get_current_admin),
+) -> dict:
+    notify = TelegramNotifyService()
+    ok = await notify.send_message(user_id, body.text, body.parse_mode)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to send Telegram message")
+    return {"detail": "Message sent"}
+
+
 @router.get("/{user_id}", response_model=UserDetail, summary="Get user details")
 async def get_user(
     user_id: int,
@@ -81,34 +112,3 @@ async def unban_user(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return user
-
-
-@router.get("/{user_id}/keys", response_model=list[VpnKeyRead], summary="User VPN keys")
-async def user_keys(
-    user_id: int,
-    db: AsyncSession = Depends(get_db),
-    _: str = Depends(get_current_admin),
-) -> list[VpnKeyRead]:
-    return await VpnKeyService(db).get_all_for_user(user_id)
-
-
-@router.get("/{user_id}/payments", response_model=list[PaymentRead], summary="User payments")
-async def user_payments(
-    user_id: int,
-    db: AsyncSession = Depends(get_db),
-    _: str = Depends(get_current_admin),
-) -> list[PaymentRead]:
-    return await PaymentService(db).get_all(user_id=user_id)
-
-
-@router.post("/{user_id}/message", summary="Send Telegram message to user")
-async def send_message(
-    user_id: int,
-    body: SendMessageBody,
-    _: str = Depends(get_current_admin),
-) -> dict:
-    notify = TelegramNotifyService()
-    ok = await notify.send_message(user_id, body.text, body.parse_mode)
-    if not ok:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to send Telegram message")
-    return {"detail": "Message sent"}

@@ -7,21 +7,22 @@
   <!-- Create form -->
   <div class="col-lg-5">
     <div class="card p-3">
-      <div class="fw-semibold text-white mb-3"><i class="bi bi-megaphone me-2 text-muted"></i>Новая рассылка</div>
-      <form hx-post="/panel/broadcasts" hx-target="#broadcasts-list" hx-swap="outerHTML">
+      <div class="fw-semibold" style="color:var(--text); margin-bottom: 0.75rem"><i class="bi bi-megaphone me-2 text-muted"></i>Новая рассылка</div>
+      <form hx-post="/panel/broadcasts" hx-target="#broadcasts-list" hx-swap="outerHTML" id="broadcastForm">
         <div class="mb-3">
           <label class="form-label">Заголовок</label>
-          <input type="text" name="title" class="form-control" placeholder="Акция на подписку" required />
+          <input type="text" name="title" class="form-control" id="bcTitle" placeholder="Акция на подписку" required />
         </div>
         <div class="mb-3">
           <label class="form-label">Текст (HTML)</label>
-          <textarea name="text" class="form-control" rows="5"
+          <textarea name="text" class="form-control" id="bcText" rows="5"
             placeholder="🎉 <b>Скидка 20%</b> на все тарифы до конца недели!" required></textarea>
+          <div class="form-text">Поддерживается HTML-разметка Telegram: <code>&lt;b&gt;</code>, <code>&lt;i&gt;</code>, <code>&lt;a href="..."&gt;</code>, <code>&lt;code&gt;</code></div>
         </div>
         <div class="row g-2 mb-3">
           <div class="col-6">
             <label class="form-label">Аудитория</label>
-            <select name="target" class="form-select">
+            <select name="target" class="form-select" id="bcTarget">
               <option value="all">Все пользователи</option>
               <option value="active">Активные подписки</option>
               <option value="expired">Истёкшие подписки</option>
@@ -29,15 +30,20 @@
           </div>
           <div class="col-6">
             <label class="form-label">Формат</label>
-            <select name="parse_mode" class="form-select">
+            <select name="parse_mode" class="form-select" id="bcParse">
               <option value="HTML">HTML</option>
               <option value="Markdown">Markdown</option>
             </select>
           </div>
         </div>
-        <button type="submit" class="btn btn-accent w-100">
-          <i class="bi bi-plus-lg me-1"></i>Создать черновик
-        </button>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary w-50" onclick="previewBroadcast()">
+            <i class="bi bi-eye me-1"></i>Превью
+          </button>
+          <button type="submit" class="btn btn-accent w-50">
+            <i class="bi bi-plus-lg me-1"></i>Создать
+          </button>
+        </div>
       </form>
     </div>
   </div>
@@ -49,4 +55,70 @@
     </div>
   </div>
 </div>
+
+<!-- Broadcast Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:var(--surface);border:1px solid rgba(255,255,255,.08);border-radius:16px">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title" style="color:var(--text)"><i class="bi bi-telegram me-2" style="color:#0ea5e9"></i>Превью рассылки</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="p-3 rounded-3" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)">
+          <div class="d-flex align-items-start gap-2 mb-2">
+            <div class="rounded-circle" style="width:36px;height:36px;background:linear-gradient(135deg,#00d4aa,#0ea5e9);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <i class="bi bi-robot" style="color:#fff;font-size:.9rem"></i>
+            </div>
+            <div>
+              <div class="fw-semibold" style="color:var(--text);font-size:.85rem" id="prevTitle"></div>
+              <div style="color:var(--text-muted);font-size:.7rem">бот • только что</div>
+            </div>
+          </div>
+          <div class="mt-2" id="prevBody" style="color:var(--text);font-size:.88rem;line-height:1.5;word-break:break-word"></div>
+        </div>
+        <div class="mt-3 d-flex justify-content-between align-items-center" style="font-size:.75rem;color:var(--text-muted)">
+          <span id="prevTarget"></span>
+          <span id="prevCount" class="badge badge-custom" style="background:rgba(0,212,170,.12);color:#00d4aa"></span>
+        </div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-sm w-100" style="background:var(--accent);color:#000" data-bs-dismiss="modal" onclick="document.getElementById('broadcastForm').requestSubmit()">
+          <i class="bi bi-send me-1"></i>Отправить эту рассылку
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function previewBroadcast() {
+  const title = document.getElementById('bcTitle').value || '';
+  const text = document.getElementById('bcText').value || '';
+  const target = document.getElementById('bcTarget').value;
+
+  if (!text) {
+    showToast('Введите текст рассылки', 'warning');
+    return;
+  }
+
+  // Estimate audience count via API
+  let count = '—';
+  try {
+    const r = await fetch(`/panel/broadcasts/estimate?target=${target}`);
+    if (r.ok) { const d = await r.json(); count = d.count ?? '—'; }
+  } catch {}
+
+  const targetLabels = { all: 'Все пользователи', active: 'Активные подписки', expired: 'Истёкшие подписки' };
+
+  document.getElementById('prevTitle').textContent = title || 'Без заголовка';
+  document.getElementById('prevBody').innerHTML = text;
+  document.getElementById('prevTarget').textContent = 'Аудитория: ' + (targetLabels[target] || target);
+  document.getElementById('prevCount').textContent = '~' + count + ' получателей';
+
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('previewModal')).show();
+}
+</script>
 {% endblock %}

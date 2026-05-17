@@ -1,0 +1,24 @@
+{% extends "cabinet/base.html" %}
+{% block title %}Серверы — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="sl">
+  <div class="ttl"><h2>Серверы</h2></div>
+
+  {% if hosts %}
+  <div class="s">
+    {% for host in hosts %}
+    <div class="sc">
+      <div>
+        <div class="sn">{{ host.get('name', 'Сервер') }}</div>
+        <div class="sl">{{ host.get('location', '') }}</div>
+      </div>
+      {% set online = host.get('status', '') == 'active' %}
+      <span class="ss {% if online %}on{% else %}off{% endif %}">{{ 'Online' if online else 'Offline' }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="ep"><div class="ei"><i class="bi bi-server"></i></div><p>Информация недоступна</p></div>
+  {% endif %}
+</div>
+{% endblock %}

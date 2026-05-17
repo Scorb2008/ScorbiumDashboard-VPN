@@ -4,7 +4,8 @@ from app.utils.log import log
 
 class PasarguardAuthService:
     def __init__(self):
-        assert config is not None
+        if config is None:
+            raise RuntimeError("Configuration is not loaded")
         self.api_key = config.pasarguard.pasarguard_api_key.get_secret_value()
         self.base_url = config.pasarguard.pasarguard_admin_panel
     
@@ -27,5 +28,3 @@ class PasarguardAuthService:
         except Exception as e:
             log.error(f"Error validating Pasarguard API key: {e}")
             return False
-        
-        

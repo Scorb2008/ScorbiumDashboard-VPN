@@ -18,6 +18,26 @@ CALLBACK_COST = 1        # tokens per callback
 MESSAGE_COST = 2         # tokens per message (heavier)
 BLOCK_DURATION = 30      # seconds to block after exhaustion
 
+# ── Admin command flood protection ───────────────────────────────────────────
+ADMIN_COMMANDS = {"/ban", "/unban", "/promo", "/addbalance", "/givekey", "/admin"}
+ADMIN_RATE_PER_MINUTE = 20  # max admin commands per minute per admin
+
+# ── Per-command limits (messages per minute) ──────────────────────────────────
+COMMAND_LIMITS = {
+    "/start": 10,
+    "/buy": 15,
+    "/keys": 20,
+    "/profile": 20,
+    "/status": 20,
+    "/top": 5,
+    "/gift": 5,
+    "/extend": 5,
+    "/autorenew": 10,
+    "/id": 20,
+    "/help": 10,
+}
+DEFAULT_COMMAND_LIMIT = 30  # per minute for unknown commands
+
 
 class _Bucket:
     __slots__ = ("tokens", "last_refill", "blocked_until", "warned")
@@ -59,10 +79,20 @@ class ThrottleMiddleware(BaseMiddleware):
 
     def __init__(self) -> None:
         self._buckets: dict[int, _Bucket] = defaultdict(_Bucket)
+        self._admin_counts: dict[int, list[float]] = defaultdict(list)  # user_id -> [timestamps]
+        self._command_counts: dict[int, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
 
     def _get_user_id(self, event: TelegramObject) -> int | None:
         if isinstance(event, (Message, CallbackQuery)):
             return event.from_user.id if event.from_user else None
+        return None
+
+    def _get_command(self, event: TelegramObject) -> str | None:
+        if isinstance(event, Message) and event.text:
+            text = event.text.strip()
+            if text.startswith("/"):
+                parts = text.split()[0].split("@")
+                return parts[0].lower()
         return None
 
     async def __call__(
@@ -75,6 +105,42 @@ class ThrottleMiddleware(BaseMiddleware):
         if user_id is None:
             return await handler(event, data)
 
+        # Per-command rate limit
+        cmd = self._get_command(event)
+        if cmd and isinstance(event, Message):
+            limit = COMMAND_LIMITS.get(cmd, DEFAULT_COMMAND_LIMIT)
+            now = time.monotonic()
+            window = self._command_counts[user_id][cmd]
+            # Remove entries older than 60 seconds
+            cutoff = now - 60
+            self._command_counts[user_id][cmd] = [t for t in window if t > cutoff]
+            if len(self._command_counts[user_id][cmd]) >= limit:
+                try:
+                    await event.answer(
+                        f"⏳ Команда {cmd} используется слишком часто. Попробуйте через минуту.",
+                        disable_notification=True,
+                    )
+                except Exception:
+                    pass
+                return  # drop
+
+            self._command_counts[user_id][cmd].append(now)
+
+        # Admin command flood protection
+        if cmd and cmd in ADMIN_COMMANDS:
+            from app.core.config import config
+            if user_id in config.telegram.telegram_admin_ids:
+                now = time.monotonic()
+                admin_window = [t for t in self._admin_counts[user_id] if t > now - 60]
+                if len(admin_window) >= ADMIN_RATE_PER_MINUTE:
+                    try:
+                        await event.answer("⏳ Подождите — слишком много админ-команд подряд.", disable_notification=True)
+                    except Exception:
+                        pass
+                    return
+                self._admin_counts[user_id].append(now)
+
+        # General token bucket
         cost = MESSAGE_COST if isinstance(event, Message) else CALLBACK_COST
         bucket = self._buckets[user_id]
 

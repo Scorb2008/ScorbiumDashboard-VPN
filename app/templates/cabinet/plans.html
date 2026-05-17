@@ -1,0 +1,365 @@
+{% extends "cabinet/base.html" %}
+{% block title %}Тарифы - {{ app_name }}{% endblock %}
+
+{% block head %}
+<style>{% include "cabinet/_premium_section_styles.html" %}</style>
+<style>
+  .cab-payment-grid {
+    display: grid;
+    gap: 12px;
+  }
+
+  .cab-payment-grid[hidden] {
+    display: none;
+  }
+
+  .cab-payment-trigger {
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .cab-payment-methods {
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .cab-payment-method {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 18px;
+    border: 1px solid rgba(159, 193, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .cab-payment-method strong {
+    display: block;
+    color: var(--text);
+    font-size: .95rem;
+  }
+
+  .cab-payment-method span {
+    display: block;
+    margin-top: 4px;
+    color: var(--text-muted);
+    font-size: .82rem;
+    line-height: 1.45;
+  }
+
+  .cab-payment-method .btn {
+    flex-shrink: 0;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cab-premium">
+  <section class="cab-premium-shell">
+    <div class="cab-premium-top">
+      <div class="cab-premium-copy">
+        <div class="cab-premium-kicker">Тарифы</div>
+        <h1 class="cab-premium-title">Подберите план без визуального шума и лишних действий</h1>
+        <p class="cab-premium-subtitle">Показываем стоимость, срок и способы оплаты в одной понятной сетке. На первом экране видно и баланс, и доступные варианты оформления.</p>
+      </div>
+      <span class="cab-premium-badge">Баланс: {{ "%.2f"|format(user.balance) }} ₽</span>
+    </div>
+
+    <div class="cab-premium-grid-2" style="margin-top:24px">
+      <article class="cab-premium-card">
+        <div class="cab-premium-kicker" style="margin-bottom:10px">Режим покупки</div>
+        <h2 style="margin:0;font-family:'Space Grotesk','Manrope',sans-serif;font-size:1.5rem;letter-spacing:-.04em">Оформляйте подписку так, как удобно вам</h2>
+        <p class="cab-premium-subtitle" style="margin-top:12px">Если на балансе уже есть средства, оформление занимает один клик. Если хотите оплатить картой, кабинет вернёт вас обратно и сам проверит результат.</p>
+        <div class="cab-premium-actions">
+          <a href="/cabinet/balance" class="btn btn-o"><i class="bi bi-wallet2"></i> Открыть баланс</a>
+          <a href="/cabinet/keys" class="btn btn-o"><i class="bi bi-key"></i> Мои подписки</a>
+          <a href="/cabinet/promo" class="btn btn-o"><i class="bi bi-ticket-perforated"></i> Промокоды</a>
+        </div>
+      </article>
+
+      <article class="cab-premium-card cab-premium-balance-card">
+        <div>
+          <div class="cab-premium-stat-label">Свободно на счете</div>
+          <div class="cab-premium-balance-value">{{ "%.2f"|format(user.balance) }} ₽</div>
+        </div>
+        <div class="cab-premium-note">
+          <i class="bi bi-lightning-charge"></i>
+          <div>
+            <strong>Быстрый сценарий</strong>
+            <span>Сначала оплачивайте с баланса, а карту держите как запасной сценарий. Так кабинет ощущается проще и чище.</span>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <section class="cab-premium-panel" style="margin-top:18px">
+      <div class="cab-premium-panel-head">
+        <div>
+          <h2>Промокод на покупку</h2>
+          <p>Здесь применяются скидочные промокоды к покупке тарифа. Промокоды на баланс и дополнительные дни активируются в отдельном разделе и срабатывают сразу.</p>
+        </div>
+      </div>
+
+      <div class="cab-premium-form">
+        <input type="text" id="plans-promo-code" class="inp" placeholder="Например: SALE20" autocomplete="off">
+        <div class="cab-premium-note">
+          <i class="bi bi-ticket-perforated"></i>
+          <div>
+            <strong>Промокоды работают в двух режимах</strong>
+            <span>Скидка применяется здесь при покупке. Баланс и дни активируются через раздел «Промокоды» и не требуют выбора тарифа.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="cab-premium-grid-2" style="margin-top:18px">
+      {% for plan in plans %}
+      <article class="cab-premium-plan">
+        <div class="cab-premium-plan-tag"><i class="bi bi-lightning-charge"></i>{{ plan.duration_days }} дн.</div>
+        <h3>{{ plan.name }}</h3>
+        <div class="cab-premium-price">{{ "%.0f"|format(plan.price) }} ₽</div>
+        <p>{{ plan.description or 'Сбалансированный тариф для стабильного доступа без лишних переключений.' }}</p>
+        <div class="cab-premium-plan-actions">
+          <button
+            class="btn btn-p btn-w cab-payment-trigger"
+            type="button"
+            data-payment-toggle="{{ plan.id }}"
+            aria-expanded="false"
+          >
+            <span><i class="bi bi-wallet2"></i> Способы оплаты</span>
+            <i class="bi bi-chevron-down"></i>
+          </button>
+        </div>
+        <div class="cab-payment-grid" id="payment-methods-{{ plan.id }}" hidden>
+          <div class="cab-payment-methods">
+            <div class="cab-payment-method">
+              <div>
+                <strong>Баланс кабинета</strong>
+                <span>Мгновенная покупка без внешнего перехода, если на счёте хватает средств.</span>
+              </div>
+              <button class="btn btn-p" type="button" onclick="payBalance({{ plan.id }})">
+                <i class="bi bi-wallet2"></i> Оплатить
+              </button>
+            </div>
+
+            {% if settings.get('ps_yookassa_enabled', '0') == '1' %}
+            <div class="cab-payment-method">
+              <div>
+                <strong>Банковская карта</strong>
+                <span>Стандартная оплата через YooKassa с возвратом обратно в кабинет.</span>
+              </div>
+              <button class="btn btn-o" type="button" onclick="payYooKassa({{ plan.id }})">
+                <i class="bi bi-credit-card-2-front"></i> Картой
+              </button>
+            </div>
+            {% endif %}
+
+            {% if settings.get('ps_sbp_enabled', '0') == '1' %}
+            <div class="cab-payment-method">
+              <div>
+                <strong>СБП</strong>
+                <span>Быстрая оплата через банковское приложение без ввода реквизитов карты.</span>
+              </div>
+              <button class="btn btn-o" type="button" onclick="paySbp({{ plan.id }})">
+                <i class="bi bi-qr-code-scan"></i> СБП
+              </button>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </article>
+      {% else %}
+      <div class="cab-premium-empty">
+        <div class="cab-premium-empty-icon"><i class="bi bi-emoji-frown"></i></div>
+        <p>Тарифы временно недоступны. Попробуйте чуть позже.</p>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="cab-premium-note" style="margin-top:18px">
+      <i class="bi bi-info-circle"></i>
+      <div>
+        <strong>Нужны деньги на счете?</strong>
+        <span>Если хотите покупать без перехода на сторонний способ оплаты, сначала пополните баланс в одноименном разделе.</span>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+function getPlansPromoCode() {
+  var input = document.getElementById('plans-promo-code');
+  return input ? input.value.trim() : '';
+}
+
+function rememberPlansPromoCode(code) {
+  if (!code) localStorage.removeItem('cabinetPlansPromoCode');
+  else localStorage.setItem('cabinetPlansPromoCode', code.toUpperCase());
+}
+
+function hydratePlansPromoCode() {
+  var input = document.getElementById('plans-promo-code');
+  if (!input || input.value.trim()) return;
+  var saved = localStorage.getItem('cabinetPlansPromoCode') || '';
+  if (saved) input.value = saved;
+}
+
+function clearPlansPromoCode() {
+  localStorage.removeItem('cabinetPlansPromoCode');
+}
+
+function clearPaymentQueryParam() {
+  try {
+    var url = new URL(window.location.href);
+    url.searchParams.delete('payment_id');
+    window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+  } catch (e) {}
+}
+
+function getSelectedPlanFromQuery() {
+  try {
+    return new URL(window.location.href).searchParams.get('selected_plan') || '';
+  } catch (e) {
+    return '';
+  }
+}
+
+async function handlePaymentResult(payload) {
+  if (!payload) return;
+
+  if (payload.status === 'succeeded') {
+    clearPlansPromoCode();
+    showToast(payload.message || 'Оплата прошла успешно', 'success');
+    setTimeout(function() {
+      window.location.href = cabinetUrl(payload.redirect || '/cabinet/keys');
+    }, 900);
+    return;
+  }
+
+  if (payload.status === 'processing') {
+    showToast(payload.message || 'Платёж принят, ключ подготавливается', 'info');
+    setTimeout(function() {
+      window.location.href = cabinetUrl(payload.redirect || '/cabinet/keys');
+    }, 1200);
+    return;
+  }
+
+  if (payload.status === 'pending') {
+    showToast(payload.message || 'Платёж ещё обрабатывается', 'info');
+    return;
+  }
+
+  showToast(payload.message || 'Не удалось завершить оплату', 'error');
+}
+
+async function payBalance(id) {
+  var promoCode = getPlansPromoCode();
+  var fd = new FormData();
+  fd.append('plan_id', id);
+  if (promoCode) fd.append('promo_code', promoCode);
+  try {
+    var r = await cabinetJson('/cabinet/pay/balance', {method:'POST', body:fd});
+    if (r.data.ok) {
+      await handlePaymentResult(r.data);
+      return;
+    }
+    showToast(r.data.message || 'Ошибка', 'error');
+  } catch(e) { showToast('Ошибка сети', 'error'); }
+}
+
+async function payYooKassa(id) {
+  var promoCode = getPlansPromoCode();
+  var fd = new FormData();
+  fd.append('plan_id', id);
+  if (promoCode) fd.append('promo_code', promoCode);
+  try {
+    var r = await cabinetJson('/cabinet/pay/yookassa', {method:'POST', body:fd});
+    if (!r.data.ok) {
+      showToast(r.data.message || 'Ошибка создания платежа', 'error');
+      return;
+    }
+    if (r.data.status === 'succeeded') {
+      await handlePaymentResult(r.data);
+      return;
+    }
+    if (promoCode) rememberPlansPromoCode(promoCode);
+    openExternal(r.data.payment_url);
+    showToast('Открыли оплату. После завершения вернитесь в кабинет.', 'info');
+  } catch (e) {
+    showToast('Ошибка сети', 'error');
+  }
+}
+
+async function paySbp(id) {
+  var promoCode = getPlansPromoCode();
+  var fd = new FormData();
+  fd.append('plan_id', id);
+  if (promoCode) fd.append('promo_code', promoCode);
+  try {
+    var r = await cabinetJson('/cabinet/pay/yookassa-sbp', {method:'POST', body:fd});
+    if (!r.data.ok) {
+      showToast(r.data.message || 'Ошибка создания платежа', 'error');
+      return;
+    }
+    if (r.data.status === 'succeeded') {
+      await handlePaymentResult(r.data);
+      return;
+    }
+    if (promoCode) rememberPlansPromoCode(promoCode);
+    openExternal(r.data.payment_url);
+    showToast('Открыли оплату через СБП. После завершения вернитесь в кабинет.', 'info');
+  } catch (e) {
+    showToast('Ошибка сети', 'error');
+  }
+}
+
+function initPaymentMethodToggles() {
+  document.querySelectorAll('[data-payment-toggle]').forEach(function(trigger) {
+    trigger.addEventListener('click', function() {
+      var planId = trigger.getAttribute('data-payment-toggle');
+      var panel = document.getElementById('payment-methods-' + planId);
+      if (!panel) return;
+      var nextState = panel.hasAttribute('hidden');
+      if (nextState) panel.removeAttribute('hidden');
+      else panel.setAttribute('hidden', '');
+      trigger.setAttribute('aria-expanded', nextState ? 'true' : 'false');
+    });
+  });
+}
+
+function revealSelectedPlanMethods() {
+  var planId = getSelectedPlanFromQuery();
+  if (!planId) return;
+  var trigger = document.querySelector('[data-payment-toggle="' + planId.replace(/"/g, '\\"') + '"]');
+  var panel = document.getElementById('payment-methods-' + planId);
+  if (!trigger || !panel || !panel.hasAttribute('hidden')) return;
+  panel.removeAttribute('hidden');
+  trigger.setAttribute('aria-expanded', 'true');
+  trigger.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function checkReturnedPayment() {
+  hydratePlansPromoCode();
+
+  var paymentId = '';
+  try { paymentId = new URL(window.location.href).searchParams.get('payment_id') || ''; }
+  catch (e) { paymentId = ''; }
+  if (!paymentId) return;
+
+  try {
+    var result = await cabinetJson('/cabinet/pay/status/' + paymentId, {method:'GET'});
+    clearPaymentQueryParam();
+    await handlePaymentResult(result.data);
+  } catch (e) {
+    clearPaymentQueryParam();
+    showToast('Не удалось проверить оплату', 'error');
+  }
+}
+
+checkReturnedPayment();
+initPaymentMethodToggles();
+revealSelectedPlanMethods();
+{% endblock %}

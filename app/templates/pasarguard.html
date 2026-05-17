@@ -1,159 +1,354 @@
-
 {% extends "base.html" %}
 {% block title %}PasarGuard — {{ app_name }}{% endblock %}
-{% block page_title %}PasarGuard / Marzban{% endblock %}
+{% block page_title %}<i class="bi bi-hdd-network-fill me-2" style="color:var(--accent)"></i>PasarGuard / Marzban{% endblock %}
 
 {% block head %}
 <style>
-.tab-nav { display:flex; gap:.5rem; margin-bottom:1.25rem; flex-wrap:wrap; }
-.tab-btn { padding:.4rem .9rem; border-radius:8px; font-size:.78rem; font-weight:600; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; transition:all .15s; }
-.tab-btn:hover { color:#fff; background:rgba(255,255,255,.05); }
-.tab-btn.active { background:rgba(0,212,170,.2); border-color:var(--accent); color:#fff; }
-.tab-pane { display:none; }
-.tab-pane.active { display:block; }
-.user-row:hover { background:rgba(255,255,255,.03); }
+  .pg-header {
+    background: linear-gradient(135deg, var(--bg-card), rgba(99,102,241,.08));
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .pg-header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 400px 200px at 85% 50%, rgba(0,212,170,.06), transparent);
+    pointer-events: none;
+  }
+  .pg-title { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
+  .pg-subtitle { font-size: .8rem; color: var(--text-muted); margin-top: .15rem; }
+  
+  .tab-nav { display:flex; gap:.5rem; margin-bottom:1.5rem; flex-wrap:wrap; }
+  .tab-btn {
+    padding:.5rem 1rem; border-radius:10px; font-size:.78rem; font-weight:600;
+    border:1px solid var(--border); background:var(--bg-card); color:var(--text-muted);
+    cursor:pointer; transition:all .2s; display: flex; align-items: center; gap: .5rem;
+  }
+  .tab-btn:hover { color:var(--text); background:var(--surface-hover); border-color: var(--border-strong); }
+  .tab-btn.active { background:linear-gradient(135deg, rgba(0,212,170,.15), rgba(14,165,233,.1)); border-color: var(--accent); color:var(--accent); }
+  
+  .tab-pane { display:none; }
+  .tab-pane.active { display:block; animation: fadeInUp .4s ease; }
+  
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  .stat-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 1.25rem;
+    transition: all .25s ease; position: relative; overflow: hidden;
+  }
+  .stat-card:hover { transform: translateY(-3px); border-color: var(--border-glow); box-shadow: 0 8px 30px rgba(0,0,0,.15); }
+  .stat-card::before {
+    content: ''; position: absolute; top: 0; right: 0;
+    width: 100px; height: 100px;
+    background: radial-gradient(circle, var(--accent-glow), transparent 70%);
+    opacity: 0; transition: opacity .3s; pointer-events: none;
+  }
+  .stat-card:hover::before { opacity: 1; }
+  .stat-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; flex-shrink: 0; position: relative; z-index: 1;
+  }
+  .stat-value { font-size: 1.5rem; font-weight: 800; color: var(--text); line-height: 1.1; margin-top: .5rem; }
+  .stat-label { font-size: .72rem; color: var(--text-muted); margin-top: .2rem; }
+  
+  .action-btn {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: .75rem 1rem;
+    color: var(--text); text-decoration: none;
+    display: flex; align-items: center; gap: .75rem;
+    transition: all .25s ease; font-size: .85rem; font-weight: 500;
+    position: relative; overflow: hidden; width: 100%;
+  }
+  .action-btn:hover {
+    background: var(--surface-hover); border-color: var(--accent);
+    transform: translateX(4px); color: var(--text);
+    box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  }
+  .action-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; flex-shrink: 0;
+  }
+  .user-row, .group-row, .node-row {
+    display: flex; align-items: center; padding: .6rem .75rem;
+    border-bottom: 1px solid var(--border); gap: .75rem;
+    transition: background .15s;
+  }
+  .user-row:hover, .group-row:hover, .node-row:hover {
+    background: var(--surface-hover);
+  }
+  .user-row:last-child, .group-row:last-child, .node-row:last-child {
+    border-bottom: none;
+  }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .status-dot.online { background: var(--success); box-shadow: 0 0 8px var(--success); animation: pulse-glow 2s infinite; }
+  .status-dot.offline { background: var(--danger); }
+  .status-dot.warning { background: var(--warning); box-shadow: 0 0 8px var(--warning); }
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,.4); }
+    50% { box-shadow: 0 0 0 6px rgba(16,185,129,0); }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
 
-<div class="tab-nav">
-  <button class="tab-btn active" onclick="switchTab('status')"><i class="bi bi-hdd-network me-1"></i>Статус</button>
-  <button class="tab-btn" onclick="switchTab('users')"><i class="bi bi-people me-1"></i>Пользователи</button>
-  <button class="tab-btn" onclick="switchTab('groups')"><i class="bi bi-diagram-3 me-1"></i>Группы</button>
-  <button class="tab-btn" onclick="switchTab('nodes')"><i class="bi bi-server me-1"></i>Ноды</button>
+<!-- Header -->
+<div class="pg-header fade-in-up">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div>
+      <div class="pg-title">PasarGuard / Marzban</div>
+      <div class="pg-subtitle"><i class="bi bi-hdd-network me-1"></i>Управление VPN-панелью</div>
+    </div>
+    {% if marzban_stats %}
+    <div class="d-flex align-items-center gap-2">
+      <span class="status-dot online"></span>
+      <span style="font-size:.85rem;color:var(--success);font-weight:600">Подключено</span>
+    </div>
+    {% else %}
+    <div class="d-flex align-items-center gap-2">
+      <span class="status-dot offline"></span>
+      <span style="font-size:.85rem;color:var(--danger);font-weight:600">Нет подключения</span>
+    </div>
+    {% endif %}
+  </div>
 </div>
 
-<!-- ══ СТАТУС ════════════════════════════════════════════════════════════════ -->
-<div id="tab-status" class="tab-pane active">
-<div class="row g-3">
-  <div class="col-lg-5">
-    <div class="card p-3 mb-3">
-      <div class="fw-semibold text-white mb-3"><i class="bi bi-hdd-network me-2 text-muted"></i>Подключение</div>
-      <div id="marzban-status" class="mb-3">
-        {% if marzban_ok %}
-        <div class="d-flex align-items-center gap-2 mb-3" style="color:#22c55e;font-size:.85rem">
-          <i class="bi bi-check-circle-fill"></i><span>Подключено</span>
-        </div>
-        {% if marzban_stats %}
-        <div class="row g-2">
-          {% set items = [
-            ('bi-wifi','rgba(34,197,94,.1)','#22c55e','Онлайн', marzban_stats.get('users_active',0)),
-            ('bi-people','rgba(0,212,170,.1)','#0ea5e9','Всего юзеров', marzban_stats.get('total_user',0)),
-            ('bi-arrow-down-circle','rgba(59,130,246,.1)','#3b82f6','Входящий', ((marzban_stats.get('incoming_bandwidth',0)/1073741824)|round(2)|string)~' GB'),
-            ('bi-arrow-up-circle','rgba(239,68,68,.1)','#ef4444','Исходящий', ((marzban_stats.get('outgoing_bandwidth',0)/1073741824)|round(2)|string)~' GB'),
-            ('bi-memory','rgba(234,179,8,.1)','#eab308','RAM', ((marzban_stats.get('mem_used',0)//1048576)|string)~' MB'),
-            ('bi-cpu','rgba(0,212,170,.1)','#0ea5e9','CPU', (marzban_stats.get('cpu_usage',0)|round(1)|string)~'%'),
-          ] %}
-          {% for icon,bg,color,label,val in items %}
-          <div class="col-6">
-            <div style="background:{{ bg }};border-radius:8px;padding:.5rem .75rem;font-size:.75rem">
-              <div style="color:#8892a4"><i class="bi {{ icon }} me-1" style="color:{{ color }}"></i>{{ label }}</div>
-              <div class="text-white fw-semibold">{{ val }}</div>
-            </div>
-          </div>
-          {% endfor %}
-        </div>
-        {% endif %}
-        {% else %}
-        <div class="d-flex align-items-center gap-2" style="color:#ef4444;font-size:.85rem">
-          <i class="bi bi-x-circle-fill"></i><span>Нет подключения</span>
-        </div>
-        {% endif %}
+<!-- Stats Row (if connected) -->
+{% if marzban_stats %}
+<div class="row g-3 mb-4 fade-in-up">
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(34,197,94,.12);color:var(--success)">
+        <i class="bi bi-wifi"></i>
       </div>
-      <button class="btn btn-sm btn-outline-secondary w-100"
-        hx-post="/panel/telegram/test-marzban" hx-target="#marzban-status" hx-swap="innerHTML">
-        <i class="bi bi-arrow-repeat me-1"></i>Проверить
+      <div class="stat-value">{{ marzban_stats.get('users_active', 0) }}</div>
+      <div class="stat-label">Онлайн</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(0,212,170,.12);color:var(--accent)">
+        <i class="bi bi-people-fill"></i>
+      </div>
+      <div class="stat-value">{{ marzban_stats.get('total_user', 0) }}</div>
+      <div class="stat-label">Всего пользователей</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(59,130,246,.12);color:#3b82f6">
+        <i class="bi bi-arrow-down-circle"></i>
+      </div>
+      <div class="stat-value">{{ (marzban_stats.get('incoming_bandwidth', 0) / 1073741824) | round(1) }} GB</div>
+      <div class="stat-label">Входящий трафик</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(239,68,68,.12);color:var(--danger)">
+        <i class="bi bi-arrow-up-circle"></i>
+      </div>
+      <div class="stat-value">{{ (marzban_stats.get('outgoing_bandwidth', 0) / 1073741824) | round(1) }} GB</div>
+      <div class="stat-label">Исходящий трафик</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Tabs -->
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('status')">
+    <i class="bi bi-activity"></i>Статус
+  </button>
+  <button class="tab-btn" onclick="switchTab('users')">
+    <i class="bi bi-people"></i>Пользователи
+  </button>
+  <button class="tab-btn" onclick="switchTab('groups')">
+    <i class="bi bi-diagram-3"></i>Группы
+  </button>
+  <button class="tab-btn" onclick="switchTab('nodes')">
+    <i class="bi bi-server"></i>Ноды
+  </button>
+</div>
+
+<!-- Tab: Status -->
+<div id="tab-status" class="tab-pane active">
+  <div class="row g-3">
+    <!-- Connection Status -->
+    <div class="col-lg-6">
+      <div class="card p-3 h-100">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg, rgba(99,102,241,.15), rgba(139,92,246,.1));color:#818cf8;display:flex;align-items:center;justify-content:center">
+            <i class="bi bi-hdd-network"></i>
+          </div>
+          <div>
+            <div style="font-size:.9rem;font-weight:700;color:var(--text)">Подключение</div>
+            <div style="font-size:.72rem;color:var(--text-muted)">Статус VPN-панели</div>
+          </div>
+        </div>
+        <div id="marzban-status" class="mb-3">
+          {% if marzban_ok %}
+          <div class="d-flex align-items-center gap-2 mb-3" style="color:var(--success);font-size:.85rem">
+            <i class="bi bi-check-circle-fill"></i><span>Подключено</span>
+          </div>
+          {% if marzban_stats %}
+          <div class="row g-2">
+            {% set items = [
+              ('bi-cpu', 'rgba(0,212,170,.12)', '#00d4aa', 'CPU', (marzban_stats.get('cpu_usage', 0) | round(1)) ~ '%'),
+              ('bi-memory', 'rgba(16,185,129,.12)', '#10b981', 'RAM', ((marzban_stats.get('mem_used', 0) / 1048576) | round(1)) ~ ' MB'),
+              ('bi-hdd', 'rgba(245,158,11,.12)', '#f59e0b', 'Disk', ((marzban_stats.get('disk_used', 0) / 1073741824) | round(1)) ~ ' GB'),
+            ] %}
+            {% for icon, bg, color, label, value in items %}
+            <div class="col-6 col-md-4">
+              <div style="background:var(--surface);border-radius:10px;padding:.75rem;text-align:center">
+                <div style="font-size:.8rem;color:{{ color }};margin-bottom:.3rem"><i class="bi {{ icon }}"></i></div>
+                <div style="font-size:1rem;font-weight:800;color:var(--text)">{{ value }}</div>
+                <div style="font-size:.65rem;color:var(--text-muted)">{{ label }}</div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {% else %}
+          <div class="d-flex align-items-center gap-2" style="color:var(--danger);font-size:.85rem">
+            <i class="bi bi-x-circle-fill"></i><span>Нет подключения</span>
+          </div>
+          {% endif %}
+        </div>
+        <button class="btn btn-sm btn-outline-secondary w-100"
+                hx-post="/panel/telegram/test-marzban" hx-target="#marzban-status" hx-swap="innerHTML">
+          <i class="bi bi-arrow-repeat me-1"></i>Проверить
+        </button>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="col-lg-6">
+      <div class="card p-3 h-100">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg, var(--accent-glow), rgba(14,165,233,.1));color:var(--accent);display:flex;align-items:center;justify-content:center">
+            <i class="bi bi-lightning"></i>
+          </div>
+          <div>
+            <div style="font-size:.9rem;font-weight:700;color:var(--text)">Быстрые действия</div>
+            <div style="font-size:.72rem;color:var(--text-muted)">Управление</div>
+          </div>
+        </div>
+        <div class="d-flex flex-column gap-2">
+          <button class="action-btn" hx-post="/panel/vpn/sync" hx-swap="none">
+            <div class="action-icon" style="background:rgba(0,212,170,.12);color:var(--accent)">
+              <i class="bi bi-arrow-repeat"></i>
+            </div>
+            <div>
+              <div style="font-weight:600">Синхронизировать ключи</div>
+              <div style="font-size:.7rem;color:var(--text-muted)">Обновить данные из VPN-панели</div>
+            </div>
+          </button>
+          <button class="action-btn" hx-post="/panel/subscriptions/expire-outdated" hx-swap="none">
+            <div class="action-icon" style="background:rgba(245,158,11,.12);color:var(--warning)">
+              <i class="bi bi-clock-history"></i>
+            </div>
+            <div>
+              <div style="font-weight:600">Истечь просроченные</div>
+              <div style="font-size:.7rem;color:var(--text-muted)">Деактивировать истёкшие подписки</div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab: Users -->
+<div id="tab-users" class="tab-pane">
+  <div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <span><i class="bi bi-people me-2" style="color:var(--accent)"></i>VPN пользователи в Marzban</span>
+      </div>
+      <button class="btn btn-accent btn-sm" hx-get="/panel/pasarguard/users" hx-target="#pg-users-table" hx-swap="innerHTML">
+        <i class="bi bi-arrow-repeat me-1"></i>Загрузить
       </button>
     </div>
-
-    <div class="card p-3">
-      <div class="fw-semibold text-white mb-2"><i class="bi bi-diagram-3 me-2 text-muted"></i>Группы для новых ключей</div>
-      <div style="font-size:.75rem;color:#8892a4;margin-bottom:.75rem">Группы назначаются при создании подписки</div>
-      <form hx-post="/panel/telegram/groups" hx-swap="none">
-        <div id="pg-groups-list" style="min-height:40px;font-size:.8rem;color:#8892a4">
-          <i class="bi bi-arrow-down-circle me-1"></i>Нажмите «Загрузить»
-        </div>
-        <div class="d-flex gap-2 mt-3">
-          <button type="button" class="btn btn-sm btn-outline-secondary"
-            hx-get="/panel/telegram/groups" hx-target="#pg-groups-list" hx-swap="innerHTML">
-            <i class="bi bi-arrow-repeat me-1"></i>Загрузить
-          </button>
-          <button type="submit" class="btn btn-sm btn-accent"><i class="bi bi-floppy me-1"></i>Сохранить</button>
-        </div>
-        {% set sg = bot_settings.get('vpn_group_ids','') %}
-        {% if sg and sg != '[]' %}
-        <div class="mt-2" style="font-size:.72rem;color:#22c55e"><i class="bi bi-check-circle me-1"></i>Активно: <code>{{ sg }}</code></div>
-        {% endif %}
-      </form>
+    <div id="pg-users-table" class="p-3" style="color:var(--text-muted);font-size:.85rem"
+         hx-get="/panel/pasarguard/users" hx-trigger="every 30s" hx-swap="innerHTML">
+      Нажмите «Загрузить» для получения списка пользователей из Marzban.
     </div>
   </div>
+</div>
 
-  <div class="col-lg-7">
-    <div class="card p-3">
-      <div class="fw-semibold text-white mb-3"><i class="bi bi-activity me-2 text-muted"></i>Быстрые действия</div>
-      <div class="row g-2">
-        <div class="col-6">
-          <button class="btn btn-outline-secondary w-100 text-start"
-            hx-post="/panel/vpn/sync" hx-swap="none">
-            <i class="bi bi-arrow-repeat me-2"></i>Синхронизировать ключи
+<!-- Tab: Groups -->
+<div id="tab-groups" class="tab-pane">
+  <div class="row g-3">
+    <div class="col-lg-8">
+      <div class="card h-100">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <span><i class="bi bi-diagram-3 me-2" style="color:var(--accent)"></i>Группы Marzban</span>
+          <button class="btn btn-accent btn-sm" hx-get="/panel/pasarguard/groups" hx-target="#pg-groups-table" hx-swap="innerHTML">
+            <i class="bi bi-arrow-repeat me-1"></i>Загрузить
           </button>
         </div>
-        <div class="col-6">
-          <button class="btn btn-outline-secondary w-100 text-start"
-            hx-post="/panel/subscriptions/expire-outdated" hx-swap="none">
-            <i class="bi bi-clock-history me-2"></i>Истечь просроченные
-          </button>
+        <div id="pg-groups-table" class="p-3" style="color:var(--text-muted);font-size:.85rem">
+          Нажмите «Загрузить» для получения групп.
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card h-100">
+        <div class="card-header">
+          <i class="bi bi-gear me-2" style="color:var(--accent)"></i>Группы для новых ключей
+        </div>
+        <div class="p-3">
+          <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:.75rem">
+            Группы назначаются при создании подписки
+          </div>
+          <form hx-post="/panel/telegram/groups" hx-swap="none">
+            <div id="pg-groups-list" style="min-height:40px;font-size:.8rem;color:var(--text-muted)">
+              <i class="bi bi-arrow-down-circle me-1"></i>Нажмите «Загрузить»
+            </div>
+            <div class="d-flex gap-2 mt-3">
+              <button type="button" class="btn btn-sm btn-outline-secondary"
+                      hx-get="/panel/telegram/groups" hx-target="#pg-groups-list" hx-swap="innerHTML">
+                <i class="bi bi-arrow-repeat me-1"></i>Загрузить
+              </button>
+              <button type="submit" class="btn btn-sm btn-accent"><i class="bi bi-floppy me-1"></i>Сохранить</button>
+            </div>
+            {% set sg = bot_settings.get('vpn_group_ids', '') %}
+            {% if sg and sg != '[]' %}
+            <div class="mt-2" style="font-size:.72rem;color:var(--success)">
+              <i class="bi bi-check-circle me-1"></i>Активно: <code>{{ sg }}</code>
+            </div>
+            {% endif %}
+          </form>
         </div>
       </div>
     </div>
   </div>
 </div>
-</div>
 
-<!-- ══ ПОЛЬЗОВАТЕЛИ ══════════════════════════════════════════════════════════ -->
-<div id="tab-users" class="tab-pane">
-<div class="card">
-  <div class="card-header d-flex align-items-center justify-content-between">
-    <span><i class="bi bi-people me-2" style="color:var(--accent)"></i>VPN пользователи в Marzban</span>
-    <button class="btn btn-accent btn-sm" hx-get="/panel/pasarguard/users" hx-target="#pg-users-table" hx-swap="innerHTML">
-      <i class="bi bi-arrow-repeat me-1"></i>Загрузить
-    </button>
-  </div>
-  <div id="pg-users-table" class="p-3" style="color:#8892a4;font-size:.85rem">
-    Нажмите «Загрузить» для получения списка пользователей из Marzban.
-  </div>
-</div>
-</div>
-
-<!-- ══ ГРУППЫ ════════════════════════════════════════════════════════════════ -->
-<div id="tab-groups" class="tab-pane">
-<div class="card">
-  <div class="card-header d-flex align-items-center justify-content-between">
-    <span><i class="bi bi-diagram-3 me-2" style="color:var(--accent)"></i>Группы Marzban</span>
-    <button class="btn btn-accent btn-sm" hx-get="/panel/pasarguard/groups" hx-target="#pg-groups-table" hx-swap="innerHTML">
-      <i class="bi bi-arrow-repeat me-1"></i>Загрузить
-    </button>
-  </div>
-  <div id="pg-groups-table" class="p-3" style="color:#8892a4;font-size:.85rem">
-    Нажмите «Загрузить» для получения групп.
-  </div>
-</div>
-</div>
-
-<!-- ══ НОДЫ ══════════════════════════════════════════════════════════════════ -->
+<!-- Tab: Nodes -->
 <div id="tab-nodes" class="tab-pane">
-<div class="card">
-  <div class="card-header d-flex align-items-center justify-content-between">
-    <span><i class="bi bi-server me-2" style="color:var(--accent)"></i>Ноды Marzban</span>
-    <button class="btn btn-accent btn-sm" hx-get="/panel/pasarguard/nodes" hx-target="#pg-nodes-table" hx-swap="innerHTML">
-      <i class="bi bi-arrow-repeat me-1"></i>Загрузить
-    </button>
+  <div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <span><i class="bi bi-server me-2" style="color:var(--accent)"></i>Ноды Marzban</span>
+      <button class="btn btn-accent btn-sm" hx-get="/panel/pasarguard/nodes" hx-target="#pg-nodes-table" hx-swap="innerHTML">
+        <i class="bi bi-arrow-repeat me-1"></i>Загрузить
+      </button>
+    </div>
+    <div id="pg-nodes-table" class="p-3" style="color:var(--text-muted);font-size:.85rem">
+      Нажмите «Загрузить» для получения нод.
+    </div>
   </div>
-  <div id="pg-nodes-table" class="p-3" style="color:#8892a4;font-size:.85rem">
-    Нажмите «Загрузить» для получения нод.
-  </div>
-</div>
 </div>
 
 {% endblock %}
@@ -164,7 +359,8 @@ function switchTab(name) {
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
-  event.currentTarget.classList.add('active');
+  var btn = document.querySelector('.tab-btn[onclick*="' + name + '"]');
+  if (btn) btn.classList.add('active');
 }
 </script>
 {% endblock %}

@@ -1,34 +1,34 @@
-# 📚 Документация VPN Dashboard
+# Документация Scorbium Dashboard
 
-Добро пожаловать в документацию **VPN Dashboard** — полноценной платформы для управления VPN-сервисом на базе Marzban/PasarGuard.
+Этот каталог содержит подробные инструкции по проекту. Если нужен быстрый рабочий старт, сначала открой [../README.md](/Users/itsskramb/ScorbiumDashboard/README.md).
 
----
+## Разделы
 
-## Содержание
+| Файл | О чем |
+|---|---|
+| [introduction.md](introduction.md) | Общее описание и архитектура |
+| [quick-start.md](quick-start.md) | Быстрый запуск |
+| [installation.md](installation.md) | Развертывание на сервере |
+| [configuration.md](configuration.md) | Переменные окружения |
+| [telegram-bot.md](telegram-bot.md) | Настройка и поведение Telegram-бота |
+| [panel.md](panel.md) | Админ-панель |
+| [pasarguard.md](pasarguard.md) | Интеграция с Marzban / Pasarguard |
+| [payments.md](payments.md) | Платежные провайдеры |
+| [update.md](update.md) | Обновление проекта |
+| [faq.md](faq.md) | Частые проблемы |
 
-| Раздел | Описание |
-|--------|----------|
-| [Введение](introduction.md) | Что такое VPN Dashboard, архитектура |
-| [Быстрый старт](quick-start.md) | Установка за 5 минут |
-| [Установка на сервер](installation.md) | Полная инструкция для продакшена |
-| [Конфигурация](configuration.md) | Все переменные окружения |
-| [Telegram бот](telegram-bot.md) | Настройка и возможности бота |
-| [Панель управления](panel.md) | Обзор веб-панели |
-| [PasarGuard / Marzban](pasarguard.md) | Интеграция с VPN-панелью |
-| [Платёжные системы](payments.md) | ЮКасса, Telegram Stars |
-| [Обновление](update.md) | Как обновить до новой версии |
-| [FAQ](faq.md) | Частые вопросы |
+## Актуальные замечания по проекту
 
----
+- Миграции нужно прогонять через `fix_alembic.py`, а потом `alembic upgrade head`
+- Для продакшена основной путь обновления — `./update.sh`
+- Для первой установки удобнее использовать `bash setup.sh`
+- Админ-панель находится на `/panel/`, пользовательский кабинет — на `/cabinet/`
 
-## Требования
+## Если документация расходится с кодом
 
-- **OS**: Ubuntu 20.04+ / Debian 11+
-- **Docker**: 24.0+
-- **Docker Compose**: v2.0+
-- **RAM**: минимум 512 MB
-- **Домен**: с A-записью на IP сервера (для SSL)
+Ориентируйся в таком порядке:
 
----
-
-> 💡 Если что-то не работает — смотри раздел [FAQ](faq.md)
+1. [AGENTS.md](/Users/itsskramb/ScorbiumDashboard/AGENTS.md)
+2. [../README.md](/Users/itsskramb/ScorbiumDashboard/README.md)
+3. `setup.sh` / `update.sh`
+4. фактические `docker-compose*.yml`

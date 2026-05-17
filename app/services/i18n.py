@@ -1,5 +1,3 @@
-from typing import Optional
-
 # ── Строки по умолчанию ───────────────────────────────────────────────────────
 STRINGS: dict[str, dict[str, str]] = {
     "ru": {
@@ -94,6 +92,35 @@ STRINGS: dict[str, dict[str, str]] = {
         "profile_ref_code": "🎫 Реф. код: <code>{code}</code>",
         "profile_expiry_warn": "⚠️ Ближайшее истечение: <b>{date}</b> (через {days} дн.)",
         "profile_expiry": "📅 Ближайшее истечение: <b>{date}</b>",
+        # Быстрый статус
+        "status_title": "📊 <b>Быстрый статус</b>",
+        "status_no_subs": "📦 Нет активных подписок",
+        "status_key": "🔑 <b>{name}</b>",
+        "status_expires": "📅 До: <b>{date}</b> ({time_left})",
+        "status_days_left": "{days} дн.",
+        "status_hours_left": "{hours} ч.",
+        "status_lifetime": "Бессрочная",
+        "status_traffic": "📡 Трафик: <b>{used}</b> / <b>{total}</b>",
+        "status_traffic_unlimited": "📡 Трафик: безлимит",
+        "status_traffic_used": "Использовано",
+        "status_traffic_limit": "Лимит",
+        # История платежей
+        "payments_title": "💳 <b>История платежей</b>",
+        "payments_empty": "📭 У вас пока нет платежей",
+        "payments_item": "🧾 <b>{amount} ₽</b> — {provider}\n   📅 {date} | {status}",
+        "payments_more": "Показать ещё",
+        "pay_status_succeeded": "✅ Оплачен",
+        "pay_status_pending": "⏳ Ожидает",
+        "pay_status_failed": "❌ Отменён",
+        "pay_status_refunded": "↩️ Возврат",
+        "pay_provider_yookassa": "💳 Карта",
+        "pay_provider_yookassa_sbp": "🏦 СБП",
+        "pay_provider_cryptobot": "₿ Крипто",
+        "pay_provider_freekassa": "🟢 FreeKassa",
+        "pay_provider_telegram_stars": "⭐ Stars",
+        "pay_provider_balance": "💰 Баланс",
+        "pay_type_subscription": "Подписка",
+        "pay_type_topup": "Пополнение",
     },
     "en": {
         # Main menu
@@ -207,8 +234,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "connect_not_found": "Guide not found",
         "archive_empty_alert": "Archive is empty",
         "sub_not_found": "Subscription not found",
-        # profile
-        "profile_not_found": "❌ Profile not found.",
+
+       "profile_not_found": "❌ Profile not found.",
         "btn_my_subs": "🔑 My subscriptions",
         "btn_all_subs": "📦 All subscriptions",
     },

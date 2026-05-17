@@ -14,7 +14,7 @@
 - Визуальный редактор клавиатуры бота
 
 ### Telegram-бот
-- Покупка подписок (ЮКасса, Telegram Stars, баланс)
+- Покупка подписок (YooKassa, Telegram Stars, баланс)
 - Просмотр и управление подписками
 - Профиль пользователя
 - Статус серверов
@@ -62,7 +62,7 @@
 | Migrations | Alembic |
 | Frontend | Jinja2 + HTMX + Bootstrap 5.3 |
 | VPN Panel | Marzban / PasarGuard API |
-| Payments | ЮКасса, Telegram Stars |
+| Payments | YooKassa, Telegram Stars |
 | Proxy | Nginx |
 | SSL | Let's Encrypt (Certbot) |
 | Container | Docker + Docker Compose |

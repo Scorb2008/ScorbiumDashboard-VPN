@@ -5,7 +5,7 @@ from functools import lru_cache
 import re
 
 from app.utils.path import env_file
-from app.core.exceptions import *
+from app.core.exceptions import TelegramException
 from app.utils.log import log
 
 
@@ -58,12 +58,27 @@ class _TelegramConfig(BaseSettings):
         description="Port for aiohttp webhook server",
         validation_alias="TELEGRAM_WEBHOOK_PORT",
     )
+    telegram_client_id: int = Field(
+        default=0,
+        description="Telegram OIDC Client ID from @BotFather",
+        validation_alias="TELEGRAM_CLIENT_ID",
+    )
+    telegram_client_secret: SecretStr = Field(
+        default=SecretStr(""),
+        description="Telegram OIDC Client Secret from @BotFather",
+        validation_alias="TELEGRAM_CLIENT_SECRET",
+    )
+    telegram_bot_username: str = Field(
+        default="",
+        description="Bot username for legacy Telegram login widget, without @",
+        validation_alias="TELEGRAM_BOT_USERNAME",
+    )
 
     @field_validator("telegram_bot_token")
     @classmethod
     def validate_telegram_token(cls, value: SecretStr) -> SecretStr:
         if not cls.TELEGRAM_TOKEN_PATTERN.fullmatch(value.get_secret_value()):
-            raise PasarguardValueError(
+            raise TelegramException(
                 "Invalid Telegram bot token format. Expected format: '123456:ABCdef...'"
             )
         return value
@@ -77,8 +92,26 @@ class _TelegramConfig(BaseSettings):
             try:
                 return [int(id.strip()) for id in re.split(r"[,\s;]+", value) if id.strip()]
             except ValueError:
-                raise PasarguardValueError("Invalid TELEGRAM_ADMIN_IDS format")
+                raise TelegramException("Invalid TELEGRAM_ADMIN_IDS format")
         return value
+
+    @field_validator("telegram_client_id", mode="before")
+    @classmethod
+    def parse_client_id(cls, value):
+        if isinstance(value, str) and not value.strip():
+            return 0
+        return value
+
+    @field_validator("telegram_bot_username", mode="before")
+    @classmethod
+    def parse_bot_username(cls, value):
+        if value is None:
+            return ""
+        value = str(value).strip()
+        if value.startswith("@"):
+            value = value[1:]
+        return value
+    
     
 @lru_cache()
 def get_telegram_config() -> _TelegramConfig:

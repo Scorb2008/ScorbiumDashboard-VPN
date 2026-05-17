@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Уведомления — VPN Panel{% endblock %}
+{% block page_title %}<i class="bi bi-bell-fill me-2" style="color:var(--accent)"></i>Уведомления{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <!-- Service toggles -->
+  <div class="col-lg-7">
+    <div class="card p-4">
+      <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+          <div class="fw-semibold" style="color:var(--text)"><i class="bi bi-hdd-rack me-2 text-muted"></i>Уведомления по сервисам</div>
+          <div style="font-size:.8rem;color:var(--text-muted)">Какие сервисы отправлять алерты в Telegram</div>
+        </div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" id="notifyEnabled" {% if settings.notify_monitoring_enabled == '1' %}checked{% endif %} onchange="saveSetting('notify_monitoring_enabled', this.checked)">
+          <label class="form-check-label" for="notifyEnabled" style="color:var(--text);font-size:.85rem;font-weight:600">Общие вкл</label>
+        </div>
+      </div>
+
+      <div class="list-group list-group-flush">
+        {% for svc in service_list %}
+        <div class="list-group-item d-flex align-items-center justify-content-between px-0 py-2" style="background:transparent;border-bottom:1px solid var(--border)">
+          <div>
+            <div class="fw-semibold" style="color:var(--text);font-size:.9rem">{{ svc.icon }} {{ svc.label }}</div>
+            <div style="font-size:.75rem;color:var(--text-muted)">{{ svc.key }}</div>
+          </div>
+          <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="svc_{{ svc.key }}"
+              {% if settings['notify_svc_' ~ svc.key] == '1' %}checked{% endif %}
+              onchange="saveSetting('notify_svc_{{ svc.key }}', this.checked)">
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="col-lg-5">
+    <div class="card p-4 mb-3">
+      <div class="fw-semibold mb-3" style="color:var(--text)"><i class="bi bi-gear me-2 text-muted"></i>Настройки</div>
+
+      <!-- Cooldown -->
+      <div class="mb-3">
+        <label class="form-label" style="font-size:.85rem;color:var(--text-muted)">Интервал между уведомлениями</label>
+        <select class="form-select form-select-sm" id="cooldownSelect" onchange="saveSetting('notify_cooldown_seconds', this.value)">
+          <option value="60" {% if settings.notify_cooldown_seconds == '60' %}selected{% endif %}>1 минута</option>
+          <option value="180" {% if settings.notify_cooldown_seconds == '180' %}selected{% endif %}>3 минуты</option>
+          <option value="300" {% if settings.notify_cooldown_seconds == '300' %}selected{% endif %}>5 минут</option>
+          <option value="600" {% if settings.notify_cooldown_seconds == '600' %}selected{% endif %}>10 минут</option>
+          <option value="900" {% if settings.notify_cooldown_seconds == '900' %}selected{% endif %}>15 минут</option>
+          <option value="1800" {% if settings.notify_cooldown_seconds == '1800' %}selected{% endif %}>30 минут</option>
+          <option value="3600" {% if settings.notify_cooldown_seconds == '3600' %}selected{% endif %}>1 час</option>
+        </select>
+      </div>
+
+      <!-- Degraded alerts -->
+      <div class="form-check form-switch mb-3">
+        <input class="form-check-input" type="checkbox" id="notifyDegraded"
+          {% if settings.notify_on_degraded == '1' %}checked{% endif %}
+          onchange="saveSetting('notify_on_degraded', this.checked)">
+        <label class="form-check-label" for="notifyDegraded" style="color:var(--text);font-size:.85rem">
+          Уведомлять о <span style="color:var(--warning)">Degraded</span>
+        </label>
+      </div>
+
+      <!-- Chat IDs -->
+      <div class="mb-2">
+        <label class="form-label" style="font-size:.85rem;color:var(--text-muted)">
+          Chat ID для уведомлений
+          <span style="color:var(--text-muted);font-weight:400">(пусто = все админы)</span>
+        </label>
+        <input type="text" class="form-control form-control-sm" id="chatIdsInput"
+          value="{{ settings.notify_chat_ids or '' }}"
+          placeholder="123456, 789012"
+          onchange="saveSetting('notify_chat_ids', this.value)">
+      </div>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="card p-4">
+      <div class="fw-semibold mb-3" style="color:var(--text)"><i class="bi bi-lightning me-2 text-muted"></i>Быстрые действия</div>
+      <div class="d-grid gap-2">
+        <button class="btn btn-sm btn-accent" onclick="enableAll()">
+          <i class="bi bi-check-all me-1"></i>Включить все
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="disableAll()">
+          <i class="bi bi-x-lg me-1"></i>Отключить все
+        </button>
+        <button class="btn btn-sm btn-outline-warning" onclick="criticalOnly()">
+          <i class="bi bi-shield-fill me-1"></i>Только критичные (БД + Бот)
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="testNotification()">
+          <i class="bi bi-send me-1"></i>Тестовое уведомление
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+async function saveSetting(key, value) {
+  const val = typeof value === 'boolean' ? (value ? '1' : '0') : String(value);
+  try {
+    const r = await fetch('/panel/notifications/api/setting', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf},
+      body: `key=${encodeURIComponent(key)}&value=${encodeURIComponent(val)}`
+    });
+    if (r.ok) {
+      showToast('Настройка сохранена', 'success');
+    } else {
+      showToast('Ошибка сохранения', 'error');
+    }
+  } catch {
+    showToast('Нет соединения', 'error');
+  }
+}
+
+function enableAll() {
+  document.querySelectorAll('[id^="svc_"]').forEach(el => { el.checked = true; el.dispatchEvent(new Event('change')); });
+  document.getElementById('notifyEnabled').checked = true;
+  document.getElementById('notifyEnabled').dispatchEvent(new Event('change'));
+}
+
+function disableAll() {
+  document.querySelectorAll('[id^="svc_"]').forEach(el => { el.checked = false; el.dispatchEvent(new Event('change')); });
+}
+
+function criticalOnly() {
+  disableAll();
+  document.getElementById('svc_database').checked = true;
+  document.getElementById('svc_database').dispatchEvent(new Event('change'));
+  document.getElementById('svc_telegram_bot').checked = true;
+  document.getElementById('svc_telegram_bot').dispatchEvent(new Event('change'));
+  document.getElementById('notifyEnabled').checked = true;
+  document.getElementById('notifyEnabled').dispatchEvent(new Event('change'));
+}
+
+async function testNotification() {
+  try {
+    const r = await fetch('/panel/notifications/api/test', {
+      method: 'POST',
+      headers: {'X-CSRF-Token': csrf}
+    });
+    const data = await r.json();
+    if (data.ok) {
+      showToast('Тестовое уведомление отправлено', 'success');
+    } else {
+      showToast('Ошибка: ' + (data.error || 'unknown'), 'error');
+    }
+  } catch {
+    showToast('Нет соединения', 'error');
+  }
+}
+</script>
+{% endblock %}

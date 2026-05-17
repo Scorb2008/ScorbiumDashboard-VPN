@@ -28,6 +28,7 @@ class PromoRead(BaseModel):
 
 class PromoApply(BaseModel):
     code: str
+    user_id: Optional[int] = None
 
 
 class PromoApplyResult(BaseModel):

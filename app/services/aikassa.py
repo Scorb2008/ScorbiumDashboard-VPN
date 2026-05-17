@@ -51,6 +51,10 @@ class AiKassaService:
         }
         return await self._request("POST", "invoices", json=payload)
 
+    async def get_invoice(self, invoice_id: str) -> Optional[dict]:
+        """Fetch invoice status from AiKassa before trusting a webhook."""
+        return await self._request("GET", f"invoices/{invoice_id}")
+
     @staticmethod
     def from_settings(settings: dict) -> Optional["AiKassaService"]:
         shop_id = (settings.get("aikassa_shop_id") or "").strip()

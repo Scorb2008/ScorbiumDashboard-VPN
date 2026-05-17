@@ -1,0 +1,61 @@
+{% extends "cabinet/base.html" %}
+{% block title %}Подписки - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="sl">
+  <div class="ttl">
+    <h2>Подписки</h2>
+    <div class="r">
+      <a href="/cabinet/plans" class="btn btn-p"><i class="bi bi-stars"></i> Купить</a>
+      <a href="/cabinet/guides" class="btn btn-p"><i class="bi bi-phone"></i> Инструкции</a>
+    </div>
+  </div>
+
+  {% if keys %}
+  <div class="rf">
+    {% for key in keys %}
+    {% set t = (key.download or 0) + (key.upload or 0) %}
+    {% if key.status == 'active' %}
+    {% set status_label = 'Активна' %}
+    {% set status_class = 'bdg-g' %}
+    {% elif key.status == 'expired' %}
+    {% set status_label = 'Истекла' %}
+    {% set status_class = 'bdg-b' %}
+    {% else %}
+    {% set status_label = 'Откл.' %}
+    {% set status_class = 'bdg-w' %}
+    {% endif %}
+    <div class="kc">
+      <div class="kh">
+        <div class="kh-copy">
+          <div class="kn">{{ key.name or 'VPN подписка' }}</div>
+          <div class="ks">{{ key.pasarguard_key_id or '' }}</div>
+        </div>
+        <span class="bdg {{ status_class }}">{{ status_label }}</span>
+      </div>
+      <div class="kb">
+        <div class="kr"><span class="kl">Создан</span><span class="kv">{{ key.created_at.strftime('%d.%m.%Y') if key.created_at else '—' }}</span></div>
+        <div class="kr"><span class="kl">Действует до</span><span class="kv">{{ key.expires_at.strftime('%d.%m.%Y %H:%M') if key.expires_at else '∞' }}</span></div>
+        <div class="kr"><span class="kl">Цена</span><span class="kv">{{ "%.2f"|format(key.price) }} ₽</span></div>
+        <div class="kr"><span class="kl">Трафик</span><span class="kv">{% if t >= 1073741824 %}{{ "%.1f"|format(t / 1073741824) }} GB{% elif t >= 1048576 %}{{ "%.0f"|format(t / 1048576) }} MB{% else %}{{ "%.0f"|format(t / 1024) }} KB{% endif %}</span></div>
+      </div>
+      <div class="kf">
+        {% if key.access_url and key.access_url != 'pending' %}
+        <div class="cp">
+          <div class="cp-url" title="{{ key.access_url }}">{{ key.access_url }}</div>
+          <div class="cp-actions">
+            <button class="btn btn-p btn-sm" type="button" data-copy-url="{{ key.access_url }}" data-copy-success="Ссылка скопирована" onclick="copyText(this.dataset.copyUrl || '', this.dataset.copySuccess || 'Ссылка скопирована'); return false;"><i class="bi bi-copy"></i><span>Копировать</span></button>
+            <a class="btn btn-p btn-sm" href="{{ key.access_url }}" data-open-url="{{ key.access_url }}" onclick="return openInputValue(this, this.dataset.openUrl || this.href)"><i class="bi bi-box-arrow-up-right"></i><span>Открыть</span></a>
+          </div>
+        </div>
+        {% else %}
+        <div class="ib"><i class="bi bi-hourglass-split cg"></i><div><strong>Подготовка</strong><span class="muted">Ключ появится автоматически</span></div></div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="ep"><div class="ei"><i class="bi bi-key"></i></div><p>Нет подписок</p><a href="/cabinet/plans" class="btn btn-p" style="margin-top:12px">Выбрать тариф</a></div>
+  {% endif %}
+</div>
+{% endblock %}

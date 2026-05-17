@@ -33,14 +33,12 @@ class TelegramStarsService:
 
     @staticmethod
     def rub_to_stars(rub_amount: float, rate: float = 1.5) -> int:
-        """Конвертация рублей в Stars. rate = стоимость 1 Star в рублях."""
         if rate <= 0:
             rate = 1.5
         return max(1, round(rub_amount / rate))
 
     @staticmethod
     async def get_rate(session) -> float:
-        """Получить курс Stars из bot_settings."""
         from app.services.bot_settings import BotSettingsService
         val = await BotSettingsService(session).get("stars_rate")
         try:

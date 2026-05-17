@@ -1,301 +1,182 @@
 <div align="center">
 
-<img src="icon/dash_logo.png" alt="Logo" width="80" height="80" style="border-radius:16px"/>
+<img src="icon/logo.svg" alt="Scorbium Dashboard logo" width="80" height="80" />
 
-# ScorbDevVPN Dashboard
-**<a href='https://t.me/scorbdev_vpn_bot'>🔥Проетстировать🖥️</a>**
+# Scorbium Dashboard
 
-**Полноценная платформа для управления VPN-сервисом**
+Платформа для управления VPN-сервисом: FastAPI-панель, пользовательский кабинет, Telegram-бот и интеграция с Marzban/Pasarguard.
 
-[![Python](https://img.shields.io/badge/Python-3.13-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![aiogram](https://img.shields.io/badge/aiogram-3.x-2CA5E0?style=flat-square&logo=telegram&logoColor=white)](https://aiogram.dev)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791?style=flat-square&logo=postgresql&logoColor=white)](https://postgresql.org)
-[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white)](https://docker.com)
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
-
-[Возможности](#-возможности) · [Стек](#-стек) · [Быстрый старт](#-быстрый-старт) · [Деплой](#-деплой-на-сервер) · [Конфигурация](#-конфигурация) · <a href='https://t.me/scorbium_dashboard'>Telegram Channel</a>
+[Документация](docs/README.md) · [Nginx](nginx/README.md) · [Миграции](alembic/README)
 
 </div>
 
----
+## О проекте
 
-## 📋 О проекте
+Проект запускается как одно Python 3.13 приложение с несколькими интерфейсами:
 
-**VPN Dashboard** — это комплексное решение для управления VPN-сервисом на базе Marzban/PasarGuard. Включает веб-панель администратора, Telegram-бота для пользователей и полную интеграцию с платёжными системами.
+- `/panel/` — админ-панель на FastAPI + Jinja2 + HTMX
+- `/cabinet/` — пользовательский веб-кабинет
+- `/api/` — REST API
+- `/webhook/bot` — webhook для aiogram 3
+- `/ws/notifications` — realtime-уведомления панели
 
+В фоне работают задачи проверки оплат, истечения VPN-ключей и синхронизации с VPN-панелью.
+
+## Стек
+
+- Python 3.13
+- FastAPI
+- aiogram 3
+- PostgreSQL 15
+- SQLAlchemy 2 async
+- Alembic
+- Jinja2 + HTMX
+- Docker Compose
+- `uv`
+
+## Структура
+
+```text
+app/
+  api/
+    panel/      админ-панель
+    cabinet/    пользовательский кабинет
+    v1/         REST API
+  bot/          handlers и middlewares Telegram-бота
+  core/         конфиг, БД, create_app()
+  services/     бизнес-логика
+  tasks/        фоновые циклы
+  templates/    Jinja2 шаблоны
+  static/       CSS/JS/изображения
+alembic/        миграции
+nginx/          dev/prod nginx-конфиги
 ```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                    VPN Dashboard                                         │
-│                                                                          │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│  │  Web Panel   │  │  Telegram    │  │   Marzban    │  │   Payments   │  │
-│  │  (FastAPI +  │  │    Bot       │  │  Integration │  │  Integration │  │ 
-│  │   Jinja2)    │  │  (aiogram 3) │  │  (PasarGuard)│  │              │  │
-│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘  │
-│           │                │                │                   │        │
-│           └────────────────┴────────────────┘───────────────────┘        │
-│                                     │                                    │
-│                            ┌───────────────┐                             │ 
-│                            │  PostgreSQL   │                             │  
-│                            └───────────────┘                             │
-└──────────────────────────────────────────────────────────────────────────┘
-```
 
----
-
-## ✨ Возможности
-
-### 🖥 Веб-панель администратора
-- **Дашборд** — статистика в реальном времени, график выручки за 7 дней
-- **Пользователи** — управление, бан/разбан, пополнение баланса, подарок подписки
-- **Подписки** — просмотр, продление, отзыв VPN-ключей
-- **Тарифы** — создание и управление планами подписки
-- **Платежи** — история, возвраты, статусы
-- **Промокоды** — скидки, баланс, дни к подписке
-- **Рефералы** — статистика, топ рефереров
-- **Поддержка** — тикет-система с ответами
-- **Рассылки** — массовые сообщения пользователям
-- **Telegram** — настройка бота, кастомизация, фото для разделов
-- **PasarGuard** — управление VPN-панелью, группы, ноды, пользователи
-- **Редактор клавиатуры** — drag & drop конструктор меню бота с превью
-- **Платежные сервисы** - Подключение платежей
-
-### 🤖 Telegram-бот
-- Покупка подписок (ЮКасса, Telegram Stars, баланс)
-- Просмотр и управление подписками
-- Профиль пользователя (`/profile`)
-- Статус серверов (`/ping`)
-- Топ рефереров (`/top`)
-- Подарить подписку другу (`/gift @username`)
-- Автопродление с баланса
-- Уведомления за 3 дня до истечения
-- Обязательная подписка на канал
-- Антиспам middleware (token bucket)
-
-### 💳 Платёжные системы
-- **ЮКасса** — банковские карты, webhook + polling
-- **Telegram Stars** — встроенные платежи
-- **Баланс** — внутренний счёт пользователя
-
-### 🔒 Безопасность
-- JWT авторизация панели (cookie-based)
-- Rate limiting (панель: 120 req/min, API: 60 req/min)
-- Антиспам для бота
-- Защита от самобана администратора
-
----
-
-## 🛠 Стек
-
-| Компонент | Технология |
-|-----------|-----------|
-| Backend | FastAPI + Python 3.13 |
-| Bot | aiogram 3.x |
-| Database | PostgreSQL 15 + SQLAlchemy 2 (async) |
-| Migrations | Alembic |
-| Templates | Jinja2 + HTMX + Bootstrap 5.3 |
-| VPN Panel | Marzban / PasarGuard API |
-| Payments | ЮКасса, Telegram Stars |
-| Proxy | Nginx |
-| Container | Docker + Docker Compose |
-| Package manager | uv |
-
----
-
-## 🚀 Быстрый старт
+## Быстрый старт
 
 ### Требования
-- Docker + Docker Compose v2
+
+- Docker
+- Docker Compose v2
 - Git
 
-### Локальный запуск
+### Разработка
+
+Самый простой путь — интерактивный setup:
 
 ```bash
-# 1. Клонировать репозиторий
-git clone https://github.com/your/vpn-dashboard.git
-cd vpn-dashboard
-
-# 2. Запустить интерактивный setup
 bash setup.sh
-# Выбрать режим 2 (Разработка)
-
-# 3. Применить миграции
-docker compose exec app uv run alembic upgrade head
 ```
 
-Панель: **http://localhost/panel/**
+Если нужна ручная последовательность:
 
----
-
-## 🌐 Деплой на сервер
-
-### Требования
-- Ubuntu 20.04+ / Debian 11+
-- Домен с A-записью на IP сервера
-- Открытые порты 80, 443
-
-### Установка Docker
 ```bash
-curl -fsSL https://get.docker.com | sh
-systemctl enable --now docker
+docker compose up -d db
+docker compose run --rm app uv run python fix_alembic.py
+docker compose run --rm app uv run alembic upgrade head
+docker compose up -d app nginx
 ```
 
-### Деплой
+Панель в dev-режиме обычно доступна по адресу [http://localhost/panel/](http://localhost/panel/).
+
+### Продакшен
+
+Продакшен-установка тоже идет через `setup.sh`, если нужен первичный деплой с доменом и SSL:
+
 ```bash
-# 1. Скопировать проект
-git clone https://github.com/your/vpn-dashboard.git /opt/vpn-dashboard
-cd /opt/vpn-dashboard
-
-# 2. Настроить окружение
-cp .env.example .env
-nano .env  # заполнить все переменные
-
-# 3. Настроить домен в nginx
-sed -i 's/YOUR_DOMAIN/your-domain.com/g' nginx/nginx.conf
-
-# 4. Открыть порты
-ufw allow 80 && ufw allow 443 && ufw allow 22
-
-# 5. Запустить (HTTP для получения сертификата)
-docker compose -f docker-compose.prod.yml up -d db app
-
-# 6. Получить SSL сертификат
-docker compose -f docker-compose.prod.yml run --rm certbot certonly \
-  --webroot --webroot-path=/var/www/certbot \
-  --email your@email.com --agree-tos --no-eff-email \
-  -d your-domain.com
-
-# 7. Запустить с SSL
-docker compose -f docker-compose.prod.yml up -d
-docker compose -f docker-compose.prod.yml exec app uv run alembic upgrade head
+bash setup.sh
 ```
 
-Панель: **https://your-domain.com/panel/**
+Скрипт:
 
-### Обновление
+- собирает `.env`
+- проверяет Docker, порты и ресурсы
+- генерирует `nginx/nginx.conf`
+- поднимает `db`, `app`, `nginx`
+- настраивает webhook URL и HTTPS-порт
+
+## Обновление
+
+Для продакшена используйте только:
+
 ```bash
-cd /opt/vpn-dashboard
-git pull
-docker compose -f docker-compose.prod.yml build app
-docker compose -f docker-compose.prod.yml up -d app
+./update.sh
 ```
 
----
+Скрипт сам:
 
-## ⚙️ Конфигурация
+- делает backup базы
+- проверяет пароль PostgreSQL
+- выполняет `git pull --ff-only`
+- регенерирует `nginx.conf`
+- запускает `fix_alembic.py`
+- применяет `alembic upgrade head`
+- перезапускает `app` и `nginx`
+- проверяет health endpoint
 
-Скопируй `.env.example` в `.env` и заполни:
+## Миграции
 
-```env
-# Приложение
-APP_NAME=VPN Dashboard
-APP_VERSION=1.0.0
+В этом проекте перед `alembic upgrade head` нужно запускать `fix_alembic.py`, иначе можно попасть в конфликт версий схемы.
 
-# Веб-сервер
-SERVER_HOST=0.0.0.0
-SERVER_PORT=8000
-ALLOWED_ORIGINS=["https://your-domain.com"]
+Правильная последовательность:
 
-# Панель администратора
-WEB_SUPERADMIN_USERNAME=admin
-WEB_SUPERADMIN_PASSWORD=your_secure_password
-
-# Telegram
-TELEGRAM_BOT_TOKEN=1234567890:AABBccDDeeFFggHH
-TELEGRAM_ADMIN_IDS=[123456789]
-TELEGRAM_TYPE_PROTOCOL=webhook          # webhook | long
-TELEGRAM_WEBHOOK_URL=https://your-domain.com/webhook/bot
-TELEGRAM_WEBHOOK_PATH=/webhook/bot
-
-# Marzban / PasarGuard
-PASARGUARD_ADMIN_PANEL=https://panel.example.com:8012
-PASARGUARD_ADMIN_LOGIN=admin
-PASARGUARD_ADMIN_PASSWORD=password
-
-# ЮКасса
-YOOKASSA_SHOP_ID=1234567
-YOOKASSA_SECRET_KEY=test_your_key
-
-# База данных
-DB_NAME=vpnbot
-DB_HOST=db
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=secure_password
+```bash
+docker compose run --rm app uv run python fix_alembic.py
+docker compose run --rm app uv run alembic upgrade head
 ```
 
----
+Подробности: [alembic/README](/Users/itsskramb/ScorbiumDashboard/alembic/README)
 
-## 📁 Структура проекта
+## CLI
 
-```
-vpn-dashboard/
-├── app/
-│   ├── api/
-│   │   ├── panel/          # Веб-панель (HTMX + Jinja2)
-│   │   ├── v1/             # REST API
-│   │   └── middleware/     # Rate limiting
-│   ├── bot/
-│   │   ├── handlers/       # Обработчики команд
-│   │   ├── keyboards/      # Клавиатуры
-│   │   ├── middlewares/    # Ban, throttle, channel check
-│   │   └── utils/          # Утилиты
-│   ├── core/               # Конфиги, БД, сервер
-│   ├── models/             # SQLAlchemy модели
-│   ├── schemas/            # Pydantic схемы
-│   ├── services/           # Бизнес-логика
-│   ├── tasks/              # Фоновые задачи
-│   └── templates/          # HTML шаблоны
-├── alembic/                # Миграции БД
-├── nginx/                  # Конфиги Nginx
-├── icon/                   # Иконки
-├── docker-compose.yml      # Локальная разработка
-├── docker-compose.prod.yml # Продакшен
-├── Dockerfile
-├── setup.sh                # Интерактивный установщик
-└── .env.example
+У проекта есть CLI-команда `scorbium`.
+
+Локально:
+
+```bash
+uv run scorbium
 ```
 
----
+В контейнере:
 
-## 🔧 Полезные команды
+```bash
+docker compose exec app uv run scorbium
+```
+
+## Полезные команды
 
 ```bash
 # Логи приложения
 docker compose logs -f app
 
-# Применить миграции
-docker compose exec app uv run alembic upgrade head
-
-# Сбросить БД (ОСТОРОЖНО — удаляет все данные)
+# Полный reset локальной БД
 docker compose down -v
-docker compose up -d db app
-docker compose exec app uv run alembic upgrade head
+docker compose up -d db
+docker compose run --rm app uv run python fix_alembic.py
+docker compose run --rm app uv run alembic upgrade head
+docker compose up -d app nginx
 
-# Перезапустить только приложение
-docker compose restart app
-
-# Войти в контейнер
-docker compose exec app bash
+# Запуск тестов
+uv run pytest -q
 ```
 
----
-<div align="center">
-<h1>
-<a href='https://t.me/scorbium_dashboard'>Telegram Channel</a>
-</h1>
-</div>
----
+## Конфигурация
 
-## 📄 Лицензия
+Основные переменные лежат в `.env`. Образец — [.env.example](/Users/itsskramb/ScorbiumDashboard/.env.example).
 
-[MIT](LICENSE) © 2026
+Ключевые группы:
 
----
+- web: `APP_NAME`, `APP_VERSION`, `JWT_SECRET_KEY`, `WEB_SUPERADMIN_*`
+- telegram: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_IDS`, `TELEGRAM_TYPE_PROTOCOL`
+- database: `DB_*`
+- vpn panel: `PASARGUARD_*`, `VPN_PANEL_TYPE`
+- payments: provider settings are stored in the database; `CRYPTOBOT_TOKEN` can be used for initial seed
+- domain/ssl: `DOMAIN`, `HTTPS_PORT`
 
-<div align="center">
+## Что важно знать
 
-Сделано с ❤️ от Scorbium
-
-</div>
+- Контейнеры называются `vpn_app`, `vpn_db`, `vpn_nginx`
+- В dev используется `nginx/nginx.local.conf`
+- В prod используется `nginx/nginx.conf`, который генерируют `setup.sh` и `update.sh`
+- `/health` и `/api/v1/health/` — это разные endpoint'ы
+- В dev Telegram обычно работает в режиме `long`, в prod — `webhook`

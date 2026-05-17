@@ -23,13 +23,13 @@ _DEFAULT_LAYOUT = [
     ],
     [{"id": "top_referrers", "label": "🏆 Топ рефереров", "callback": "top_referrers"}],
     [{"id": "support", "label": "💬 Поддержка", "callback": "support"}],
-    [{"id": "miniapp", "label": "🌐 Mini App", "callback": "miniapp"}],
+    [{"id": "cabinet", "label": "📱 Кабинет", "web_app": ""}],
+    [{"id": "admin_panel", "label": "⚙️ Админ панель", "url": ""}],
 ]
 
 
 def main_menu_kb(
     support_url: str = "",
-    miniapp_url: str = "",
     layout: list = None,
     styles: dict = None,
     emojis: dict = None,
@@ -52,20 +52,22 @@ def main_menu_kb(
             bid = b.get("id", "")
             label = b.get("label", "")
             callback = b.get("callback", bid)
+            url = b.get("url", "")
+            web_app_url = b.get("web_app", "")
             style = styles.get(bid) or None
             emoji_id = emojis.get(bid) or None
 
-            if bid == "support" and support_url:
+            if web_app_url:
+                row_btns.append(
+                    btn(label, web_app=web_app_url, style=style, emoji_id=emoji_id)
+                )
+            elif url:
+                row_btns.append(
+                    btn(label, url=url, style=style, emoji_id=emoji_id)
+                )
+            elif bid == "support" and support_url:
                 row_btns.append(
                     btn(label, url=support_url, style=style, emoji_id=emoji_id)
-                )
-            elif bid == "miniapp" and miniapp_url:
-                from aiogram.types import WebAppInfo
-
-                row_btns.append(
-                    InlineKeyboardButton(
-                        text=label, web_app=WebAppInfo(url=miniapp_url)
-                    )
                 )
             else:
                 row_btns.append(

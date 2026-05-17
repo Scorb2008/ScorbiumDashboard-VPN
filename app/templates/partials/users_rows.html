@@ -1,53 +1,59 @@
 {% for u in users %}
-<tr id="user-row-{{ u.id }}">
-  <td><code style="color:#00d4aa">{{ u.id }}</code></td>
-  <td>{{ u.full_name }}</td>
-  <td>{% if u.username %}<span style="color:#8892a4">@{{ u.username }}</span>{% else %}—{% endif %}</td>
-  <td>{{ u.subscriptions_count }}</td>
-  <td>{{ u.payments_count }}</td>
+<tr id="user-row-{{ u.id }}" data-user="{{ u.id }}" data-banned="{{ u.is_banned|lower }}" data-keys="{{ u.subscriptions_count }}" data-balance="{{ u.balance or 0 }}" data-created="{{ u.created_at.isoformat() if u.created_at else '' }}">
+  <td><input type="checkbox" class="user-check" value="{{ u.id }}" onchange="updateBulkBar()"></td>
+  <td><code style="color:var(--accent)">{{ u.id }}</code></td>
+  <td>
+    <div class="users-panel-copy">
+      <span class="users-panel-name">{{ u.full_name }}</span>
+      <span class="users-panel-subtle">Клиент VPN</span>
+    </div>
+  </td>
+  <td>{% if u.username %}<span class="users-panel-username">@{{ u.username }}</span>{% else %}<span class="users-panel-subtle">без username</span>{% endif %}</td>
+  <td><span class="badge badge-custom badge-active">{{ u.subscriptions_count }} шт.</span></td>
+  <td><span class="badge badge-custom badge-open">{{ u.payments_count }} оплат</span></td>
   <td>
     <div>
       {% if u.is_banned %}
-        <span class="badge badge-custom badge-expired">Забанен</span>
+        <span class="badge badge-custom badge-expired"><i class="bi bi-ban me-1"></i>Забанен</span>
       {% elif u.is_active %}
-        <span class="badge badge-custom badge-active">Активен</span>
+        <span class="badge badge-custom badge-active"><i class="bi bi-check-circle me-1"></i>Активен</span>
       {% else %}
-        <span class="badge badge-custom badge-closed">Неактивен</span>
+        <span class="badge badge-custom badge-closed"><i class="bi bi-person-slash me-1"></i>Неактивен</span>
       {% endif %}
-      <div style="font-size:.7rem;color:#8892a4;margin-top:.2rem">💰 {{ "%.2f"|format(u.balance or 0) }} ₽</div>
+      <div class="users-panel-wallet"><i class="bi bi-wallet2"></i>{{ "%.2f"|format(u.balance or 0) }} ₽</div>
     </div>
   </td>
   <td>
-    <div class="d-flex gap-1 flex-wrap">
-      <a href="/panel/users/{{ u.id }}" class="btn btn-sm btn-outline-secondary py-0 px-2" title="Детали">
-        <i class="bi bi-eye"></i>
+    <div class="users-panel-actions">
+      <a href="/panel/users/{{ u.id }}" class="users-panel-action" title="Детали">
+        <i class="bi bi-eye"></i><span>Открыть</span>
       </a>
-      <button class="btn btn-sm btn-outline-secondary py-0 px-2" title="Написать" onclick="openMsgModal({{ u.id }})">
-        <i class="bi bi-chat"></i>
+      <button class="users-panel-action" title="Написать" onclick="openMsgModal({{ u.id }})">
+        <i class="bi bi-chat-dots"></i><span>Сообщение</span>
       </button>
-      <button class="btn btn-sm btn-outline-secondary py-0 px-2" title="Баланс"
+      <button class="users-panel-action" title="Баланс"
         onclick="openBalanceModal({{ u.id }}, {{ u.balance or 0 }})">
-        <i class="bi bi-currency-ruble"></i>
+        <i class="bi bi-wallet2"></i><span>Баланс</span>
       </button>
-      <button class="btn btn-sm btn-outline-secondary py-0 px-2" title="Подарить подписку"
+      <button class="users-panel-action" title="Подарить подписку"
         onclick="openGiftModal({{ u.id }})">
-        <i class="bi bi-gift"></i>
+        <i class="bi bi-gift"></i><span>Подарить</span>
       </button>
       {% if u.is_banned %}
-      <button class="btn btn-sm btn-outline-success py-0 px-2" title="Разбанить"
+      <button class="users-panel-action" title="Разбанить"
         hx-post="/panel/users/{{ u.id }}/unban" hx-target="#user-row-{{ u.id }}" hx-swap="outerHTML">
-        <i class="bi bi-unlock"></i>
+        <i class="bi bi-unlock"></i><span>Разбанить</span>
       </button>
       {% else %}
-      <button class="btn btn-sm btn-outline-danger py-0 px-2" title="Забанить"
+      <button class="users-panel-action is-danger" title="Забанить"
         hx-post="/panel/users/{{ u.id }}/ban" hx-target="#user-row-{{ u.id }}" hx-swap="outerHTML"
         hx-confirm="Забанить пользователя?">
-        <i class="bi bi-slash-circle"></i>
+        <i class="bi bi-lock"></i><span>Забанить</span>
       </button>
       {% endif %}
     </div>
   </td>
 </tr>
 {% else %}
-<tr><td colspan="7" class="text-center py-4" style="color:#8892a4">Пользователи не найдены</td></tr>
+<tr><td colspan="8" class="text-center py-4" style="color:var(--text-muted)"><i class="bi bi-people d-block mb-2" style="font-size:1.5rem;opacity:.3"></i>Пользователи не найдены</td></tr>
 {% endfor %}

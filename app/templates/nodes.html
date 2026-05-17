@@ -3,63 +3,15 @@
 {% block page_title %}Серверы / Ноды{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-4 fade-in">
-  <div>
-    <h4 class="mb-1" style="color:var(--text)">VPN ноды</h4>
-    <p class="mb-0" style="color:var(--muted);font-size:.85rem">Управление серверами Marzban</p>
-  </div>
-  {% if has_perm(admin_role, "system") %}
-  <button class="btn btn-accent" data-bs-toggle="modal" data-bs-target="#addNodeModal">
-    <i class="bi bi-plus-lg me-1"></i>Добавить ноду
-  </button>
-  {% endif %}
+<div class="mb-4 fade-in">
+  <h4 class="mb-1" style="color:var(--text)">VPN ноды</h4>
+  <p class="mb-0" style="color:var(--text-muted);font-size:.85rem">Управление серверами</p>
 </div>
 
 <div hx-get="/panel/nodes/data" hx-trigger="load, every 30s" hx-swap="outerHTML">
   <div class="text-center py-5 fade-in">
     <div class="spinner-border" style="color:var(--accent);width:1.5rem;height:1.5rem;border-width:.15rem" role="status"></div>
-    <p class="mt-2" style="color:var(--muted);font-size:.8rem">Загрузка нод...</p>
+    <p class="mt-2" style="color:var(--text-muted);font-size:.8rem">Загрузка нод...</p>
   </div>
 </div>
-
-{% if has_perm(admin_role, "system") %}
-<!-- Add Node Modal -->
-<div class="modal fade" id="addNodeModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px">
-      <div class="modal-header" style="border-color:var(--border)">
-        <h5 class="modal-title" style="color:var(--text);font-size:.95rem">Добавить ноду</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="filter:invert(1)"></button>
-      </div>
-      <div class="modal-body">
-        <form id="addNodeForm" hx-post="/panel/nodes/add" hx-target="#nodes-grid" hx-swap="innerHTML">
-          <div class="mb-3">
-            <label class="form-label">Название</label>
-            <input type="text" name="name" class="form-control" placeholder="Node 1" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Адрес</label>
-            <input type="text" name="address" class="form-control" placeholder="192.168.1.100" required>
-          </div>
-          <div class="row">
-            <div class="col-6 mb-3">
-              <label class="form-label">Порт</label>
-              <input type="number" name="port" class="form-control" value="62050">
-            </div>
-            <div class="col-6 mb-3">
-              <label class="form-label">API порт</label>
-              <input type="number" name="api_port" class="form-control" value="62051">
-            </div>
-          </div>
-          <div class="d-flex gap-2 justify-content-end">
-            <button type="button" class="btn btn-outline" data-bs-dismiss="modal">Отмена</button>
-            <button type="submit" class="btn btn-accent" data-bs-dismiss="modal">Добавить</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
-{% endif %}
 {% endblock %}
-

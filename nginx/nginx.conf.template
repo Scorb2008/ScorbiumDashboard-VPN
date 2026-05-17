@@ -1,6 +1,7 @@
 limit_req_zone $binary_remote_addr zone=panel:10m rate=30r/m;
 limit_req_zone $binary_remote_addr zone=api:10m rate=60r/m;
 limit_req_zone $binary_remote_addr zone=webhook:10m rate=120r/m;
+limit_req_zone $binary_remote_addr zone=cabinet:10m rate=30r/m;
 
 upstream vpn_app { server app:8000; keepalive 32; }
 
@@ -26,9 +27,19 @@ server {
     client_max_body_size 20M;
 
     add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
-    add_header X-Frame-Options SAMEORIGIN always;
     add_header X-Content-Type-Options nosniff always;
+    add_header Permissions-Policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()" always;
 
+    location = /cabinet { return 301 /cabinet/; }
+    location /cabinet/ {
+        limit_req zone=cabinet burst=20 nodelay;
+        proxy_pass http://vpn_app/cabinet/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Telegram-Init-Data $http_x_telegram_init_data;
+    }
     location /panel/ {
         limit_req zone=panel burst=20 nodelay;
         proxy_pass http://vpn_app;

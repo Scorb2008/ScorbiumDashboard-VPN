@@ -1,9 +1,54 @@
 {% extends "base.html" %}
-{% block title %}Резервная копия — VPN Panel{% endblock %}
-{% block page_title %}Резервная копия{% endblock %}
+{% block title %}База данных — VPN Panel{% endblock %}
+{% block page_title %}База данных{% endblock %}
 
 {% block content %}
 <div class="row g-4">
+
+  <!-- Stats -->
+  <div class="col-12">
+    <div class="card p-3">
+      <div class="fw-semibold mb-3" style="color:var(--text)"><i class="bi bi-bar-chart-fill me-2" style="color:var(--accent)"></i>Статистика базы данных</div>
+      <div class="row g-3">
+        <div class="col-6 col-xl-3">
+          <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(0,212,170,.1);color:var(--accent)"><i class="bi bi-people-fill"></i></div>
+            <div>
+              <div class="stat-value">{{ db_stats.users }}</div>
+              <div class="stat-label">Пользователи</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-xl-3">
+          <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(16,185,129,.1);color:var(--success)"><i class="bi bi-key-fill"></i></div>
+            <div>
+              <div class="stat-value">{{ db_stats.vpn_keys }}</div>
+              <div class="stat-label">Ключи VPN</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-xl-3">
+          <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(245,158,11,.1);color:var(--warning)"><i class="bi bi-credit-card-fill"></i></div>
+            <div>
+              <div class="stat-value">{{ db_stats.payments }}</div>
+              <div class="stat-label">Платежи</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-xl-3">
+          <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(14,165,233,.1);color:var(--info)"><i class="bi bi-chat-left-text-fill"></i></div>
+            <div>
+              <div class="stat-value">{{ db_stats.tickets }}</div>
+              <div class="stat-label">Тикеты</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Export -->
   <div class="col-lg-6">
@@ -13,7 +58,7 @@
         Экспорт базы данных
       </div>
       <div class="p-4">
-        <p style="font-size:.83rem;color:#8892a4;margin-bottom:1.25rem">
+        <p style="font-size:.83rem;color:var(--text-muted);margin-bottom:1.25rem">
           Скачать полный дамп PostgreSQL в формате <code>.sql</code>.
           Файл содержит все таблицы, данные и структуру.
         </p>
@@ -26,7 +71,7 @@
           </a>
         </div>
         <div class="mt-3 p-3" style="background:rgba(34,197,94,.06);border-radius:8px;border:1px solid rgba(34,197,94,.15)">
-          <div style="font-size:.75rem;color:#8892a4">
+          <div style="font-size:.75rem;color:var(--text-muted)">
             <i class="bi bi-info-circle me-1" style="color:#22c55e"></i>
             Рекомендуется делать резервные копии регулярно — перед обновлениями и миграциями.
           </div>
@@ -43,7 +88,7 @@
         Импорт / Восстановление
       </div>
       <div class="p-4">
-        <p style="font-size:.83rem;color:#8892a4;margin-bottom:1.25rem">
+        <p style="font-size:.83rem;color:var(--text-muted);margin-bottom:1.25rem">
           Загрузи <code>.sql</code> или <code>.sql.gz</code> файл для восстановления базы данных.
         </p>
         <div class="p-3 mb-3" style="background:rgba(239,68,68,.08);border-radius:8px;border:1px solid rgba(239,68,68,.2)">
@@ -60,7 +105,7 @@
           </div>
           <div class="mb-3 form-check">
             <input type="checkbox" class="form-check-input" id="confirmRestore" name="confirm" value="yes" required>
-            <label class="form-check-label" for="confirmRestore" style="font-size:.8rem;color:#8892a4">
+            <label class="form-check-label" for="confirmRestore" style="font-size:.8rem;color:var(--text-muted)">
               Я понимаю, что текущие данные будут перезаписаны
             </label>
           </div>
@@ -73,51 +118,35 @@
     </div>
   </div>
 
-  <!-- DB Cleanup Info -->
+  <!-- DB Clear -->
   <div class="col-12">
     <div class="card">
       <div class="card-header d-flex align-items-center gap-2">
-        <i class="bi bi-trash3-fill" style="color:#ef4444"></i>
+        <i class="bi bi-exclamation-triangle-fill" style="color:#ef4444"></i>
         Очистка базы данных
       </div>
       <div class="p-4">
-        <p style="font-size:.83rem;color:#8892a4;margin-bottom:1rem">
-          Для очистки базы данных используй команды в терминале сервера. <b>Перед очисткой сделай резервную копию.</b>
-        </p>
-        <div class="row g-3">
-          <div class="col-md-6">
-            <div style="background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--border);padding:1rem">
-              <div style="font-size:.72rem;color:#8892a4;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.8px">Очистить все таблицы (сохранить структуру)</div>
-              <code style="font-size:.78rem;color:#0ea5e9;display:block;white-space:pre-wrap">psql $DATABASE_URL -c "
-TRUNCATE users, subscriptions,
-  payments, vpn_keys, plans,
-  promos, referrals, support_tickets,
-  broadcasts, bot_settings
-  RESTART IDENTITY CASCADE;"</code>
+        <div class="row g-4 align-items-center">
+          <div class="col-lg-7">
+            <p style="font-size:.83rem;color:var(--text-muted);margin-bottom:.75rem">
+              Удаляет все данные пользователей, ключей, платежей и тикетов. Настройки бота, администраторы, тарифы и промокоды будут сохранены.
+            </p>
+            <div class="p-3 mb-3" style="background:rgba(239,68,68,.08);border-radius:8px;border:1px solid rgba(239,68,68,.2)">
+              <div style="font-size:.75rem;color:#ef4444">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                <b>Необратимое действие!</b> Перед очисткой обязательно сделайте резервную копию.
+              </div>
             </div>
           </div>
-          <div class="col-md-6">
-            <div style="background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--border);padding:1rem">
-              <div style="font-size:.72rem;color:#8892a4;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.8px">Полный сброс (drop + migrate)</div>
-              <code style="font-size:.78rem;color:#ef4444;display:block;white-space:pre-wrap">psql $DATABASE_URL -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
-alembic upgrade head</code>
+          <div class="col-lg-5">
+            <div class="mb-3">
+              <label class="form-label" style="font-size:.8rem;">Для подтверждения введите <code class="text-danger">CLEAR</code></label>
+              <input type="text" id="db-clear-input" class="form-control" placeholder="CLEAR" autocomplete="off" />
             </div>
-          </div>
-          <div class="col-md-6">
-            <div style="background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--border);padding:1rem">
-              <div style="font-size:.72rem;color:#8892a4;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.8px">Удалить только платежи и подписки</div>
-              <code style="font-size:.78rem;color:#0ea5e9;display:block;white-space:pre-wrap">psql $DATABASE_URL -c "
-TRUNCATE payments, subscriptions,
-  vpn_keys RESTART IDENTITY CASCADE;"</code>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <div style="background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--border);padding:1rem">
-              <div style="font-size:.72rem;color:#8892a4;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.8px">Через Docker Compose</div>
-              <code style="font-size:.78rem;color:#0ea5e9;display:block;white-space:pre-wrap">docker compose exec db psql \
-  -U $DB_USER -d $DB_NAME \
-  -c "TRUNCATE users CASCADE;"</code>
-            </div>
+            <button id="db-clear-btn" class="btn btn-danger w-100" disabled onclick="clearDatabase()">
+              <i class="bi bi-trash3 me-1"></i>Очистить базу данных
+            </button>
+            <div id="db-clear-result" class="mt-2" style="font-size:.8rem"></div>
           </div>
         </div>
       </div>
@@ -125,4 +154,50 @@ TRUNCATE payments, subscriptions,
   </div>
 
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function clearDatabase() {
+  if (!confirm('⚠️ ВЫ УВЕРЕНЫ?\n\nЭто удалит ВСЕ данные пользователей, ключей, платежей и тикетов.\n\nНастройки бота, администраторы, тарифы и промокоды будут сохранены.')) return;
+
+  const btn = document.getElementById('db-clear-btn');
+  const result = document.getElementById('db-clear-result');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Очистка...';
+  result.innerHTML = '';
+
+  try {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    const csrf = meta ? meta.getAttribute('content') : '';
+    const r = await fetch('/panel/backup/database/clear', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrf
+      },
+      credentials: 'same-origin'
+    });
+    const d = await r.json();
+    if (d.ok) {
+      result.innerHTML = '<span style="color:#22c55e"><i class="bi bi-check-circle-fill me-1"></i>' + d.message + '</span>';
+      showToast('База данных очищена', 'success');
+      setTimeout(() => location.reload(), 2000);
+    } else {
+      result.innerHTML = '<span style="color:#ef4444"><i class="bi bi-x-circle-fill me-1"></i>' + (d.message || 'Ошибка') + '</span>';
+      showToast(d.message || 'Ошибка', 'error');
+    }
+  } catch(e) {
+    result.innerHTML = '<span style="color:#ef4444"><i class="bi bi-x-circle-fill me-1"></i>Ошибка сети</span>';
+    showToast('Ошибка сети', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-trash3 me-1"></i>Очистить базу данных';
+  }
+}
+
+document.getElementById('db-clear-input').addEventListener('input', function() {
+  document.getElementById('db-clear-btn').disabled = this.value !== 'CLEAR';
+});
+</script>
 {% endblock %}

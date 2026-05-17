@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Scorbium CLI wrapper — работает без активации venv
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+exec uv run --directory "$PROJECT_DIR" scorbium "$@"

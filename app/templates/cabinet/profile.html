@@ -1,0 +1,186 @@
+{% extends "cabinet/base.html" %}
+{% block title %}Профиль - {{ app_name }}{% endblock %}
+
+{% block head %}
+<style>{% include "cabinet/_premium_section_styles.html" %}</style>
+<style>
+  .cab-premium-actions .btn,
+  .cab-premium-panel-head .btn,
+  .cab-premium-row-actions .btn {
+    background: linear-gradient(135deg, rgba(88, 242, 200, 0.96), rgba(138, 198, 255, 0.92));
+    color: #051118;
+    border: 1px solid rgba(88, 242, 200, 0.28);
+    box-shadow: 0 16px 28px rgba(88, 242, 200, 0.16);
+  }
+
+  .cab-premium-actions .btn:hover,
+  .cab-premium-panel-head .btn:hover,
+  .cab-premium-row-actions .btn:hover {
+    filter: brightness(1.03);
+    transform: translateY(-1px);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set active_keys = keys|selectattr('status', 'equalto', 'active')|list %}
+
+<div class="cab-premium">
+  <section class="cab-premium-shell">
+    <div class="cab-premium-top">
+      <div class="cab-premium-copy">
+        <div class="cab-premium-kicker">Профиль</div>
+        <h1 class="cab-premium-title">Ваш аккаунт, баланс и история в одном месте</h1>
+        <p class="cab-premium-subtitle">Здесь собраны основные данные профиля, быстрые действия и последняя активность по подпискам и платежам.</p>
+      </div>
+      <span class="cab-premium-badge">{{ active_keys|length }} активн{{ 'ых' if active_keys|length != 1 else 'ая' }}</span>
+    </div>
+
+    <div class="cab-premium-hero" style="margin-top:24px">
+      <article class="cab-premium-card cab-premium-profile-card">
+        <div class="cab-premium-avatar">{{ (user.full_name or user.username or 'U')[:1]|upper }}</div>
+        <div class="cab-premium-profile-copy">
+          <h2>{{ user.full_name or 'Пользователь' }}</h2>
+          <p>{% if user.username %}@{{ user.username }}{% else %}ID {{ user.id }}{% endif %}</p>
+          <div class="cab-premium-actions">
+            <a href="/cabinet/referrals" class="btn btn-p"><i class="bi bi-people"></i> Рефералы</a>
+            <a href="/cabinet/language" class="btn btn-p"><i class="bi bi-translate"></i> Язык</a>
+            <a href="/cabinet/balance" class="btn btn-p"><i class="bi bi-wallet2"></i> Баланс</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="cab-premium-card cab-premium-balance-card">
+        <div>
+          <div class="cab-premium-stat-label">Баланс аккаунта</div>
+          <div class="cab-premium-balance-value">{{ "%.2f"|format(user.balance) }} ₽</div>
+        </div>
+        <div class="cab-premium-note">
+          <i class="bi bi-shield-check"></i>
+          <div>
+            <strong>Быстрый доступ</strong>
+            <span>Баланс, подписки и язык профиля можно менять отсюда без лишних переходов.</span>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <div class="cab-premium-grid-3" style="margin-top:18px">
+      <article class="cab-premium-stat" data-tone="mint">
+        <div class="cab-premium-stat-top">
+          <div class="cab-premium-stat-icon"><i class="bi bi-wallet2"></i></div>
+          <div class="cab-premium-stat-label">Баланс</div>
+        </div>
+        <p class="cab-premium-stat-value">{{ "%.2f"|format(user.balance) }} ₽</p>
+        <div class="cab-premium-stat-meta">Средства для продления и новых покупок.</div>
+      </article>
+
+      <article class="cab-premium-stat" data-tone="blue">
+        <div class="cab-premium-stat-top">
+          <div class="cab-premium-stat-icon"><i class="bi bi-key"></i></div>
+          <div class="cab-premium-stat-label">Подписки</div>
+        </div>
+        <p class="cab-premium-stat-value">{{ keys|length }}</p>
+        <div class="cab-premium-stat-meta">{{ active_keys|length }} сейчас активн{{ 'ы' if active_keys|length != 1 else 'а' }}.</div>
+      </article>
+
+      <article class="cab-premium-stat" data-tone="gold">
+        <div class="cab-premium-stat-top">
+          <div class="cab-premium-stat-icon"><i class="bi bi-people"></i></div>
+          <div class="cab-premium-stat-label">Рефералы</div>
+        </div>
+        <p class="cab-premium-stat-value">{{ referrals_count }}</p>
+        <div class="cab-premium-stat-meta">Приглашенные пользователи и бонусы.</div>
+      </article>
+    </div>
+
+    <div class="cab-premium-grid-2" style="margin-top:18px">
+      <section class="cab-premium-panel">
+        <div class="cab-premium-panel-head">
+          <div>
+            <h2>Подписки</h2>
+            <p>Краткий обзор последних ключей и быстрый доступ к копированию.</p>
+          </div>
+          <a href="/cabinet/keys" class="btn btn-p">Все</a>
+        </div>
+
+        {% if keys %}
+        <div class="cab-premium-list">
+          {% for key in keys[:4] %}
+          {% if key.status == 'active' %}
+          {% set key_label = 'Активна' %}
+          {% set key_class = 'is-active' %}
+          {% elif key.status == 'expired' %}
+          {% set key_label = 'Истекла' %}
+          {% set key_class = 'is-expired' %}
+          {% else %}
+          {% set key_label = 'Подготовка' %}
+          {% set key_class = 'is-pending' %}
+          {% endif %}
+          <article class="cab-premium-row">
+            <div class="cab-premium-row-top">
+              <div>
+                <h3 class="cab-premium-row-title">{{ key.name or 'VPN подписка' }}</h3>
+                <div class="cab-premium-row-subtitle">{% if key.expires_at %}До {{ key.expires_at.strftime('%d.%m.%Y') }}{% else %}Без срока{% endif %}</div>
+              </div>
+              <span class="cab-premium-pill {{ key_class }}">{{ key_label }}</span>
+            </div>
+            <div class="cab-premium-row-actions">
+              {% if key.access_url and key.access_url != 'pending' %}
+              <button class="btn btn-p" type="button" data-copy-url="{{ key.access_url }}" data-copy-success="Ссылка скопирована" onclick="copyText(this.dataset.copyUrl || '', this.dataset.copySuccess || 'Ссылка скопирована'); return false;"><i class="bi bi-copy"></i> Копировать</button>
+              {% else %}
+              <div class="cab-premium-row-note">Ссылка появится автоматически после подготовки ключа.</div>
+              {% endif %}
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="cab-premium-empty">
+          <div class="cab-premium-empty-icon"><i class="bi bi-key"></i></div>
+          <p>Подписок пока нет. Когда появится первый ключ, он сразу отобразится здесь.</p>
+        </div>
+        {% endif %}
+      </section>
+
+      <section class="cab-premium-panel">
+        <div class="cab-premium-panel-head">
+          <div>
+            <h2>Платежи</h2>
+            <p>Последние пополнения и покупки в кабинете.</p>
+          </div>
+          <a href="/cabinet/balance" class="btn btn-p">История</a>
+        </div>
+
+        {% if payments %}
+        <div class="cab-premium-list">
+          {% for p in payments[:6] %}
+          {% if p.status == 'succeeded' %}
+          {% set pay_class = 'is-active' %}
+          {% elif p.status == 'failed' %}
+          {% set pay_class = 'is-expired' %}
+          {% else %}
+          {% set pay_class = 'is-pending' %}
+          {% endif %}
+          <article class="cab-premium-row">
+            <div class="cab-premium-row-top">
+              <div>
+                <h3 class="cab-premium-row-title">{{ "%.2f"|format(p.amount) }} ₽</h3>
+                <div class="cab-premium-row-subtitle">{{ p.created_at.strftime('%d.%m.%Y') }}</div>
+              </div>
+              <span class="cab-premium-pill {{ pay_class }}">{{ p.status }}</span>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="cab-premium-empty">
+          <div class="cab-premium-empty-icon"><i class="bi bi-receipt"></i></div>
+          <p>Платежей пока нет. История появится после первого пополнения или покупки.</p>
+        </div>
+        {% endif %}
+      </section>
+    </div>
+  </section>
+</div>
+{% endblock %}

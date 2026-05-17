@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.broadcast import Broadcast, BroadcastStatus
@@ -73,3 +73,22 @@ class BroadcastService:
         else:
             return []
         return [row[0] for row in result.all()]
+
+    async def estimate_count(self, target: str) -> int:
+        if target == "all":
+            result = await self.session.execute(
+                select(func.count(User.id)).where(User.is_banned.is_(False), User.is_active.is_(True))
+            )
+        elif target == "active":
+            result = await self.session.execute(
+                select(func.count(func.distinct(VpnKey.user_id)))
+                .where(VpnKey.status == VpnKeyStatus.ACTIVE.value)
+            )
+        elif target == "expired":
+            result = await self.session.execute(
+                select(func.count(func.distinct(VpnKey.user_id)))
+                .where(VpnKey.status == VpnKeyStatus.EXPIRED.value)
+            )
+        else:
+            return 0
+        return result.scalar() or 0

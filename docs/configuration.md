@@ -50,14 +50,13 @@
 
 > 💡 Достаточно указать логин/пароль. API ключ необязателен.
 
-### ЮКасса
+### Платёжные системы
 
-| Переменная | Описание | Пример |
-|-----------|----------|--------|
-| `YOOKASSA_SHOP_ID` | ID магазина | `1234567` |
-| `YOOKASSA_SECRET_KEY` | Секретный ключ | `test_abc123...` |
+Платёжные креденшалы больше не задаются через `.env`.
 
-> Для тестирования используйте ключи с префиксом `test_`.
+- YooKassa и остальные платёжные настройки вносятся через админ-панель
+- значения сохраняются в базе данных
+- после первого запуска откройте раздел `Telegram -> Платёжные системы`
 
 ### База данных
 
@@ -103,9 +102,6 @@ PASARGUARD_ADMIN_PANEL=https://panel.example.com:8012
 PASARGUARD_ADMIN_LOGIN=admin
 PASARGUARD_ADMIN_PASSWORD=marzban_password
 PASARGUARD_API_KEY=
-
-YOOKASSA_SHOP_ID=1234567
-YOOKASSA_SECRET_KEY=live_your_secret_key
 
 DB_ENGINE=postgresql
 DB_NAME=vpnbot

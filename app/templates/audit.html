@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Аудит — VPN Panel{% endblock %}
+{% block page_title %}<i class="bi bi-journal-text me-2" style="color:var(--accent)"></i>Журнал аудита{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between px-3 py-2 flex-wrap gap-2">
+    <span>Все действия администраторов</span>
+    <div class="d-flex gap-2 align-items-center">
+      <select class="form-select form-select-sm" style="width:160px" id="filterAction" onchange="filterAudit()">
+        <option value="">Все действия</option>
+        <option value="ban">Бан</option>
+        <option value="unban">Разбан</option>
+        <option value="add_balance">Пополнение</option>
+        <option value="deduct_balance">Списание</option>
+        <option value="broadcast">Рассылка</option>
+        <option value="create_plan">Создание тарифа</option>
+        <option value="backup_db">Бэкап</option>
+        <option value="login">Вход</option>
+        <option value="logout">Выход</option>
+      </select>
+      <select class="form-select form-select-sm" style="width:120px" id="filterDays" onchange="filterAudit()">
+        <option value="1">24 часа</option>
+        <option value="7" selected>7 дней</option>
+        <option value="30">30 дней</option>
+        <option value="90">90 дней</option>
+      </select>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>Время</th>
+          <th>Админ</th>
+          <th>Действие</th>
+          <th>Цель</th>
+          <th>Детали</th>
+        </tr>
+      </thead>
+      <tbody id="audit-tbody">
+        {% for entry in entries %}
+        <tr class="audit-row" data-action="{{ entry.action }}" data-created="{{ entry.created_at.isoformat() if entry.created_at else '' }}">
+          <td style="white-space:nowrap;font-size:.8rem;color:var(--text-muted)">
+            {{ entry.created_at.strftime('%d.%m.%Y %H:%M') if entry.created_at else '—' }}
+          </td>
+          <td><code style="font-size:.8rem;color:var(--accent)">{{ entry.admin_id }}</code></td>
+          <td>
+            {% set icons = {
+              'ban': ('bi-ban', 'danger'),
+              'unban': ('bi-unlock', 'success'),
+              'add_balance': ('bi-plus-circle', 'success'),
+              'deduct_balance': ('bi-dash-circle', 'warning'),
+              'broadcast': ('bi-megaphone', 'info'),
+              'create_plan': ('bi-tag', 'accent'),
+              'delete_plan': ('bi-tag-fill', 'danger'),
+              'backup_db': ('bi-database', 'info'),
+              'login': ('bi-box-arrow-in-right', 'success'),
+              'logout': ('bi-box-arrow-right', 'muted'),
+              'gift_key': ('bi-gift', 'accent'),
+              'extend_key': ('bi-clock-history', 'info'),
+            } %}
+            {% set icon_data = icons.get(entry.action, ('bi-journal', 'muted')) %}
+            <span class="badge badge-custom" style="background:rgba({{ '16,185,129' if icon_data[1]=='success' else '239,68,68' if icon_data[1]=='danger' else '245,158,11' if icon_data[1]=='warning' else '14,165,233' if icon_data[1]=='info' else '0,212,170' if icon_data[1]=='accent' else '100,116,139' }},.12);color:{{ '#10b981' if icon_data[1]=='success' else '#ef4444' if icon_data[1]=='danger' else '#f59e0b' if icon_data[1]=='warning' else '#0ea5e9' if icon_data[1]=='info' else '#00d4aa' if icon_data[1]=='accent' else '#64748b' }}">
+              <i class="bi {{ icon_data[0] }} me-1"></i>{{ entry.action }}
+            </span>
+          </td>
+          <td style="font-size:.8rem">
+            {% if entry.target_type and entry.target_id %}
+              <a href="/panel/users/{{ entry.target_id }}" style="color:var(--accent)" class="text-decoration-none">
+                {{ entry.target_type }} #{{ entry.target_id }}
+              </a>
+            {% else %}
+              <span style="color:var(--text-muted)">—</span>
+            {% endif %}
+          </td>
+          <td style="font-size:.78rem;color:var(--text-muted);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ entry.details or '' }}">
+            {{ entry.details or '—' }}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-center py-5" style="color:var(--text-muted)">
+          <i class="bi bi-journal-x" style="font-size:2rem;display:block;margin-bottom:.5rem;opacity:.3"></i>
+          Записей нет
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterAudit() {
+  const action = document.getElementById('filterAction').value;
+  const days = parseInt(document.getElementById('filterDays').value);
+  const rows = document.querySelectorAll('.audit-row');
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+
+  rows.forEach(row => {
+    const rowAction = row.dataset.action || '';
+    const rowDate = new Date(row.dataset.created || '');
+    const matchAction = !action || rowAction === action;
+    const matchDate = !days || rowDate >= cutoff;
+    row.style.display = matchAction && matchDate ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}

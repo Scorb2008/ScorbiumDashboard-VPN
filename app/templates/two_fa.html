@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+{% block title %}2FA — VPN Panel{% endblock %}
+{% block page_title %}<i class="bi bi-shield-lock me-2" style="color:var(--accent)"></i>Двухфакторная аутентификация{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card p-4">
+      <div class="d-flex align-items-center gap-3 mb-4">
+        <div style="width:48px;height:48px;background:rgba(0,212,170,.15);border-radius:14px;display:flex;align-items:center;justify-content:center">
+          <i class="bi bi-shield-check" style="font-size:1.3rem;color:#00d4aa"></i>
+        </div>
+        <div>
+          <div class="fw-semibold" style="color:var(--text)">Статус: {% if admin.totp_secret %}<span style="color:var(--success)">Включена</span>{% else %}<span style="color:var(--warning)">Выключена</span>{% endif %}</div>
+          <div style="font-size:.8rem;color:var(--text-muted)">Защита аккаунта администратора</div>
+        </div>
+      </div>
+
+      {% if not admin.totp_secret %}
+      <button class="btn btn-accent w-100" onclick="showSetup()">
+        <i class="bi bi-plus-lg me-1"></i>Включить 2FA
+      </button>
+      {% else %}
+      <div class="d-flex gap-2 mb-3">
+        <button class="btn btn-outline-success flex-fill" onclick="showVerify()">
+          <i class="bi bi-check-circle me-1"></i>Проверить код
+        </button>
+        <button class="btn btn-outline-danger flex-fill" onclick="showDisable()">
+          <i class="bi bi-x-circle me-1"></i>Отключить
+        </button>
+      </div>
+      <button class="btn btn-outline-warning w-100" onclick="regenerateBackup()">
+        <i class="bi bi-key me-1"></i>Новые резервные коды
+      </button>
+      <div style="font-size:.75rem;color:var(--text-muted);margin-top:.5rem">
+        Резервные коды позволяют войти без TOTP-приложения
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card p-4">
+      <div class="fw-semibold mb-3" style="color:var(--text)">Как это работает</div>
+      <ol style="color:var(--text-muted);font-size:.85rem;padding-left:1.2rem;line-height:1.8">
+        <li>Установите приложение TOTP (Google Authenticator, Authy, 1Password)</li>
+        <li>Отсканируйте QR-код или введите ключ вручную</li>
+        <li>При каждом входе потребуется 6-значный код из приложения</li>
+        <li>Без кода вход в панель невозможен</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<!-- Setup Modal -->
+<div class="modal fade" id="setupModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:var(--surface);border:1px solid rgba(255,255,255,.08);border-radius:16px">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title" style="color:var(--text)"><i class="bi bi-qr-code me-2" style="color:var(--accent)"></i>Настройка 2FA</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+        <p style="color:var(--text-muted);font-size:.85rem">Отсканируйте QR-код в вашем TOTP-приложении:</p>
+        <div class="d-inline-block p-3 rounded-3" style="background:#fff">
+          <img id="qrImage" src="" alt="QR Code" style="width:200px;height:200px" />
+        </div>
+        <div class="mt-3">
+          <div style="font-size:.8rem;color:var(--text-muted)">Или введите ключ вручную:</div>
+          <code id="secretKey" class="fs-5" style="color:var(--accent);letter-spacing:2px;user-select:all"></code>
+        </div>
+        <div class="mt-3">
+          <label class="form-label" style="font-size:.85rem">Введите 6-значный код для проверки:</label>
+          <input type="text" id="setupCode" class="form-control text-center" maxlength="6" placeholder="123456" style="font-size:1.2rem;letter-spacing:4px;max-width:200px;margin:0 auto" />
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button class="btn btn-accent w-100" onclick="activate2fa()">
+          <i class="bi bi-check-lg me-1"></i>Активировать
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Backup Codes Modal -->
+<div class="modal fade" id="backupCodesModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:var(--surface);border:1px solid rgba(255,255,255,.08);border-radius:16px">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title" style="color:var(--warning)"><i class="bi bi-key-fill me-2"></i>Резервные коды</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+        <p style="color:var(--text-muted);font-size:.85rem">
+          Сохраните эти коды! Каждый можно использовать <b>один раз</b>.
+          Без них вы не сможете войти, если потеряете телефон.
+        </p>
+        <div class="row g-2 text-start" id="backupCodesGrid"></div>
+        <button class="btn btn-sm btn-outline mt-3" onclick="copyBackupCodes()">
+          <i class="bi bi-clipboard me-1"></i>Копировать все
+        </button>
+      </div>
+      <div class="modal-footer border-0">
+        <button class="btn btn-accent w-100" data-bs-dismiss="modal">Понятно</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Verify Modal -->
+<div class="modal fade" id="verifyModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content" style="background:var(--surface);border:1px solid rgba(255,255,255,.08);border-radius:16px">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title" style="color:var(--text)">Проверка кода</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+        <input type="text" id="verifyCode" class="form-control text-center" maxlength="6" placeholder="123456" style="font-size:1.3rem;letter-spacing:4px" />
+        <div style="font-size:.75rem;color:var(--text-muted);margin-top:.5rem">TOTP код или резервный код</div>
+      </div>
+      <div class="modal-footer border-0">
+        <button class="btn btn-accent w-100" onclick="doVerify()"><i class="bi bi-check me-1"></i>Проверить</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Disable Modal -->
+<div class="modal fade" id="disableModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content" style="background:var(--surface);border:1px solid rgba(255,255,255,.08);border-radius:16px">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title" style="color:var(--danger)">Отключить 2FA</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+        <p style="color:var(--text-muted);font-size:.85rem">Введите текущий код для подтверждения:</p>
+        <input type="text" id="disableCode" class="form-control text-center" maxlength="6" placeholder="123456" style="font-size:1.3rem;letter-spacing:4px" />
+      </div>
+      <div class="modal-footer border-0">
+        <button class="btn btn-danger w-100" onclick="doDisable()"><i class="bi bi-x-lg me-1"></i>Отключить</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentSecret = '';
+
+async function showSetup() {
+  try {
+    const r = await fetch('/panel/2fa/setup');
+    const data = await r.json();
+    currentSecret = data.secret;
+    document.getElementById('qrImage').src = 'data:image/png;base64,' + data.qr_b64;
+    document.getElementById('secretKey').textContent = data.secret;
+    document.getElementById('setupCode').value = '';
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('setupModal')).show();
+  } catch { showToast('Ошибка', 'error'); }
+}
+
+async function activate2fa() {
+  const code = document.getElementById('setupCode').value;
+  if (code.length !== 6) return;
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  try {
+    const r = await fetch('/panel/2fa/activate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf},
+      body: JSON.stringify({secret: currentSecret, code: code})
+    });
+    const data = await r.json();
+    bootstrap.Modal.getInstance(document.getElementById('setupModal')).hide();
+    if (r.ok && data.backup_codes) {
+      showBackupCodes(data.backup_codes);
+    } else {
+      showToast(data.message, r.ok ? 'success' : 'error');
+      if (r.ok) setTimeout(() => location.reload(), 600);
+    }
+  } catch { showToast('Ошибка', 'error'); }
+}
+
+function showBackupCodes(codes) {
+  const grid = document.getElementById('backupCodesGrid');
+  grid.innerHTML = codes.map((c, i) =>
+    `<div class="col-6"><code class="d-block p-2 rounded text-center" style="background:rgba(255,255,255,.05);font-size:1rem;letter-spacing:2px">${c}</code></div>`
+  ).join('');
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('backupCodesModal')).show();
+}
+
+async function regenerateBackup() {
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  try {
+    const r = await fetch('/panel/2fa/regenerate-backup', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf}
+    });
+    const data = await r.json();
+    if (r.ok && data.backup_codes) {
+      showBackupCodes(data.backup_codes);
+    } else {
+      showToast(data.message, 'error');
+    }
+  } catch { showToast('Ошибка', 'error'); }
+}
+
+function copyBackupCodes() {
+  const codes = [...document.querySelectorAll('#backupCodesGrid code')].map(el => el.textContent).join('\n');
+  navigator.clipboard.writeText(codes).then(() => showToast('Скопировано', 'success'));
+}
+
+function showVerify() {
+  document.getElementById('verifyCode').value = '';
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('verifyModal')).show();
+}
+
+async function doVerify() {
+  const code = document.getElementById('verifyCode').value;
+  if (code.length !== 6) return;
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  try {
+    const r = await fetch('/panel/2fa/verify', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf},
+      body: JSON.stringify({code: code})
+    });
+    const data = await r.json();
+    bootstrap.Modal.getInstance(document.getElementById('verifyModal')).hide();
+    showToast(data.message, r.ok ? 'success' : 'error');
+  } catch { showToast('Ошибка', 'error'); }
+}
+
+function showDisable() {
+  document.getElementById('disableCode').value = '';
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('disableModal')).show();
+}
+
+async function doDisable() {
+  const code = document.getElementById('disableCode').value;
+  if (code.length !== 6) return;
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  try {
+    const r = await fetch('/panel/2fa/disable', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf},
+      body: JSON.stringify({code: code})
+    });
+    const data = await r.json();
+    bootstrap.Modal.getInstance(document.getElementById('disableModal')).hide();
+    showToast(data.message, r.ok ? 'success' : 'error');
+    if (r.ok) setTimeout(() => location.reload(), 600);
+  } catch { showToast('Ошибка', 'error'); }
+}
+</script>
+{% endblock %}

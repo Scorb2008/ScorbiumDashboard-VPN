@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>{% block title %}{{ app_name }}{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/bootstrap-icons.min.css">
+<link rel="stylesheet" href="/static/css/cabinet.css?v=miniapp-20260515b">
+<script src="https://telegram.org/js/telegram-web-app.js?62"></script>
+<script>
+try {
+  var hashParams = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+  if (
+    (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) ||
+    hashParams.has('tgWebAppData') ||
+    hashParams.has('tgWebAppPlatform')
+  )
+    document.documentElement.classList.add('tg-miniapp-client');
+} catch (e) {}
+</script>
+{% block head %}{% endblock %}
+</head>
+{% set cp = request.url.path %}
+{% set is_log = cp in ('/cabinet', '/cabinet/') and user is not defined %}
+<body data-page="{{ cp }}" data-mini-app="{{ 'true' if is_mini_app else 'false' }}" class="{% if is_log %}login-page{% endif %}{% if is_mini_app %} mini-mode{% endif %}">
+  <div id="app-shell">
+    <header class="nav">
+      <div class="nav-inner">
+        <a href="/cabinet/" style="width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(88,242,200,.2),rgba(87,159,255,.24));color:var(--accent);font-size:.85rem;flex-shrink:0;overflow:hidden">
+          {% if custom_logo %}
+          <img src="{{ custom_logo }}" alt="Logo" style="width:100%;height:100%;object-fit:contain;padding:4px;border-radius:inherit;display:block" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+          <span style="display:none;width:100%;height:100%;align-items:center;justify-content:center"><i class="bi bi-shield-check"></i></span>
+          {% else %}
+          <i class="bi bi-shield-check"></i>
+          {% endif %}
+        </a>
+
+        {% if not is_log %}
+        <nav class="nav-links">
+          <a href="/cabinet/" class="nav-lnk {% if cp in ('/cabinet', '/cabinet/') %}on{% endif %}"><i class="bi bi-grid-1x2"></i><span>Обзор</span></a>
+          <a href="/cabinet/plans" class="nav-lnk {% if cp.startswith('/cabinet/plans') %}on{% endif %}"><i class="bi bi-stars"></i><span>Тарифы</span></a>
+          <a href="/cabinet/keys" class="nav-lnk {% if cp.startswith('/cabinet/keys') %}on{% endif %}"><i class="bi bi-key"></i><span>Подписки</span></a>
+          <a href="/cabinet/balance" class="nav-lnk {% if cp.startswith('/cabinet/balance') %}on{% endif %}"><i class="bi bi-wallet2"></i><span>Баланс</span></a>
+          <a href="/cabinet/promo" class="nav-lnk {% if cp.startswith('/cabinet/promo') %}on{% endif %}"><i class="bi bi-ticket-perforated"></i><span>Промокод</span></a>
+          <a href="/cabinet/support" class="nav-lnk {% if cp.startswith('/cabinet/support') %}on{% endif %}"><i class="bi bi-chat-left-dots"></i><span>Поддержка</span></a>
+          <a href="/cabinet/profile" class="nav-lnk {% if cp.startswith('/cabinet/profile') %}on{% endif %}"><i class="bi bi-person-circle"></i><span>Профиль</span></a>
+          {% if user is defined and is_admin_user(user) %}
+          <a href="/panel/" class="nav-lnk admin"><i class="bi bi-shield-lock"></i><span>Админ</span></a>
+          {% endif %}
+        </nav>
+
+        <div class="nav-side">
+          {% if user is defined and user %}
+          <div class="nav-user">
+            <span class="nav-av">{{ (user.full_name or user.username or 'U')[:1]|upper }}</span>
+            <span class="nav-name">{{ user.full_name or 'User' }}</span>
+          </div>
+          {% endif %}
+          <a href="/cabinet/logout" class="nav-out"><i class="bi bi-box-arrow-right"></i></a>
+        </div>
+        {% endif %}
+      </div>
+    </header>
+
+    <main class="wrap">
+      {% block content %}{% endblock %}
+    </main>
+
+  </div>
+
+<script>
+window.CABINET_BOOT = {
+  currentPath: {{ cp|tojson }},
+  isMiniApp: {{ is_mini_app|tojson }},
+  isAuthenticated: {{ ((user is defined) and (user is not none))|tojson }},
+  initDataParam: "tg_init_data"
+};
+
+function getTelegramWebApp() {
+  try { return window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null; }
+  catch (e) { return null; }
+}
+
+function getTelegramHashParam(name) {
+  try {
+    var rawHash = (window.location.hash || '').replace(/^#/, '');
+    if (!rawHash) return '';
+    return new URLSearchParams(rawHash).get(name) || '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function hasTelegramMiniAppInitData() {
+  var tg = getTelegramWebApp();
+  return !!((tg && tg.initData) || getTelegramHashParam('tgWebAppData'));
+}
+
+function hasMiniAppQueryHint() {
+  try {
+    var current = new URL(window.location.href);
+    return current.searchParams.has('miniapp') || current.searchParams.has(window.CABINET_BOOT.initDataParam);
+  } catch (e) {
+    return false;
+  }
+}
+
+function hasMiniAppHashHint() {
+  return !!(
+    getTelegramHashParam('tgWebAppData') ||
+    getTelegramHashParam('tgWebAppPlatform') ||
+    getTelegramHashParam('tgWebAppVersion') ||
+    getTelegramHashParam('tgWebAppThemeParams')
+  );
+}
+
+function isMiniAppRuntime() {
+  return !!(
+    window.CABINET_BOOT.isMiniApp ||
+    hasTelegramMiniAppInitData() ||
+    hasMiniAppQueryHint() ||
+    hasMiniAppHashHint()
+  );
+}
+
+function getMiniAppInitData() {
+  var tg = getTelegramWebApp();
+  if (tg && tg.initData) return tg.initData;
+  var hashValue = getTelegramHashParam('tgWebAppData');
+  if (hashValue) return hashValue;
+  try {
+    var queryValue = new URL(window.location.href).searchParams.get(window.CABINET_BOOT.initDataParam) || "";
+    if (queryValue) return queryValue;
+  } catch (e) {}
+  try { return sessionStorage.getItem('cabinetMiniAppInitData') || ""; }
+  catch (e) { return ""; }
+}
+
+function rememberMiniAppInitData(value) {
+  var initData = String(value || '');
+  if (!initData) return;
+  try { sessionStorage.setItem('cabinetMiniAppInitData', initData); }
+  catch (e) {}
+}
+
+function cabinetUrl(path) {
+  var initData = getMiniAppInitData();
+  var target = new URL(path, window.location.origin);
+  if (initData && target.origin === window.location.origin && target.pathname.startsWith('/cabinet'))
+    target.searchParams.set(window.CABINET_BOOT.initDataParam, initData);
+  return target.pathname + target.search + target.hash;
+}
+
+function decorateCabinetLinks() {
+  var initData = getMiniAppInitData();
+  if (!initData) return;
+  document.querySelectorAll('a[href]').forEach(function(link) {
+    var href = link.getAttribute('href');
+    if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+    var target;
+    try { target = new URL(href, window.location.origin); } catch (e) { return; }
+    if (target.origin !== window.location.origin || !target.pathname.startsWith('/cabinet')) return;
+    target.searchParams.set(window.CABINET_BOOT.initDataParam, initData);
+    link.setAttribute('href', target.pathname + target.search + target.hash);
+  });
+}
+
+function cleanMiniAppParamFromAddress() {
+  var tg = getTelegramWebApp();
+  if (!tg || !tg.initData) return;
+  if (document.body.classList.contains('login-page')) return;
+  var current = new URL(window.location.href);
+  if (!current.searchParams.has(window.CABINET_BOOT.initDataParam)) return;
+  current.searchParams.delete(window.CABINET_BOOT.initDataParam);
+  window.history.replaceState({}, "", current.pathname + current.search + current.hash);
+}
+
+function getCookie(name) {
+  var prefix = name + '=';
+  var parts = document.cookie ? document.cookie.split(';') : [];
+  for (var i = 0; i < parts.length; i += 1) {
+    var item = parts[i].trim();
+    if (item.indexOf(prefix) === 0) return decodeURIComponent(item.slice(prefix.length));
+  }
+  return '';
+}
+
+async function cabinetFetch(url, options) {
+  var opts = Object.assign({}, options || {});
+  opts.credentials = opts.credentials || 'same-origin';
+  var headers = new Headers(opts.headers || {});
+  var initData = getMiniAppInitData();
+  if (initData && !headers.has('X-Telegram-Init-Data'))
+    headers.set('X-Telegram-Init-Data', initData);
+  var csrfToken = getCookie('csrf_token');
+  if (csrfToken && !headers.has('X-CSRF-Token'))
+    headers.set('X-CSRF-Token', csrfToken);
+  if (opts.body && !(opts.body instanceof FormData) && !headers.has('Content-Type'))
+    headers.set('Content-Type', 'application/json');
+  opts.headers = headers;
+  return fetch(url, opts);
+}
+
+async function cabinetJson(url, options) {
+  var response = await cabinetFetch(url, options);
+  var contentType = response.headers.get('content-type') || '';
+  var data;
+  try {
+    if (contentType.includes('application/json')) data = await response.json();
+    else data = { ok: response.ok, message: await response.text() };
+  } catch (e) { data = { ok: false, message: 'Server error' }; }
+  if (!response.ok && typeof data.ok === 'undefined') data.ok = false;
+  return { response: response, data: data };
+}
+
+async function syncMiniAppSession(options) {
+  var opts = Object.assign({ force: false, silent: true }, options || {});
+  var initData = getMiniAppInitData();
+  if (!initData) return { ok: false, skipped: true };
+  rememberMiniAppInitData(initData);
+  var lastSyncedAt = Number(sessionStorage.getItem('cabinetMiniAppSyncedAt') || 0);
+  if (!opts.force && Date.now() - lastSyncedAt < 15000) return { ok: true, skipped: true };
+  if (window.__cabinetMiniAppAuthPromise && !opts.force) return window.__cabinetMiniAppAuthPromise;
+  window.__cabinetMiniAppAuthPromise = (async function() {
+    var result = await cabinetJson('/cabinet/auth', {method:'POST', body:JSON.stringify({initData:initData})});
+    if (result.data && result.data.ok) {
+      sessionStorage.setItem('cabinetMiniAppSyncedAt', String(Date.now()));
+      sessionStorage.setItem('cabinetMiniAppReady', '1');
+    } else if (!opts.silent)
+      showToast((result.data && result.data.message) || 'Session restore failed', 'error');
+    return result.data || { ok: false };
+  })().finally(function() { window.__cabinetMiniAppAuthPromise = null; });
+  return window.__cabinetMiniAppAuthPromise;
+}
+
+function showToast(message, type) {
+  var toast = document.createElement('div');
+  var title = document.createElement('strong');
+  var body = document.createElement('span');
+  toast.className = 'toast toast-' + (type === 'success' ? 'g' : type === 'error' ? 'r' : '');
+  title.textContent = (type === 'success' ? 'Готово' : type === 'error' ? 'Ошибка' : '');
+  body.textContent = message;
+  toast.appendChild(title);
+  toast.appendChild(body);
+  document.body.appendChild(toast);
+  requestAnimationFrame(function() { toast.classList.add('toast-v'); });
+  setTimeout(function() { toast.classList.remove('toast-v'); setTimeout(function() { toast.remove(); }, 200); }, 3200);
+}
+
+function setMsg(el, ok, msg) {
+  if (!el) return;
+  el.className = ok ? 'cg' : 'cr';
+  el.textContent = msg;
+}
+
+async function copyText(value, successText) {
+  var text = String(value || '');
+  if (!text) {
+    showToast('Пустая ссылка', 'error');
+    return false;
+  }
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      showToast(successText || 'Скопировано', 'success');
+      return true;
+    }
+  } catch (e) {}
+
+  try {
+    var area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    area.style.pointerEvents = 'none';
+    document.body.appendChild(area);
+    area.focus();
+    area.select();
+    area.setSelectionRange(0, area.value.length);
+    var copied = document.execCommand('copy');
+    document.body.removeChild(area);
+    if (copied) {
+      showToast(successText || 'Скопировано', 'success');
+      return true;
+    }
+  } catch (e) {}
+
+  try {
+    window.prompt('Скопируйте ссылку вручную:', text);
+    showToast(successText || 'Скопируйте ссылку вручную', 'info');
+    return false;
+  } catch (e) {}
+
+  showToast('Не удалось скопировать', 'error');
+  return false;
+}
+
+function isWebUrl(value) {
+  return /^https?:\/\//i.test(String(value || ''));
+}
+
+function triggerLinkOpen(target) {
+  var anchor = document.createElement('a');
+  anchor.href = target;
+  anchor.rel = 'noopener noreferrer';
+  anchor.target = isWebUrl(target) ? '_blank' : '_self';
+  anchor.style.display = 'none';
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+}
+
+function openExternal(url) {
+  var tg = getTelegramWebApp();
+  var target = String(url || '');
+  if (!target) {
+    showToast('Ссылка недоступна', 'error');
+    return;
+  }
+  try {
+    if (tg && typeof tg.openLink === 'function' && isWebUrl(target)) {
+      tg.openLink(target);
+      return;
+    }
+  } catch (e) {}
+  try {
+    if (tg && typeof tg.openTelegramLink === 'function' && /^tg:\/\//i.test(target)) {
+      tg.openTelegramLink(target);
+      return;
+    }
+  } catch (e) {}
+  if (!isWebUrl(target)) {
+    try {
+      window.location.href = target;
+      return;
+    } catch (e) {}
+    try {
+      triggerLinkOpen(target);
+      return;
+    } catch (e) {}
+  }
+  try {
+    if (isWebUrl(target)) {
+      var opened = window.open(target, '_blank', 'noopener,noreferrer');
+      if (opened) return;
+    }
+  } catch (e) {}
+  try {
+    triggerLinkOpen(target);
+    return;
+  } catch (e) {}
+  try {
+    window.location.assign(target);
+    return;
+  } catch (e) {}
+  window.location.href = target;
+}
+
+async function copyInputValue(trigger, successText) {
+  var root = trigger && trigger.closest ? trigger.closest('.cp') : null;
+  var input = root ? root.querySelector('.inp') : null;
+  var text = input ? String(input.value || '') : '';
+  if (input) {
+    var wasReadonly = input.hasAttribute('readonly');
+    try {
+      input.focus();
+      if (wasReadonly) input.removeAttribute('readonly');
+      input.select();
+      input.setSelectionRange(0, text.length);
+      if (wasReadonly) input.setAttribute('readonly', 'readonly');
+    } catch (e) {}
+  }
+  var copied = await copyText(text, successText || 'Ссылка скопирована');
+  if (!copied && input)
+    showToast('Ссылка выделена. Если Telegram блокирует буфер, удерживайте поле и выберите «Копировать».', 'info');
+  return copied;
+}
+
+function openInputValue(trigger, explicitUrl) {
+  var text = String(explicitUrl || '');
+  if (!text) {
+    var root = trigger && trigger.closest ? trigger.closest('.cp') : null;
+    var input = root ? root.querySelector('.inp') : null;
+    text = input ? String(input.value || '') : '';
+  }
+  if (!text) {
+    showToast('Ссылка недоступна', 'error');
+    return false;
+  }
+  openExternal(text);
+  return false;
+}
+
+document.addEventListener('click', function(event) {
+  var copyTrigger = event.target.closest('[data-copy-url]');
+  if (copyTrigger) {
+    event.preventDefault();
+    copyText(
+      copyTrigger.getAttribute('data-copy-url') || '',
+      copyTrigger.getAttribute('data-copy-success') || 'Скопировано'
+    );
+    return;
+  }
+
+  var openTrigger = event.target.closest('[data-open-url]');
+  if (openTrigger) {
+    event.preventDefault();
+    openExternal(openTrigger.getAttribute('data-open-url') || '');
+  }
+});
+
+(function() {
+  var tg = getTelegramWebApp();
+  if (isMiniAppRuntime()) {
+    document.body.classList.add('mini-mode');
+    if (tg && tg.initData) rememberMiniAppInitData(tg.initData);
+    try {
+      if (tg) {
+        tg.ready();
+        tg.expand();
+        if (typeof tg.disableVerticalSwipes === 'function') tg.disableVerticalSwipes();
+      }
+    } catch (e) {}
+  }
+  rememberMiniAppInitData(getMiniAppInitData());
+  cleanMiniAppParamFromAddress();
+  decorateCabinetLinks();
+  if (window.CABINET_BOOT.isAuthenticated && getMiniAppInitData()) syncMiniAppSession({silent:true}).catch(function(){});
+})();
+{% block scripts %}{% endblock %}
+</script>
+</body>
+</html>

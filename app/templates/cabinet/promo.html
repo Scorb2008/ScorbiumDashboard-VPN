@@ -1,0 +1,194 @@
+{% extends "cabinet/base.html" %}
+{% block title %}Промокод — {{ app_name }}{% endblock %}
+
+{% block head %}
+<style>
+{% include "cabinet/_premium_section_styles.html" %}
+
+.promo-shell-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 20px;
+  align-items: stretch;
+  margin-top: 24px;
+}
+
+.promo-activation-card,
+.promo-guide-card {
+  min-height: 100%;
+}
+
+.promo-activation-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.promo-activation-card .cab-premium-form {
+  gap: 14px;
+}
+
+.promo-activation-card .cab-premium-form-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.promo-activation-card .btn {
+  min-width: 180px;
+}
+
+.promo-types-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.promo-type-card {
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(159, 193, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.promo-type-card strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: .92rem;
+}
+
+.promo-type-card span {
+  display: block;
+  color: var(--text-secondary);
+  font-size: .82rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 980px) {
+  .promo-shell-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .promo-types-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .promo-activation-card .cab-premium-form-foot {
+    align-items: stretch;
+  }
+
+  .promo-activation-card .btn {
+    width: 100%;
+    min-width: 0;
+  }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cab-premium">
+  <section class="cab-premium-shell">
+    <div class="cab-premium-top">
+      <div class="cab-premium-copy">
+        <div class="cab-premium-kicker">Промокоды</div>
+        <h1 class="cab-premium-title">Активируйте бонус без лишних переходов</h1>
+        <p class="cab-premium-subtitle">Промокоды на баланс и дополнительные дни срабатывают сразу, а скидочные коды автоматически подставляются в раздел «Тарифы».</p>
+      </div>
+      <span class="cab-premium-badge">Быстрый доступ</span>
+    </div>
+
+    <div class="promo-shell-grid">
+      <article class="cab-premium-card promo-activation-card">
+        <div class="cab-premium-kicker" style="margin-bottom:10px">Активация</div>
+        <div>
+          <h2 style="margin:0 0 10px;font-family:'Space Grotesk','Manrope',sans-serif;font-size:1.5rem;letter-spacing:-.04em">Один код, три сценария</h2>
+          <p class="cab-premium-subtitle" style="margin:0 0 16px">Код может сразу пополнить баланс, продлить подписку или сохранить скидку для следующей покупки тарифа.</p>
+        </div>
+        <form onsubmit="return applyPromo(event)" class="cab-premium-form">
+          <input type="text" id="promo-code" class="inp" placeholder="Введите промокод" required autocomplete="off">
+          <div class="cab-premium-form-foot">
+            <div id="promo-result" class="cab-premium-row-note"></div>
+            <button type="submit" class="btn btn-p">Активировать</button>
+          </div>
+        </form>
+
+        <div class="promo-types-grid">
+          <div class="promo-type-card">
+            <strong><i class="bi bi-wallet2 me-1"></i> Баланс</strong>
+            <span>Сумма моментально зачисляется на счёт и доступна для оплаты.</span>
+          </div>
+          <div class="promo-type-card">
+            <strong><i class="bi bi-calendar2-check me-1"></i> Дни</strong>
+            <span>Активная подписка продлевается автоматически после активации.</span>
+          </div>
+          <div class="promo-type-card">
+            <strong><i class="bi bi-ticket-perforated me-1"></i> Скидка</strong>
+            <span>Код сохраняется и переносит вас в тарифы для покупки со скидкой.</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="cab-premium-card promo-guide-card">
+        <div class="cab-premium-kicker" style="margin-bottom:10px">Как это работает</div>
+        <div class="cab-premium-list">
+          <div class="cab-premium-note">
+            <i class="bi bi-wallet2"></i>
+            <div>
+              <strong>Баланс</strong>
+              <span>Деньги зачисляются на внутренний счёт и сразу доступны для покупки тарифа.</span>
+            </div>
+          </div>
+          <div class="cab-premium-note">
+            <i class="bi bi-calendar2-check"></i>
+            <div>
+              <strong>Дни</strong>
+              <span>Срок активной подписки продлевается автоматически, если у вас уже есть хотя бы один ключ.</span>
+            </div>
+          </div>
+          <div class="cab-premium-note">
+            <i class="bi bi-ticket-perforated"></i>
+            <div>
+              <strong>Скидка</strong>
+              <span>Код сохраняется локально и применяется при покупке тарифа на странице тарифов.</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+async function applyPromo(event) {
+  event.preventDefault();
+  var code = document.getElementById('promo-code').value.trim();
+  var r = document.getElementById('promo-result');
+  var fd = new FormData(); fd.append('code', code);
+  try {
+    var res = await cabinetJson('/cabinet/promo/apply', {method:'POST', body:fd});
+    setMsg(r, res.data.ok, res.data.message || 'Ошибка');
+    if (!res.data.ok) {
+      showToast(res.data.message || 'Ошибка применения промокода', 'error');
+      return false;
+    }
+
+    if (res.data.promo_type === 'discount' && res.data.code) {
+      localStorage.setItem('cabinetPlansPromoCode', String(res.data.code).toUpperCase());
+      showToast('Скидка сохранена. Сейчас откроем тарифы.', 'success');
+      setTimeout(function() {
+        window.location.href = cabinetUrl('/cabinet/plans');
+      }, 800);
+      return false;
+    }
+
+    showToast(res.data.message || 'Промокод активирован', 'success');
+  } catch(e) { setMsg(r, false, 'Ошибка сети'); }
+  return false;
+}
+{% endblock %}

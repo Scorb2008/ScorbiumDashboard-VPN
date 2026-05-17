@@ -4,265 +4,1222 @@
 
 {% block head %}
 <style>
-  .dash-kpi { position: relative; overflow: hidden; border: 1px solid var(--border); transition: all .3s cubic-bezier(.4,0,.2,1); }
-  .dash-kpi::after { content: ''; position: absolute; top: -50%; right: -30%; width: 200px; height: 200px; border-radius: 50%; opacity: 0; transition: opacity .4s ease; pointer-events: none; }
-  .dash-kpi:hover { transform: translateY(-4px); border-color: var(--border-glow); box-shadow: 0 12px 40px rgba(0,0,0,.2), 0 0 0 1px var(--border-glow); }
-  .dash-kpi:hover::after { opacity: .06; }
-  .kpi-users::after { background: radial-gradient(circle, var(--accent), transparent 70%); }
-  .kpi-subs::after { background: radial-gradient(circle, var(--success), transparent 70%); }
-  .kpi-rev::after { background: radial-gradient(circle, var(--warning), transparent 70%); }
-  .kpi-tix::after { background: radial-gradient(circle, var(--info), transparent 70%); }
-  .kpi-icon { width: 54px; height: 54px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
-  .chart-area { position: relative; height: 140px; }
-  .quick-tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: .9rem 1.1rem; color: var(--text); text-decoration: none; display: flex; align-items: center; gap: .75rem; transition: all .25s ease; font-size: .85rem; font-weight: 500; }
-  .quick-tile:hover { background: var(--surface-hover); border-color: var(--accent); transform: translateX(6px); box-shadow: 0 4px 16px rgba(0,0,0,.15); }
-  .quick-tile i { font-size: 1.2rem; }
-  .mini-kpi { background: var(--surface); border-radius: 12px; padding: 1rem; text-align: center; transition: all .2s; }
-  .mini-kpi:hover { background: var(--surface-hover); }
-  .activity-ring { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
-  .vpn-metric { background: var(--surface); border-radius: 12px; padding: .85rem; text-align: center; transition: all .2s; border: 1px solid transparent; }
-  .vpn-metric:hover { background: var(--surface-hover); border-color: var(--border); }
+  .dashboard-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .dash-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background:
+      radial-gradient(circle at top right, rgba(10, 132, 255, 0.18), transparent 26%),
+      radial-gradient(circle at left center, rgba(0, 212, 170, 0.18), transparent 30%),
+      linear-gradient(135deg, rgba(8, 11, 18, 0.98), rgba(18, 21, 29, 0.96) 46%, rgba(10, 16, 24, 0.98));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 24px 60px rgba(0, 0, 0, 0.35);
+    padding: 1.5rem;
+  }
+  .dash-hero::before,
+  .dash-hero::after {
+    content: "";
+    position: absolute;
+    inset: auto;
+    pointer-events: none;
+  }
+  .dash-hero::before {
+    width: 280px;
+    height: 280px;
+    right: -80px;
+    top: -120px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.12), transparent 68%);
+    filter: blur(12px);
+  }
+  .dash-hero::after {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+  }
+  .hero-grid {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(320px, .95fr);
+    gap: 1.25rem;
+    align-items: stretch;
+  }
+  .hero-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .hero-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .55rem;
+    align-self: flex-start;
+    padding: .45rem .85rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(241, 245, 249, 0.92);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+  .hero-chip i {
+    color: var(--accent);
+    text-shadow: 0 0 16px rgba(0, 212, 170, 0.45);
+  }
+  .hero-title {
+    margin: 0;
+    max-width: 12ch;
+    font-size: clamp(2rem, 3.2vw, 3.45rem);
+    line-height: .96;
+    letter-spacing: -.05em;
+    font-weight: 800;
+    color: #f8fbff;
+    text-transform: uppercase;
+  }
+  .hero-title .hero-title-muted {
+    display: block;
+    color: rgba(241, 245, 249, 0.46);
+    font-size: .78em;
+  }
+  .hero-subtitle {
+    max-width: 62ch;
+    margin: 0;
+    color: rgba(226, 232, 240, 0.74);
+    font-size: .96rem;
+    line-height: 1.7;
+  }
+  .hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+  }
+  .hero-meta-card {
+    min-width: 170px;
+    flex: 1 1 0;
+    border-radius: 18px;
+    padding: .95rem 1rem;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .hero-meta-label {
+    display: block;
+    margin-bottom: .3rem;
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: rgba(148, 163, 184, 0.72);
+  }
+  .hero-meta-value {
+    display: block;
+    font-size: 1.08rem;
+    font-weight: 700;
+    color: #f8fbff;
+  }
+  .hero-meta-sub {
+    display: block;
+    margin-top: .25rem;
+    font-size: .76rem;
+    color: rgba(148, 163, 184, 0.82);
+  }
+  .hero-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    border-radius: 22px;
+    padding: 1.1rem;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
+      rgba(5, 7, 11, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .hero-panel-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .hero-brand {
+    display: flex;
+    align-items: center;
+    gap: .85rem;
+  }
+  .hero-brand-logo {
+    width: 56px;
+    height: 56px;
+    border-radius: 18px;
+    object-fit: contain;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: .5rem;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  .hero-brand-copy strong {
+    display: block;
+    color: #fff;
+    font-size: 1rem;
+    letter-spacing: -.03em;
+  }
+  .hero-brand-copy span {
+    display: block;
+    margin-top: .2rem;
+    color: rgba(148, 163, 184, 0.82);
+    font-size: .76rem;
+  }
+  .hero-live-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .42rem .72rem;
+    border-radius: 999px;
+    color: #d1fae5;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.22);
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+  .hero-live-pill .status-dot {
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.65);
+  }
+  .hero-score-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .8rem;
+  }
+  .hero-score {
+    padding: .95rem 1rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .hero-score-label {
+    display: block;
+    margin-bottom: .4rem;
+    color: rgba(148, 163, 184, 0.78);
+    font-size: .72rem;
+  }
+  .hero-score-value {
+    display: block;
+    color: #fff;
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: -.04em;
+  }
+  .hero-score-note {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    margin-top: .5rem;
+    color: rgba(226, 232, 240, 0.72);
+    font-size: .72rem;
+  }
+  .hero-score-note.positive {
+    color: #86efac;
+  }
+  .hero-score-note.warning {
+    color: #fcd34d;
+  }
+  .section-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    margin-bottom: .9rem;
+    color: var(--text-muted);
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+  }
+  .section-eyebrow i {
+    color: var(--accent);
+  }
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  .metric-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 22px;
+    padding: 1.15rem;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025)),
+      linear-gradient(160deg, rgba(10, 13, 18, 0.98), rgba(17, 22, 31, 0.96));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+  }
+  .metric-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
+  }
+  .metric-card::after {
+    content: "";
+    position: absolute;
+    inset: auto -40px -50px auto;
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent 65%);
+    opacity: .65;
+    pointer-events: none;
+  }
+  .metric-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .8rem;
+    margin-bottom: 1.1rem;
+  }
+  .metric-copy {
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+  }
+  .metric-label {
+    color: rgba(148, 163, 184, 0.78);
+    font-size: .72rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+  .metric-value {
+    color: #fff;
+    font-size: clamp(1.45rem, 2vw, 2rem);
+    line-height: 1;
+    letter-spacing: -.05em;
+    font-weight: 800;
+  }
+  .metric-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  .metric-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    font-size: .78rem;
+  }
+  .metric-trend {
+    display: inline-flex;
+    align-items: center;
+    gap: .28rem;
+    color: rgba(148, 163, 184, 0.84);
+  }
+  .metric-trend strong {
+    color: #fff;
+    font-weight: 700;
+  }
+  .metric-trend.positive strong,
+  .metric-trend.positive i {
+    color: #86efac;
+  }
+  .metric-trend.warning strong,
+  .metric-trend.warning i {
+    color: #fcd34d;
+  }
+  .metric-foot-tag {
+    padding: .28rem .58rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(241, 245, 249, 0.7);
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .surface-panel {
+    border-radius: 24px;
+    padding: 1.2rem;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
+      linear-gradient(180deg, rgba(10, 13, 18, 0.98), rgba(16, 21, 28, 0.98));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.04),
+      0 20px 45px rgba(0, 0, 0, 0.18);
+  }
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .panel-header-copy {
+    display: flex;
+    align-items: center;
+    gap: .85rem;
+    min-width: 0;
+  }
+  .panel-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+  }
+  .panel-title {
+    margin: 0;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: -.03em;
+  }
+  .panel-subtitle {
+    margin: .2rem 0 0;
+    color: rgba(148, 163, 184, 0.78);
+    font-size: .76rem;
+  }
+  .panel-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .4rem .72rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(226, 232, 240, 0.82);
+    font-size: .72rem;
+    font-weight: 700;
+  }
+  .chart-area {
+    position: relative;
+    height: 290px;
+  }
+  .activity-stack {
+    display: flex;
+    flex-direction: column;
+    gap: .85rem;
+  }
+  .activity-card {
+    border-radius: 18px;
+    padding: .95rem 1rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .activity-card strong {
+    display: block;
+    color: #fff;
+    font-size: 1.55rem;
+    line-height: 1;
+    font-weight: 800;
+    letter-spacing: -.04em;
+  }
+  .activity-card span {
+    display: block;
+    margin-top: .45rem;
+    color: rgba(148, 163, 184, 0.8);
+    font-size: .74rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+  }
+  .mini-chart-wrap {
+    border-radius: 18px;
+    padding: .85rem .95rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .mini-chart-copy {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    margin-bottom: .65rem;
+  }
+  .mini-chart-copy strong {
+    display: block;
+    color: #fff;
+    font-size: .92rem;
+  }
+  .mini-chart-copy span {
+    color: rgba(148, 163, 184, 0.8);
+    font-size: .72rem;
+  }
+  .mini-chart {
+    min-height: 44px;
+  }
+  .status-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .75rem;
+  }
+  .status-card {
+    border-radius: 18px;
+    padding: .95rem 1rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .status-card i {
+    display: inline-flex;
+    margin-bottom: .55rem;
+    font-size: .98rem;
+  }
+  .status-card strong {
+    display: block;
+    color: #fff;
+    font-size: 1.06rem;
+    font-weight: 800;
+    letter-spacing: -.03em;
+  }
+  .status-card span {
+    display: block;
+    margin-top: .25rem;
+    color: rgba(148, 163, 184, 0.8);
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+  .command-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .85rem;
+  }
+  .quick-tile {
+    display: flex;
+    align-items: center;
+    gap: .9rem;
+    min-width: 0;
+    padding: .95rem 1rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: var(--text);
+    text-decoration: none;
+    transition: transform .2s ease, border-color .2s ease, background .2s ease;
+  }
+  .quick-tile:hover {
+    transform: translateY(-3px);
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+  .quick-tile-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .quick-tile-copy {
+    min-width: 0;
+  }
+  .quick-tile-copy strong {
+    display: block;
+    color: #fff;
+    font-size: .92rem;
+    font-weight: 700;
+  }
+  .quick-tile-copy span {
+    display: block;
+    margin-top: .2rem;
+    color: rgba(148, 163, 184, 0.8);
+    font-size: .72rem;
+  }
+  .feed-list {
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+  }
+  .feed-row {
+    display: flex;
+    align-items: center;
+    gap: .85rem;
+    padding: .85rem .95rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  .feed-avatar,
+  .feed-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: .95rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .feed-avatar {
+    background: linear-gradient(135deg, rgba(0, 212, 170, 0.92), rgba(14, 165, 233, 0.72));
+    color: #031017;
+    font-weight: 800;
+    box-shadow: 0 12px 24px rgba(0, 212, 170, 0.22);
+  }
+  .feed-copy {
+    flex: 1;
+    min-width: 0;
+  }
+  .feed-title {
+    color: #fff;
+    font-size: .88rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .feed-meta {
+    margin-top: .2rem;
+    color: rgba(148, 163, 184, 0.82);
+    font-size: .74rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .7rem;
+    padding: 2.8rem 1rem;
+    color: rgba(148, 163, 184, 0.72);
+    text-align: center;
+  }
+  .empty-state i {
+    font-size: 2.2rem;
+    opacity: .5;
+  }
+  [data-bs-theme="light"] .dash-hero {
+    border-color: var(--border);
+    background:
+      radial-gradient(circle at top right, rgba(14, 165, 233, 0.10), transparent 28%),
+      radial-gradient(circle at left center, rgba(5, 150, 105, 0.12), transparent 32%),
+      linear-gradient(135deg, #ffffff, #f8fbff 48%, #f1f5f9);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.7),
+      0 24px 48px rgba(15, 23, 42, 0.08);
+  }
+  [data-bs-theme="light"] .dash-hero::before {
+    background: radial-gradient(circle, rgba(14, 165, 233, 0.08), transparent 68%);
+  }
+  [data-bs-theme="light"] .dash-hero::after {
+    background: linear-gradient(90deg, transparent, rgba(15, 23, 42, 0.08), transparent);
+  }
+  [data-bs-theme="light"] .hero-chip,
+  [data-bs-theme="light"] .hero-meta-card,
+  [data-bs-theme="light"] .hero-panel,
+  [data-bs-theme="light"] .hero-score,
+  [data-bs-theme="light"] .metric-card,
+  [data-bs-theme="light"] .surface-panel,
+  [data-bs-theme="light"] .activity-card,
+  [data-bs-theme="light"] .mini-chart-wrap,
+  [data-bs-theme="light"] .status-card,
+  [data-bs-theme="light"] .quick-tile,
+  [data-bs-theme="light"] .feed-row {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.96)),
+      var(--bg-card);
+    border-color: var(--border);
+    box-shadow: none;
+  }
+  [data-bs-theme="light"] .metric-card:hover,
+  [data-bs-theme="light"] .quick-tile:hover {
+    border-color: var(--border-strong);
+    box-shadow: 0 16px 30px rgba(15, 23, 42, 0.08);
+  }
+  [data-bs-theme="light"] .hero-title,
+  [data-bs-theme="light"] .hero-meta-value,
+  [data-bs-theme="light"] .hero-brand-copy strong,
+  [data-bs-theme="light"] .hero-score-value,
+  [data-bs-theme="light"] .metric-value,
+  [data-bs-theme="light"] .metric-trend strong,
+  [data-bs-theme="light"] .panel-title,
+  [data-bs-theme="light"] .activity-card strong,
+  [data-bs-theme="light"] .mini-chart-copy strong,
+  [data-bs-theme="light"] .status-card strong,
+  [data-bs-theme="light"] .quick-tile-copy strong,
+  [data-bs-theme="light"] .feed-title {
+    color: var(--text);
+  }
+  [data-bs-theme="light"] .hero-title .hero-title-muted,
+  [data-bs-theme="light"] .hero-subtitle,
+  [data-bs-theme="light"] .hero-meta-sub,
+  [data-bs-theme="light"] .hero-brand-copy span,
+  [data-bs-theme="light"] .hero-score-label,
+  [data-bs-theme="light"] .hero-score-note,
+  [data-bs-theme="light"] .metric-label,
+  [data-bs-theme="light"] .metric-trend,
+  [data-bs-theme="light"] .metric-foot-tag,
+  [data-bs-theme="light"] .panel-subtitle,
+  [data-bs-theme="light"] .activity-card span,
+  [data-bs-theme="light"] .mini-chart-copy span,
+  [data-bs-theme="light"] .status-card span,
+  [data-bs-theme="light"] .quick-tile-copy span,
+  [data-bs-theme="light"] .feed-meta,
+  [data-bs-theme="light"] .empty-state {
+    color: var(--text-secondary);
+  }
+  [data-bs-theme="light"] .hero-chip {
+    color: var(--text);
+  }
+  [data-bs-theme="light"] .hero-brand-logo {
+    background: rgba(241, 245, 249, 0.92);
+    border-color: var(--border);
+  }
+  [data-bs-theme="light"] .hero-live-pill {
+    color: #047857;
+    background: rgba(16, 185, 129, 0.10);
+    border-color: rgba(16, 185, 129, 0.18);
+  }
+  [data-bs-theme="light"] .metric-card::after {
+    background: radial-gradient(circle, rgba(14, 165, 233, 0.08), transparent 65%);
+  }
+  @media (max-width: 1399px) {
+    .metric-grid,
+    .status-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 1199px) {
+    .hero-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 991px) {
+    .command-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 767px) {
+    .dash-hero,
+    .surface-panel {
+      border-radius: 22px;
+      padding: 1rem;
+    }
+    .metric-grid,
+    .status-grid {
+      grid-template-columns: 1fr;
+    }
+    .hero-meta,
+    .hero-score-grid {
+      grid-template-columns: 1fr;
+    }
+    .hero-score-grid {
+      display: grid;
+    }
+    .hero-title {
+      max-width: none;
+    }
+  }
+  @media (max-width: 575px) {
+    .hero-meta-card,
+    .activity-card,
+    .status-card,
+    .quick-tile,
+    .feed-row,
+    .metric-card {
+      border-radius: 16px;
+    }
+    .chart-area {
+      height: 240px;
+    }
+    .hero-panel-top {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="row g-3 mb-4">
-  <div class="col-6 col-xl-3 fade-in-up stagger-1">
-    <div class="stat-card dash-kpi kpi-users">
-      <div class="kpi-icon" style="background:linear-gradient(135deg, rgba(0,212,170,.15), rgba(14,165,233,.1)); color:var(--accent)"><i class="bi bi-people-fill"></i></div>
-      <div>
-        <div class="stat-value">{{ stats.total_users }}</div>
-        <div class="stat-label">Пользователей</div>
-        <div class="stat-trend up"><i class="bi bi-arrow-up-short"></i>+{{ stats.new_users_today }} сегодня</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-xl-3 fade-in-up stagger-2">
-    <div class="stat-card dash-kpi kpi-subs">
-      <div class="kpi-icon" style="background:linear-gradient(135deg, rgba(16,185,129,.15), rgba(5,150,105,.1)); color:var(--success)"><i class="bi bi-calendar-check-fill"></i></div>
-      <div>
-        <div class="stat-value">{{ stats.active_subscriptions }}</div>
-        <div class="stat-label">Активных подписок</div>
-        <div class="stat-trend down"><i class="bi bi-arrow-down-short"></i>{{ stats.expired_keys }} истекших</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-xl-3 fade-in-up stagger-3">
-    <div class="stat-card dash-kpi kpi-rev">
-      <div class="kpi-icon" style="background:linear-gradient(135deg, rgba(245,158,11,.15), rgba(217,119,6,.1)); color:var(--warning)"><i class="bi bi-currency-ruble"></i></div>
-      <div>
-        <div class="stat-value">{{ stats.total_revenue | int }}</div>
-        <div class="stat-label">Выручка (₽)</div>
-        <div class="stat-trend up"><i class="bi bi-arrow-up-short"></i>+{{ stats.revenue_today | int }} сегодня</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-xl-3 fade-in-up stagger-4">
-    <div class="stat-card dash-kpi kpi-tix">
-      <div class="kpi-icon" style="background:linear-gradient(135deg, rgba(14,165,233,.15), rgba(2,132,199,.1)); color:var(--info)"><i class="bi bi-headset"></i></div>
-      <div>
-        <div class="stat-value">{{ stats.open_tickets }}</div>
-        <div class="stat-label">Открытых тикетов</div>
-        <div class="stat-trend" style="color:var(--text-muted)"><i class="bi bi-clock"></i>{{ stats.pending_payments }} ожид.</div>
-      </div>
-    </div>
-  </div>
-</div>
+{% set admin = admin_info or {} %}
 
-<div class="row g-3 mb-4">
-  <div class="col-lg-8 fade-in-up">
-    <div class="card p-3">
-      <div class="d-flex align-items-center justify-content-between mb-3">
-        <div class="d-flex align-items-center gap-2">
-          <div class="activity-ring" style="background:linear-gradient(135deg, var(--accent-glow), rgba(14,165,233,.1)); color:var(--accent)"><i class="bi bi-graph-up"></i></div>
-          <div>
-            <div style="font-size:.9rem;font-weight:700;color:var(--text)">Выручка за 7 дней</div>
-            <div style="font-size:.75rem;color:var(--text-muted)">Последняя неделя</div>
-          </div>
-        </div>
-        <span class="badge badge-custom badge-active">{{ stats.total_revenue | int }} ₽ всего</span>
-      </div>
-      <div class="chart-area"><canvas id="revenueChart"></canvas></div>
-    </div>
-  </div>
-  <div class="col-lg-4 fade-in-up stagger-2">
-    <div class="card p-3 h-100">
-      <div class="d-flex align-items-center gap-2 mb-3">
-        <div class="activity-ring" style="background:linear-gradient(135deg, var(--info-glow), rgba(14,165,233,.1)); color:var(--info)"><i class="bi bi-activity"></i></div>
+<div class="dashboard-shell">
+  <section class="dash-hero fade-in-up">
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <span class="hero-chip">
+          <i class="bi bi-stars"></i>
+          Scorbium Control
+        </span>
         <div>
-          <div style="font-size:.9rem;font-weight:700;color:var(--text)">Активность</div>
-          <div style="font-size:.75rem;color:var(--text-muted)">Сегодня</div>
+          <h1 class="hero-title">
+            Центр операций
+            <span class="hero-title-muted">в одном экране</span>
+          </h1>
+          <p class="hero-subtitle">
+            Пользователи, платежи и VPN-статус собраны в одном окне без лишних переходов.
+          </p>
         </div>
-      </div>
-      <div class="row g-2 mb-3">
-        <div class="col-6">
-          <div class="mini-kpi">
-            <div style="font-size:1.6rem;font-weight:800;color:var(--success)">+{{ stats.new_users_today }}</div>
-            <div style="font-size:.72rem;color:var(--text-muted)">Новые юзеры</div>
+        <div class="hero-meta">
+          <div class="hero-meta-card">
+            <span class="hero-meta-label">Сессия</span>
+            <span class="hero-meta-value">{{ admin.sub or 'Admin session' }}</span>
+            <span class="hero-meta-sub">Роль: {{ admin.role or 'operator' }}</span>
+          </div>
+          <div class="hero-meta-card">
+            <span class="hero-meta-label">Фокус</span>
+            <span class="hero-meta-value">{{ stats.open_tickets }} тикетов · {{ stats.pending_payments }} платежей</span>
+            <span class="hero-meta-sub">Требуют внимания</span>
+          </div>
+          <div class="hero-meta-card">
+            <span class="hero-meta-label">Обновление</span>
+            <span class="hero-meta-value">{{ current_time | default('сейчас') }}</span>
+            <span class="hero-meta-sub">Панель онлайн</span>
           </div>
         </div>
-        <div class="col-6">
-          <div class="mini-kpi">
-            <div style="font-size:1.6rem;font-weight:800;color:var(--accent)">{{ recent_payments | length }}</div>
-            <div style="font-size:.72rem;color:var(--text-muted)">Платежи</div>
+      </div>
+
+      <div class="hero-panel">
+        <div class="hero-panel-top">
+          <div class="hero-brand">
+            <img
+              src="{{ custom_logo or '/static/img/logo.svg' }}"
+              alt="Scorbium"
+              class="hero-brand-logo"
+            />
+            <div class="hero-brand-copy">
+              <strong>{{ app_name | default('Scorbium Dashboard') }}</strong>
+              <span>Панель управления VPN</span>
+            </div>
+          </div>
+          <span class="hero-live-pill">
+            <span class="status-dot online"></span>
+            Online
+          </span>
+        </div>
+
+        <div class="hero-score-grid">
+          <div class="hero-score">
+            <span class="hero-score-label">Выручка сегодня</span>
+            <span class="hero-score-value">{{ stats.revenue_today | int }} ₽</span>
+            <span class="hero-score-note positive">
+              <i class="bi bi-arrow-up-right"></i>
+              Успешные оплаты
+            </span>
+          </div>
+          <div class="hero-score">
+            <span class="hero-score-label">Новые пользователи</span>
+            <span class="hero-score-value">{{ stats.new_users_today }}</span>
+            <span class="hero-score-note">
+              <i class="bi bi-person-plus"></i>
+              За сутки
+            </span>
+          </div>
+          <div class="hero-score">
+            <span class="hero-score-label">Открытые тикеты</span>
+            <span class="hero-score-value">{{ stats.open_tickets }}</span>
+            <span class="hero-score-note warning">
+              <i class="bi bi-headset"></i>
+              Очередь поддержки
+            </span>
+          </div>
+          <div class="hero-score">
+            <span class="hero-score-label">Истекшие ключи</span>
+            <span class="hero-score-value">{{ stats.expired_keys }}</span>
+            <span class="hero-score-note">
+              <i class="bi bi-key"></i>
+              Нужны действия
+            </span>
           </div>
         </div>
       </div>
-      <div class="mini-chart" id="miniSparkline"></div>
+    </div>
+  </section>
+
+  <section class="fade-in-up stagger-1">
+    <div class="section-eyebrow">
+      <i class="bi bi-grid-1x2-fill"></i>
+      Ключевые метрики
+    </div>
+    <div class="metric-grid">
+      <article class="metric-card">
+        <div class="metric-card-top">
+          <div class="metric-copy">
+            <span class="metric-label">Пользователи</span>
+            <span class="metric-value">{{ stats.total_users }}</span>
+          </div>
+          <div class="metric-icon" style="background:linear-gradient(135deg, rgba(0,212,170,.18), rgba(14,165,233,.14)); color:var(--accent)">
+            <i class="bi bi-people-fill"></i>
+          </div>
+        </div>
+        <div class="metric-foot">
+          <span class="metric-trend positive">
+            <i class="bi bi-arrow-up-right"></i>
+            <strong>+{{ stats.new_users_today }}</strong> сегодня
+          </span>
+          <span class="metric-foot-tag">Audience</span>
+        </div>
+      </article>
+
+      <article class="metric-card">
+        <div class="metric-card-top">
+          <div class="metric-copy">
+            <span class="metric-label">Активные подписки</span>
+            <span class="metric-value">{{ stats.active_subscriptions }}</span>
+          </div>
+          <div class="metric-icon" style="background:linear-gradient(135deg, rgba(16,185,129,.18), rgba(5,150,105,.14)); color:var(--success)">
+            <i class="bi bi-calendar-check-fill"></i>
+          </div>
+        </div>
+        <div class="metric-foot">
+          <span class="metric-trend warning">
+            <i class="bi bi-clock-history"></i>
+            <strong>{{ stats.expired_keys }}</strong> истекли
+          </span>
+          <span class="metric-foot-tag">Access</span>
+        </div>
+      </article>
+
+      <article class="metric-card">
+        <div class="metric-card-top">
+          <div class="metric-copy">
+            <span class="metric-label">Общая выручка</span>
+            <span class="metric-value">{{ stats.total_revenue | int }} ₽</span>
+          </div>
+          <div class="metric-icon" style="background:linear-gradient(135deg, rgba(245,158,11,.18), rgba(251,191,36,.12)); color:var(--warning)">
+            <i class="bi bi-currency-ruble"></i>
+          </div>
+        </div>
+        <div class="metric-foot">
+          <span class="metric-trend positive">
+            <i class="bi bi-lightning-charge-fill"></i>
+            <strong>+{{ stats.revenue_today | int }}</strong> за день
+          </span>
+          <span class="metric-foot-tag">Revenue</span>
+        </div>
+      </article>
+
+      <article class="metric-card">
+        <div class="metric-card-top">
+          <div class="metric-copy">
+            <span class="metric-label">Тикеты и ожидания</span>
+            <span class="metric-value">{{ stats.open_tickets }}</span>
+          </div>
+          <div class="metric-icon" style="background:linear-gradient(135deg, rgba(14,165,233,.18), rgba(59,130,246,.12)); color:var(--info)">
+            <i class="bi bi-headset"></i>
+          </div>
+        </div>
+        <div class="metric-foot">
+          <span class="metric-trend">
+            <i class="bi bi-hourglass-split"></i>
+            <strong>{{ stats.pending_payments }}</strong> платежей в ожидании
+          </span>
+          <span class="metric-foot-tag">Support</span>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <div class="row g-3">
+    <div class="col-xl-8 fade-in-up stagger-2">
+      <section class="surface-panel h-100">
+        <div class="panel-header">
+          <div class="panel-header-copy">
+            <div class="panel-icon" style="background:linear-gradient(135deg, rgba(0,212,170,.16), rgba(14,165,233,.12)); color:var(--accent)">
+              <i class="bi bi-graph-up-arrow"></i>
+            </div>
+            <div>
+              <h2 class="panel-title">Динамика выручки</h2>
+              <p class="panel-subtitle">7 дней по успешным подписочным платежам</p>
+            </div>
+          </div>
+          <span class="panel-badge">{{ stats.total_revenue | int }} ₽ total</span>
+        </div>
+        <div class="chart-area">
+          <canvas id="revenueChart"></canvas>
+        </div>
+      </section>
+    </div>
+
+    <div class="col-xl-4 fade-in-up stagger-3">
+      <section class="surface-panel h-100">
+        <div class="panel-header">
+          <div class="panel-header-copy">
+            <div class="panel-icon" style="background:linear-gradient(135deg, rgba(99,102,241,.16), rgba(59,130,246,.12)); color:#93c5fd">
+              <i class="bi bi-activity"></i>
+            </div>
+            <div>
+              <h2 class="panel-title">Операционная активность</h2>
+              <p class="panel-subtitle">Короткий срез по нагрузке</p>
+            </div>
+          </div>
+        </div>
+        <div class="activity-stack">
+          <div class="activity-card">
+            <strong>+{{ stats.new_users_today }}</strong>
+            <span>Новые пользователи</span>
+          </div>
+          <div class="activity-card">
+            <strong>{{ recent_payments | length }}</strong>
+            <span>Последние платежи в ленте</span>
+          </div>
+          <div class="activity-card">
+            <strong>{{ stats.pending_payments }}</strong>
+            <span>Платежей ожидают обработки</span>
+          </div>
+          <div class="mini-chart-wrap">
+            <div class="mini-chart-copy">
+              <div>
+                <strong>Weekly Sparkline</strong>
+                <span>Выручка по дням</span>
+              </div>
+              <span class="panel-badge">7D</span>
+            </div>
+            <div class="mini-chart" id="miniSparkline"></div>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 
-<div class="row g-3 mb-4">
-  {% if marzban_stats %}
-  <div class="col-lg-6 fade-in-up">
-    <div class="card p-3">
-      <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-        <div class="d-flex align-items-center gap-2">
-          <div class="activity-ring" style="background:linear-gradient(135deg, rgba(99,102,241,.15), rgba(139,92,246,.1)); color:#818cf8"><i class="bi bi-hdd-network-fill"></i></div>
-          <div>
-            <div style="font-size:.9rem;font-weight:700;color:var(--text)">VPN Panel</div>
-            <div style="font-size:.75rem;color:var(--text-muted)">Marzban</div>
+  <div class="row g-3">
+    <div class="col-xl-6 fade-in-up">
+      <section class="surface-panel h-100">
+        <div class="panel-header">
+          <div class="panel-header-copy">
+            <div class="panel-icon" style="background:linear-gradient(135deg, rgba(16,185,129,.16), rgba(6,182,212,.12)); color:var(--success)">
+              <i class="bi bi-hdd-network-fill"></i>
+            </div>
+            <div>
+              <h2 class="panel-title">Состояние платформы</h2>
+              <p class="panel-subtitle">Системные и VPN-метрики</p>
+            </div>
           </div>
+          {% if marzban_stats %}
+          <span class="panel-badge"><span class="status-dot online"></span> VPN online</span>
+          {% elif system_metrics %}
+          <span class="panel-badge"><span class="status-dot online"></span> Host online</span>
+          {% else %}
+          <span class="panel-badge"><span class="status-dot warning"></span> No live stats</span>
+          {% endif %}
         </div>
-        <div class="d-flex align-items-center gap-2">
-          <span class="status-dot online"></span>
-          <span style="font-size:.78rem;color:var(--success);font-weight:600">Подключено</span>
-        </div>
-      </div>
-      <div class="row g-2">
-        <div class="col-6 col-md-3">
-          <div class="vpn-metric">
-            <div style="font-size:.85rem;color:var(--success);margin-bottom:.3rem"><i class="bi bi-wifi"></i></div>
-            <div style="font-size:1.15rem;font-weight:800;color:var(--text)">{{ marzban_stats.get('users_active', 0) }}</div>
-            <div style="font-size:.68rem;color:var(--text-muted)">Онлайн</div>
+
+        <div class="status-grid">
+          {% if system_metrics %}
+          <div class="status-card">
+            <i class="bi bi-cpu" style="color:var(--accent)"></i>
+            <strong>{{ system_metrics.cpu }}%</strong>
+            <span>CPU</span>
           </div>
-        </div>
-        <div class="col-6 col-md-3">
-          <div class="vpn-metric">
-            <div style="font-size:.85rem;color:#818cf8;margin-bottom:.3rem"><i class="bi bi-people"></i></div>
-            <div style="font-size:1.15rem;font-weight:800;color:var(--text)">{{ marzban_stats.get('total_user', 0) }}</div>
-            <div style="font-size:.68rem;color:var(--text-muted)">Всего</div>
+          <div class="status-card">
+            <i class="bi bi-memory" style="color:var(--success)"></i>
+            <strong>{{ (system_metrics.ram.used)|round(1) }} / {{ (system_metrics.ram.total)|round(1) }} GB</strong>
+            <span>RAM {{ system_metrics.ram.percent }}%</span>
           </div>
-        </div>
-        <div class="col-6 col-md-3">
-          <div class="vpn-metric">
-            <div style="font-size:.85rem;color:var(--info);margin-bottom:.3rem"><i class="bi bi-arrow-down-circle"></i></div>
-            <div style="font-size:1.15rem;font-weight:800;color:var(--text)">{{ (marzban_stats.get('incoming_bandwidth', 0) / 1073741824) | round(1) }} GB</div>
-            <div style="font-size:.68rem;color:var(--text-muted)">Входящий</div>
+          <div class="status-card">
+            <i class="bi bi-hdd" style="color:var(--warning)"></i>
+            <strong>{{ (system_metrics.disk.used)|round(1) }} / {{ (system_metrics.disk.total)|round(1) }} GB</strong>
+            <span>Диск {{ system_metrics.disk.percent }}%</span>
           </div>
-        </div>
-        <div class="col-6 col-md-3">
-          <div class="vpn-metric">
-            <div style="font-size:.85rem;color:var(--danger);margin-bottom:.3rem"><i class="bi bi-arrow-up-circle"></i></div>
-            <div style="font-size:1.15rem;font-weight:800;color:var(--text)">{{ (marzban_stats.get('outgoing_bandwidth', 0) / 1073741824) | round(1) }} GB</div>
-            <div style="font-size:.68rem;color:var(--text-muted)">Исходящий</div>
+          <div class="status-card">
+            <i class="bi bi-diagram-3" style="color:var(--info)"></i>
+            <strong>{{ system_metrics.processes }}</strong>
+            <span>Процессов</span>
           </div>
+          {% elif marzban_stats %}
+          <div class="status-card">
+            <i class="bi bi-wifi" style="color:var(--success)"></i>
+            <strong>{{ marzban_stats.get('users_active', 0) }}</strong>
+            <span>Пользователей онлайн</span>
+          </div>
+          <div class="status-card">
+            <i class="bi bi-people" style="color:#93c5fd"></i>
+            <strong>{{ marzban_stats.get('total_user', 0) }}</strong>
+            <span>Всего в VPN</span>
+          </div>
+          <div class="status-card">
+            <i class="bi bi-arrow-down-circle" style="color:var(--info)"></i>
+            <strong>{{ (marzban_stats.get('incoming_bandwidth', 0) / 1073741824) | round(1) }} GB</strong>
+            <span>Входящий трафик</span>
+          </div>
+          <div class="status-card">
+            <i class="bi bi-arrow-up-circle" style="color:var(--danger)"></i>
+            <strong>{{ (marzban_stats.get('outgoing_bandwidth', 0) / 1073741824) | round(1) }} GB</strong>
+            <span>Исходящий трафик</span>
+          </div>
+          {% else %}
+          <div class="status-card" style="grid-column: 1 / -1;">
+            <i class="bi bi-exclamation-diamond" style="color:var(--warning)"></i>
+            <strong>Метрики временно недоступны</strong>
+            <span>Проверь подключение к VPN-панели и системному сборщику статуса</span>
+          </div>
+          {% endif %}
         </div>
-      </div>
+      </section>
     </div>
-  </div>
-  {% endif %}
-  <div class="col-lg-{% if marzban_stats %}6{% else %}12{% endif %} fade-in-up stagger-2">
-    <div class="card p-3">
-      <div class="d-flex align-items-center gap-2 mb-3">
-        <div class="activity-ring" style="background:linear-gradient(135deg, var(--warning-glow), rgba(245,158,11,.1)); color:var(--warning)"><i class="bi bi-lightning-fill"></i></div>
-        <div>
-          <div style="font-size:.9rem;font-weight:700;color:var(--text)">Быстрые действия</div>
-          <div style="font-size:.75rem;color:var(--text-muted)">Перейти к разделу</div>
+
+    <div class="col-xl-6 fade-in-up stagger-2">
+      <section class="surface-panel h-100">
+        <div class="panel-header">
+          <div class="panel-header-copy">
+            <div class="panel-icon" style="background:linear-gradient(135deg, rgba(245,158,11,.16), rgba(251,191,36,.12)); color:var(--warning)">
+              <i class="bi bi-lightning-charge-fill"></i>
+            </div>
+            <div>
+              <h2 class="panel-title">Быстрые действия</h2>
+              <p class="panel-subtitle">Частые переходы</p>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="d-flex flex-wrap gap-2">
-        <a href="/panel/support" class="quick-tile" style="flex:1 1 calc(50% - .5rem);min-width:140px">
-          <i class="bi bi-headset" style="color:var(--info)"></i><span>Тикеты</span>
-          {% if stats.open_tickets %}<span class="badge badge-custom badge-open ms-auto">{{ stats.open_tickets }}</span>{% endif %}
-        </a>
-        <a href="/panel/broadcasts" class="quick-tile" style="flex:1 1 calc(50% - .5rem);min-width:140px">
-          <i class="bi bi-megaphone" style="color:var(--accent)"></i><span>Рассылка</span>
-        </a>
-        <a href="/panel/promos" class="quick-tile" style="flex:1 1 calc(50% - .5rem);min-width:140px">
-          <i class="bi bi-ticket-perforated" style="color:var(--success)"></i><span>Промокоды</span>
-        </a>
-        <a href="/panel/vpn" class="quick-tile" style="flex:1 1 calc(50% - .5rem);min-width:140px">
-          <i class="bi bi-key" style="color:var(--warning)"></i><span>VPN ключи</span>
-        </a>
-      </div>
+        <div class="command-grid">
+          <a href="/panel/support" class="quick-tile">
+            <div class="quick-tile-icon" style="background:rgba(14,165,233,.12); color:var(--info)">
+              <i class="bi bi-headset"></i>
+            </div>
+            <div class="quick-tile-copy">
+              <strong>Тикеты</strong>
+              <span>Поддержка</span>
+            </div>
+            {% if stats.open_tickets %}
+            <span class="badge badge-custom badge-open ms-auto">{{ stats.open_tickets }}</span>
+            {% endif %}
+          </a>
+          <a href="/panel/broadcasts" class="quick-tile">
+            <div class="quick-tile-icon" style="background:rgba(0,212,170,.12); color:var(--accent)">
+              <i class="bi bi-megaphone"></i>
+            </div>
+            <div class="quick-tile-copy">
+              <strong>Рассылки</strong>
+              <span>Сообщения</span>
+            </div>
+          </a>
+          <a href="/panel/promos" class="quick-tile">
+            <div class="quick-tile-icon" style="background:rgba(16,185,129,.12); color:var(--success)">
+              <i class="bi bi-ticket-perforated"></i>
+            </div>
+            <div class="quick-tile-copy">
+              <strong>Промокоды</strong>
+              <span>Скидки</span>
+            </div>
+          </a>
+          <a href="/panel/vpn" class="quick-tile">
+            <div class="quick-tile-icon" style="background:rgba(245,158,11,.12); color:var(--warning)">
+              <i class="bi bi-key"></i>
+            </div>
+            <div class="quick-tile-copy">
+              <strong>VPN ключи</strong>
+              <span>Подписки</span>
+            </div>
+          </a>
+        </div>
+      </section>
     </div>
   </div>
 
-<div class="row g-3">
-  <div class="col-lg-7 fade-in-up">
-    <div class="card h-100">
-      <div class="card-header">
-        <span><i class="bi bi-people me-2" style="color:var(--accent)"></i>Последние пользователи</span>
-        <a href="/panel/users" class="btn btn-accent btn-sm px-3">Все</a>
-      </div>
-      <div class="table-responsive">
-        <table class="table mb-0">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Имя</th>
-              <th class="d-none d-sm-table-cell">Username</th>
-              <th>Статус</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for u in recent_users %}
-            <tr>
-              <td><code style="color:var(--accent)">{{ u.id }}</code></td>
-              <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500">{{ u.full_name }}</td>
-              <td class="d-none d-sm-table-cell" style="color:var(--text-muted)">{% if u.username %}@{{ u.username }}{% else %}—{% endif %}</td>
-              <td>
-                {% if u.is_banned %}<span class="badge badge-custom badge-expired">Забанен</span>
-                {% else %}<span class="badge badge-custom badge-active">Активен</span>{% endif %}
-              </td>
-            </tr>
+  <div class="row g-3">
+    <div class="col-xl-7 fade-in-up">
+      <section class="surface-panel h-100">
+        <div class="panel-header">
+          <div class="panel-header-copy">
+            <div class="panel-icon" style="background:linear-gradient(135deg, rgba(0,212,170,.16), rgba(14,165,233,.12)); color:var(--accent)">
+              <i class="bi bi-people-fill"></i>
+            </div>
+            <div>
+              <h2 class="panel-title">Последние пользователи</h2>
+              <p class="panel-subtitle">Кого команда увидела в системе последним</p>
+            </div>
+          </div>
+          <a href="/panel/users" class="btn btn-accent btn-sm px-3">Все</a>
+        </div>
+        <div class="feed-list">
+          {% for u in recent_users %}
+          <div class="feed-row">
+            <div class="feed-avatar">{{ u.full_name[:1] | upper if u.full_name else '?' }}</div>
+            <div class="feed-copy">
+              <div class="feed-title">{{ u.full_name or 'User' }}</div>
+              <div class="feed-meta">{% if u.username %}@{{ u.username }}{% else %}ID: {{ u.id }}{% endif %}</div>
+            </div>
+            {% if u.is_banned %}
+            <span class="badge badge-custom badge-expired">Забанен</span>
             {% else %}
-            <tr>
-              <td colspan="4" class="text-center py-4"><div class="empty-state"><i class="bi bi-people"></i><span>Нет пользователей</span></div></td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+            <span class="badge badge-custom badge-active">Активен</span>
+            {% endif %}
+          </div>
+          {% else %}
+          <div class="empty-state">
+            <i class="bi bi-people"></i>
+            <span>Пока нет пользователей для отображения</span>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
     </div>
-  </div>
-  <div class="col-lg-5 fade-in-up stagger-2">
-    <div class="card">
-      <div class="card-header">
-        <span><i class="bi bi-credit-card me-2" style="color:var(--warning)"></i>Последние платежи</span>
-        <a href="/panel/payments" class="btn btn-accent btn-sm px-3">Все</a>
-      </div>
-      <div class="table-responsive">
-        <table class="table mb-0">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Сумма</th>
-              <th>Статус</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for p in recent_payments %}
-            <tr>
-              <td><code style="color:var(--accent)">#{{ p.id }}</code></td>
-              <td style="font-weight:600;color:var(--text)">{{ p.amount }} <span style="color:var(--text-muted);font-size:.75rem">{{ p.currency }}</span></td>
-              <td>
-                {% set st = p.status.value if p.status.value is defined else p.status %}
-                {% if st == 'succeeded' %}<span class="badge badge-custom badge-active">Успешно</span>
-                {% elif st == 'pending' %}<span class="badge badge-custom badge-pending">Ожидание</span>
-                {% elif st == 'failed' %}<span class="badge badge-custom badge-expired">Ошибка</span>
-                {% else %}<span class="badge badge-custom badge-closed">{{ st }}</span>{% endif %}
-              </td>
-            </tr>
+
+    <div class="col-xl-5 fade-in-up stagger-2">
+      <section class="surface-panel h-100">
+        <div class="panel-header">
+          <div class="panel-header-copy">
+            <div class="panel-icon" style="background:linear-gradient(135deg, rgba(245,158,11,.16), rgba(251,191,36,.12)); color:var(--warning)">
+              <i class="bi bi-credit-card"></i>
+            </div>
+            <div>
+              <h2 class="panel-title">Последние платежи</h2>
+              <p class="panel-subtitle">Свежие события по биллингу и оплатам</p>
+            </div>
+          </div>
+          <a href="/panel/payments" class="btn btn-accent btn-sm px-3">Все</a>
+        </div>
+        <div class="feed-list">
+          {% for p in recent_payments %}
+          {% set st = p.status.value if p.status.value is defined else p.status %}
+          <div class="feed-row">
+            {% if st == 'succeeded' %}
+            <div class="feed-icon" style="background:rgba(16,185,129,.12); color:var(--success)">
+              <i class="bi bi-check-lg"></i>
+            </div>
+            {% elif st == 'pending' %}
+            <div class="feed-icon" style="background:rgba(245,158,11,.12); color:var(--warning)">
+              <i class="bi bi-hourglass"></i>
+            </div>
             {% else %}
-            <tr>
-              <td colspan="3" class="text-center py-4"><div class="empty-state"><i class="bi bi-credit-card"></i><span>Нет платежей</span></div></td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+            <div class="feed-icon" style="background:rgba(239,68,68,.12); color:var(--danger)">
+              <i class="bi bi-x-lg"></i>
+            </div>
+            {% endif %}
+            <div class="feed-copy">
+              <div class="feed-title">{{ p.amount }} {{ p.currency }}</div>
+              <div class="feed-meta">Платёж #{{ p.id }}</div>
+            </div>
+            {% if st == 'succeeded' %}
+            <span class="badge badge-custom badge-active">Успешно</span>
+            {% elif st == 'pending' %}
+            <span class="badge badge-custom badge-pending">Ожидание</span>
+            {% else %}
+            <span class="badge badge-custom badge-expired">Ошибка</span>
+            {% endif %}
+          </div>
+          {% else %}
+          <div class="empty-state">
+            <i class="bi bi-credit-card"></i>
+            <span>Платёжная лента пока пустая</span>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
     </div>
   </div>
 </div>
@@ -270,9 +1227,8 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script id="rev-data" type="application/json">{{ rev_week | tojson }}</script>
 <script>
-  const revData = JSON.parse(document.getElementById('rev-data').textContent);
+  const revData = {{ rev_week | tojson }};
   const revLabels = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
@@ -281,14 +1237,16 @@
   }
 
   const isLight = document.documentElement.getAttribute('data-bs-theme') === 'light';
-  const gridColor = isLight ? 'rgba(0,0,0,.06)' : 'rgba(148,163,184,.06)';
-  const textColor = isLight ? '#64748b' : '#64748b';
+  const gridColor = isLight ? 'rgba(15,23,42,.08)' : 'rgba(148,163,184,.08)';
+  const textColor = isLight ? '#64748b' : '#94a3b8';
 
   const revCtx = document.getElementById('revenueChart');
   if (revCtx) {
-    const gradient = revCtx.getContext('2d').createLinearGradient(0, 0, 0, 140);
-    gradient.addColorStop(0, 'rgba(0, 212, 170, 0.25)');
-    gradient.addColorStop(1, 'rgba(0, 212, 170, 0.0)');
+    const ctx = revCtx.getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, 0, 280);
+    gradient.addColorStop(0, 'rgba(0, 212, 170, 0.34)');
+    gradient.addColorStop(.55, 'rgba(14, 165, 233, 0.16)');
+    gradient.addColorStop(1, 'rgba(14, 165, 233, 0)');
 
     new Chart(revCtx, {
       type: 'line',
@@ -299,14 +1257,17 @@
           data: revData,
           backgroundColor: gradient,
           borderColor: '#00d4aa',
-          borderWidth: 2,
-          tension: 0.4,
+          borderWidth: 2.5,
+          tension: 0.42,
           fill: true,
-          pointBackgroundColor: '#00d4aa',
-          pointBorderColor: '#070b14',
+          pointBackgroundColor: '#0ea5e9',
+          pointBorderColor: isLight ? '#ffffff' : '#08111a',
           pointBorderWidth: 2,
-          pointRadius: 4,
-          pointHoverRadius: 6,
+          pointRadius: 3.5,
+          pointHoverRadius: 7,
+          pointHoverBackgroundColor: '#00d4aa',
+          pointHoverBorderColor: '#ffffff',
+          pointHoverBorderWidth: 2
         }]
       },
       options: {
@@ -315,21 +1276,28 @@
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: isLight ? '#fff' : '#0f1419',
-            titleColor: isLight ? '#0f172a' : '#f1f5f9',
-            bodyColor: isLight ? '#475569' : '#94a3b8',
-            borderColor: isLight ? 'rgba(0,0,0,.08)' : 'rgba(148,163,184,.1)',
+            backgroundColor: isLight ? '#ffffff' : '#101722',
+            titleColor: isLight ? '#0f172a' : '#f8fafc',
+            bodyColor: isLight ? '#475569' : '#cbd5e1',
+            borderColor: isLight ? 'rgba(15,23,42,.08)' : 'rgba(255,255,255,.08)',
             borderWidth: 1,
             padding: 12,
-            cornerRadius: 10,
-            displayColors: false,
+            cornerRadius: 12,
+            displayColors: false
           }
         },
         scales: {
-          x: { grid: { display: false }, ticks: { color: textColor, font: { size: 11, family: 'Inter' } } },
-          y: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11, family: 'Inter' } }, beginAtZero: true }
+          x: {
+            grid: { display: false },
+            ticks: { color: textColor, font: { size: 11, family: 'Inter' } }
+          },
+          y: {
+            grid: { color: gridColor },
+            ticks: { color: textColor, font: { size: 11, family: 'Inter' } },
+            beginAtZero: true
+          }
         },
-        interaction: { intersect: false, mode: 'index' },
+        interaction: { intersect: false, mode: 'index' }
       }
     });
   }
@@ -338,14 +1306,14 @@
   if (spark) {
     const max = Math.max.apply(null, revData.concat([1]));
     spark.innerHTML = revData.map(function(v) {
-      const h = Math.max((v / max) * 40, 4);
-      const opacity = 0.4 + (v / max) * 0.6;
-      return '<div style="flex:1;background:linear-gradient(to top, #00d4aa, #0ea5e9);border-radius:3px 3px 0 0;height:' + h + 'px;opacity:' + opacity + ';transition:height .5s ease"></div>';
+      const h = Math.max((v / max) * 52, 6);
+      const opacity = 0.42 + (v / max) * 0.58;
+      return '<div style="flex:1;background:linear-gradient(180deg, rgba(14,165,233,.92), rgba(0,212,170,.82));border-radius:999px;height:' + h + 'px;opacity:' + opacity + ';box-shadow:0 8px 20px rgba(0,212,170,.14);transition:height .5s ease"></div>';
     }).join('');
     spark.style.display = 'flex';
     spark.style.alignItems = 'flex-end';
-    spark.style.gap = '3px';
-    spark.style.height = '40px';
+    spark.style.gap = '6px';
+    spark.style.height = '52px';
   }
 </script>
 {% endblock %}

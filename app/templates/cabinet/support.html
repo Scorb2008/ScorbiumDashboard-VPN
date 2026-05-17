@@ -1,0 +1,119 @@
+{% extends "cabinet/base.html" %}
+{% block title %}Поддержка - {{ app_name }}{% endblock %}
+
+{% block head %}
+<style>{% include "cabinet/_premium_section_styles.html" %}</style>
+{% endblock %}
+
+{% block content %}
+<div class="cab-premium">
+  <section class="cab-premium-shell">
+    <div class="cab-premium-top">
+      <div class="cab-premium-copy">
+        <div class="cab-premium-kicker">Поддержка</div>
+        <h1 class="cab-premium-title">Создавайте обращения в том же спокойном и понятном интерфейсе</h1>
+        <p class="cab-premium-subtitle">Форма обращения и список тикетов теперь выглядят как часть продукта, а не как отдельный технический блок.</p>
+      </div>
+      <span class="cab-premium-badge">{{ tickets|length if tickets else 0 }} обращен{{ 'ия' if tickets and tickets|length in (2, 3, 4) else 'ий' }}</span>
+    </div>
+
+    <div class="cab-premium-grid-2" style="margin-top:24px">
+      <section class="cab-premium-panel">
+        <div class="cab-premium-panel-head">
+          <div>
+            <h2>Новое обращение</h2>
+            <p>Опишите проблему коротко и по делу. После создания мы сразу переведем вас в карточку тикета.</p>
+          </div>
+        </div>
+
+        <form onsubmit="return createTicket(event)" class="cab-premium-form">
+          <input type="text" id="ticket-subject" class="inp" placeholder="Тема обращения" required>
+          <textarea id="ticket-text" class="inp" rows="4" placeholder="Опишите проблему или вопрос..." required></textarea>
+          <div class="cab-premium-form-foot">
+            <button type="submit" class="btn btn-p"><i class="bi bi-send"></i> Отправить</button>
+            <div id="ticket-result"></div>
+          </div>
+        </form>
+      </section>
+
+      <aside class="cab-premium-card">
+        <div class="cab-premium-kicker" style="margin-bottom:10px">Как быстрее получить ответ</div>
+        <div class="cab-premium-list">
+          <div class="cab-premium-note">
+            <i class="bi bi-list-check"></i>
+            <div>
+              <strong>Одна тема — один тикет</strong>
+              <span>Так проще не потерять контекст и быстрее добраться до решения.</span>
+            </div>
+          </div>
+          <div class="cab-premium-note">
+            <i class="bi bi-key"></i>
+            <div>
+              <strong>Если вопрос про ключ</strong>
+              <span>Укажите название подписки или дату, когда она перестала работать.</span>
+            </div>
+          </div>
+          <div class="cab-premium-note">
+            <i class="bi bi-wallet2"></i>
+            <div>
+              <strong>Если вопрос про оплату</strong>
+              <span>Напишите сумму и способ оплаты, чтобы мы быстрее нашли транзакцию.</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <section class="cab-premium-panel" style="margin-top:18px">
+      <div class="cab-premium-panel-head">
+        <div>
+          <h2>История обращений</h2>
+          <p>Все обращения в одной ленте с понятным статусом и датой.</p>
+        </div>
+      </div>
+
+      {% if tickets %}
+      <div class="cab-premium-list">
+        {% for t in tickets %}
+        {% if t.status == 'closed' %}
+        {% set ticket_class = 'is-active' %}
+        {% else %}
+        {% set ticket_class = 'is-pending' %}
+        {% endif %}
+        <a href="/cabinet/support/{{ t.id }}" class="cab-premium-row">
+          <div class="cab-premium-row-top">
+            <div>
+              <h3 class="cab-premium-row-title">{{ t.subject }}</h3>
+              <div class="cab-premium-row-subtitle">{{ t.created_at.strftime('%d.%m.%Y') }} · {{ t.messages|length }} сообщ.</div>
+            </div>
+            <span class="cab-premium-pill {{ ticket_class }}">{{ t.status if t.status else 'open' }}</span>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="cab-premium-empty">
+        <div class="cab-premium-empty-icon"><i class="bi bi-chat-left-text"></i></div>
+        <p>Обращений пока нет. Когда создадите первый тикет, он появится здесь.</p>
+      </div>
+      {% endif %}
+    </section>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+async function createTicket(event) {
+  event.preventDefault();
+  var s = document.getElementById('ticket-subject').value.trim();
+  var t = document.getElementById('ticket-text').value.trim();
+  var r = document.getElementById('ticket-result');
+  var fd = new FormData(); fd.append('subject', s); fd.append('text', t);
+  try {
+    var res = await cabinetJson('/cabinet/support/create', {method:'POST', body:fd});
+    if (res.data.ok) { setMsg(r, true, 'Создано'); setTimeout(function(){window.location.href=cabinetUrl('/cabinet/support/'+res.data.ticket_id)},700); }
+    else { setMsg(r, false, res.data.message || 'Ошибка'); }
+  } catch(e) { setMsg(r, false, 'Ошибка сети'); }
+  return false;
+}
+{% endblock %}

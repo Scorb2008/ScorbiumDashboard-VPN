@@ -1,0 +1,77 @@
+{% extends "cabinet/base.html" %}
+{% block title %}Рефералы - {{ app_name }}{% endblock %}
+{% block content %}
+{% set bu = settings.get('bot_username', '') %}
+{% set rl = 'https://t.me/' ~ bu ~ '?start=' ~ user.referral_code if bu and user.referral_code else '' %}
+<div class="sl">
+  <div class="ttl"><h2>Рефералы</h2></div>
+
+  <div class="r3">
+    <div class="cd-sm st">
+      <div class="st-i"><i class="bi bi-people"></i></div>
+      <div><div class="st-v">{{ referrals|length }}</div><div class="st-l">Приглашено</div></div>
+    </div>
+    <div class="cd-sm st">
+      <div class="st-i"><i class="bi bi-gift"></i></div>
+      <div><div class="st-v">{{ current_bonus_label }}</div><div class="st-l">Награда за 1 реферала</div></div>
+    </div>
+    <div class="cd-sm st">
+      <div class="st-i"><i class="bi bi-code"></i></div>
+      <div><div class="st-v">{{ user.referral_code or '—' }}</div><div class="st-l">Код</div></div>
+    </div>
+    <div class="cd-sm st" {% if rl %}onclick="copyText({{ rl|tojson }}, 'Ссылка скопирована')" style="cursor:pointer"{% endif %}>
+      <div class="st-i"><i class="bi bi-link-45deg"></i></div>
+      <div style="min-width:0">
+        <div class="st-v st-t">{{ rl or '—' }}</div>
+        <div class="st-l">{% if rl %}Нажмите, чтобы скопировать{% else %}Ссылка{% endif %}</div>
+      </div>
+    </div>
+  </div>
+
+  {% if rl %}
+  <div class="cp">
+    <input type="text" class="inp" value="{{ rl }}" readonly>
+    <button class="btn btn-p" onclick="copyText({{ rl|tojson }}, 'Ссылка скопирована')"><i class="bi bi-copy"></i></button>
+    <button class="btn btn-o" onclick="openExternal({{ rl|tojson }})"><i class="bi bi-box-arrow-up-right"></i></button>
+  </div>
+  {% endif %}
+
+  <div class="cd">
+    <h3 style="margin:0 0 12px;font-size:.9rem">Приглашения</h3>
+    {% if referrals %}
+    {% for ref in referrals %}
+    <div class="rf2">
+      <div>
+        <strong>ID {{ ref.referred_id }}</strong>
+        <div class="cm" style="font-size:.75rem">{{ ref.created_at.strftime('%d.%m.%Y') if ref.created_at else '—' }}</div>
+        <div class="cm" style="font-size:.75rem">Награда: {{ referral_service.format_bonus_label(ref.bonus_type, ref.bonus_value, lang=user.language or 'ru') }}</div>
+      </div>
+      <span class="bdg bdg-{{ 'g' if ref.is_paid else 'w' }}">{{ 'Начислен' if ref.is_paid else 'Ожидает' }}</span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="ep"><div class="ei"><i class="bi bi-megaphone"></i></div><p>Пока нет приглашений</p></div>
+    {% endif %}
+  </div>
+
+  <div class="cd">
+    <h3 style="margin:0 0 12px;font-size:.9rem">Топ рефереров</h3>
+    {% if top_referrers %}
+    <div class="s">
+      {% for ref in top_referrers %}
+      <div class="tr2">
+        <div class="tp">{{ loop.index }}</div>
+        <div>
+          <strong>{{ ref.full_name or ref.username or ('ID ' ~ ref.user_id) }}</strong>
+          <div class="cm" style="font-size:.75rem">{% if ref.username %}@{{ ref.username }}{% endif %}</div>
+        </div>
+        <div class="tc">{{ ref.referral_count }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="ep"><div class="ei"><i class="bi bi-trophy"></i></div><p>Топ пуст</p></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

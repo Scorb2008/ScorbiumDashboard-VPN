@@ -1,0 +1,34 @@
+{% extends "cabinet/base.html" %}
+{% block title %}Язык — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="sl">
+  <div class="ttl"><h2>Язык</h2></div>
+
+  <div class="ll">
+    <button class="lb {% if user.language in (None, 'ru') %}on{% endif %}" onclick="setLang('ru', event)">
+      <span class="le">🇷🇺</span><span>Русский</span>
+    </button>
+    <button class="lb {% if user.language == 'en' %}on{% endif %}" onclick="setLang('en', event)">
+      <span class="le">🇬🇧</span><span>English</span>
+    </button>
+    <button class="lb {% if user.language == 'fa' %}on{% endif %}" onclick="setLang('fa', event)">
+      <span class="le">🇮🇷</span><span>فارسی</span>
+    </button>
+  </div>
+  <div id="lang-result" style="text-align:center"></div>
+</div>
+
+<script>
+async function setLang(lang, evt) {
+  var fd = new FormData(); fd.append('lang', lang);
+  try {
+    var r = await cabinetJson('/cabinet/language', {method:'POST', body:fd});
+    if (r.data.ok) {
+      document.querySelectorAll('.lb').forEach(function(b){b.classList.remove('on')});
+      (evt.target.closest('.lb')||evt.target).classList.add('on');
+      document.getElementById('lang-result').innerHTML = '<span class="cg">Язык изменён</span>';
+    }
+  } catch(e) {}
+}
+</script>
+{% endblock %}

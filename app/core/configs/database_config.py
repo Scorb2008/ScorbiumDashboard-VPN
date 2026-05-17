@@ -153,6 +153,10 @@ class _DatabaseConfig(BaseSettings):
         password = self.db_password.get_secret_value() if self.db_password else ""
         return f"postgresql+asyncpg://{self.db_user}:{password}@{self.db_host}:{self.db_port}/{self.db_name}"
 
+    @property
+    def sync_dsn(self) -> str:
+        password = self.db_password.get_secret_value() if self.db_password else ""
+        return f"postgresql://{self.db_user}:{password}@{self.db_host}:{self.db_port}/{self.db_name}"
 
     def get_connection_params(self) -> dict:
         return {

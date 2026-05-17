@@ -17,7 +17,6 @@ class ReferralService:
         paid = await self.session.execute(
             select(func.count()).select_from(Referral).where(Referral.is_paid.is_(True))
         )
-        # Sum bonus_value where bonus_type = days
         bonus_sum = await self.session.execute(
             select(func.sum(Referral.bonus_value)).where(
                 Referral.bonus_type == ReferralBonusType.DAYS.value
@@ -28,6 +27,10 @@ class ReferralService:
             "paid_referrals": paid.scalar_one(),
             "total_bonus_days": int(bonus_sum.scalar_one() or 0),
         }
+
+    async def get_top_referrers(self, limit: int = 50) -> list[dict]:
+        """Alias for get_top with default limit of 50."""
+        return await self.get_top(limit=limit)
 
     async def get_top(self, limit: int = 20) -> list[dict]:
         result = await self.session.execute(
@@ -60,21 +63,76 @@ class ReferralService:
         )
         return list(result.scalars().all())
 
+    MAX_REFERRALS_PER_USER = 500
+    MAX_BONUS_VALUE = Decimal("999999")
+
+    @staticmethod
+    def normalize_bonus_type(bonus_type: str | None) -> str:
+        allowed = {
+            ReferralBonusType.DAYS.value,
+            ReferralBonusType.BALANCE.value,
+            ReferralBonusType.PERCENT.value,
+        }
+        normalized = (bonus_type or "").strip().lower()
+        return normalized if normalized in allowed else ReferralBonusType.DAYS.value
+
+    @classmethod
+    def format_bonus_label(
+        cls,
+        bonus_type: str | None,
+        bonus_value: Decimal | int | str | None,
+        *,
+        lang: str = "ru",
+    ) -> str:
+        normalized_type = cls.normalize_bonus_type(bonus_type)
+        value = Decimal(str(bonus_value or 0))
+
+        if normalized_type == ReferralBonusType.BALANCE.value:
+            return f"{value.normalize()} ₽" if value == value.to_integral() else f"{value} ₽"
+        if normalized_type == ReferralBonusType.PERCENT.value:
+            return f"{value.normalize()}%" if value == value.to_integral() else f"{value}%"
+
+        days_word = {
+            "ru": "дн.",
+            "en": "days",
+            "fa": "روز",
+        }.get(lang, "days")
+        days_value = int(value)
+        return f"{days_value} {days_word}"
+
     async def create(
         self,
         referrer_id: int,
         referred_id: int,
         bonus_type: str = "days",
         bonus_value: Decimal = Decimal("3"),
-        # bonus_days kept for compat but ignored
         bonus_days: int = 0,
     ) -> Optional[Referral]:
+        if referrer_id == referred_id:
+            log.warning(f"Referral fraud: user {referrer_id} referred themselves")
+            return None
+
+        bonus_type = self.normalize_bonus_type(bonus_type)
+
+        # Validate bonus
+        if bonus_value <= 0:
+            log.warning(f"Referral: non-positive bonus {bonus_value} for referrer {referrer_id}")
+            return None
+        if bonus_value > self.MAX_BONUS_VALUE:
+            bonus_value = self.MAX_BONUS_VALUE
+
         result = await self.session.execute(
             select(Referral).where(Referral.referred_id == referred_id).limit(1)
         )
         existing = result.scalar_one_or_none()
         if existing:
             return None
+
+        count = await self.count_referrals(referrer_id)
+        if count >= self.MAX_REFERRALS_PER_USER:
+            log.warning(f"Referral limit reached for user {referrer_id}: {count}")
+            return None
+
         ref = Referral(
             referrer_id=referrer_id,
             referred_id=referred_id,
@@ -98,6 +156,7 @@ class ReferralService:
         user_svc = UserService(self.session)
 
         bonus_type = ref.bonus_type or "days"
+        bonus_type = self.normalize_bonus_type(bonus_type)
         bonus_value = ref.bonus_value or Decimal("0")
 
         if not bonus_value or bonus_value <= 0:
@@ -130,7 +189,6 @@ class ReferralService:
                     except Exception as e:
                         log.warning(f"Failed to extend VPN for referral bonus: {e}")
         elif bonus_type == ReferralBonusType.PERCENT.value:
-            # Процент от следующего платежа — начисляем как баланс
             await user_svc.add_balance(ref.referrer_id, bonus_value)
 
         ref.is_paid = True

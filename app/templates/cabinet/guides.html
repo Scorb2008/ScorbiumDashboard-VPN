@@ -1,0 +1,37 @@
+{% extends "cabinet/base.html" %}
+{% block title %}Инструкции — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="sl">
+  <div class="ttl"><h2>Инструкции</h2></div>
+
+  <div class="gc">
+    <h4><i class="bi bi-phone"></i> Android</h4>
+    <ol>
+      <li>Скачайте <strong>v2rayNG</strong> или <strong>Hiddify</strong></li>
+      <li>Нажмите "+" → "Import from Clipboard"</li>
+      <li>Скопируйте ссылку из «Подписки»</li>
+      <li>Подключитесь</li>
+    </ol>
+  </div>
+
+  <div class="gc">
+    <h4><i class="bi bi-laptop"></i> Windows / macOS / Linux</h4>
+    <ol>
+      <li>Скачайте <strong>Nekoray</strong> или <strong>v2rayN</strong></li>
+      <li>Скопируйте ссылку из «Подписки»</li>
+      <li>Нажмите "Import from Clipboard"</li>
+      <li>Активируйте профиль</li>
+    </ol>
+  </div>
+
+  <div class="gc">
+    <h4><i class="bi bi-apple"></i> iOS</h4>
+    <ol>
+      <li>Скачайте <strong>Shadowrocket</strong> или <strong>V2Box</strong></li>
+      <li>Скопируйте ссылку из «Подписки»</li>
+      <li>Импортируйте конфигурацию</li>
+      <li>Подключитесь</li>
+    </ol>
+  </div>
+</div>
+{% endblock %}

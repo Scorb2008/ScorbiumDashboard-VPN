@@ -3,27 +3,28 @@
 {% block page_title %}Тарифы{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-end mb-3">
-  <button class="btn btn-accent btn-sm px-3" data-bs-toggle="modal" data-bs-target="#planModal" onclick="openCreateModal()">
-    <i class="bi bi-plus-lg me-1"></i>Новый тариф
-  </button>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div class="d-flex align-items-center gap-2">
+    <button class="btn btn-accent btn-sm px-3" data-bs-toggle="modal" data-bs-target="#planModal" onclick="openCreateModal()">
+      <i class="bi bi-plus-lg me-1"></i>Новый тариф
+    </button>
+    <span style="font-size:.75rem;color:var(--text-muted)"><i class="bi bi-grip-vertical me-1"></i>Перетащите для сортировки</span>
+  </div>
 </div>
 
-<div id="plans-grid">
-  {% include "partials/plans_grid.html" %}
-</div>
+{% include "partials/plans_grid.html" %}
 
 <!-- Plan modal -->
 <div class="modal fade" id="planModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content" style="background:#1a1a2e;border:1px solid rgba(255,255,255,.08)">
+    <div class="modal-content" style="background:var(--bg-elevated);border:1px solid var(--border)">
       <div class="modal-header border-0 pb-0">
-        <h6 class="modal-title text-white" id="planModalTitle">Новый тариф</h6>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <h6 class="modal-title" id="planModalTitle">Новый тариф</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" style="filter:invert(1)"></button>
       </div>
       <form id="planForm"
             hx-post="/panel/plans"
-            hx-target="#plans-grid"
+            hx-target="#plans-grid-container"
             hx-swap="innerHTML"
             hx-on::after-request="onPlanSaved(event)">
         <div class="modal-body">
@@ -42,7 +43,7 @@
               <input type="number" name="duration_days" class="form-control" placeholder="30" value="30" min="1" required />
             </div>
             <div class="col-12">
-              <label class="form-label">Описание <span style="color:#8892a4;font-weight:400">(необязательно)</span></label>
+              <label class="form-label">Описание <span style="color:var(--text-muted);font-weight:400">(необязательно)</span></label>
               <input type="text" name="description" class="form-control" placeholder="Базовый доступ" />
             </div>
           </div>
@@ -58,6 +59,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script>
   function openCreateModal() {
     const form = document.getElementById('planForm');
@@ -89,5 +91,60 @@
       bootstrap.Modal.getInstance(document.getElementById('planModal'))?.hide();
     }
   }
+
+  let plansSortable = null;
+
+  function initSortable() {
+    const plansGrid = document.getElementById('plans-grid-container');
+    if (!plansGrid || typeof Sortable === 'undefined') return;
+
+    if (plansSortable) plansSortable.destroy();
+
+    plansSortable = new Sortable(plansGrid, {
+      animation: 150,
+      handle: '.drag-handle',
+      filter: 'button, a, input, select, textarea, .btn, .badge',
+      preventOnFilter: true,
+      ghostClass: 'sortable-ghost',
+      chosenClass: 'sortable-chosen',
+      draggable: '.plan-item',
+      forceFallback: true,
+      fallbackClass: 'sortable-fallback',
+      fallbackOnBody: true,
+      onEnd: function() {
+        const container = document.getElementById('plans-grid-container');
+        if (!container) return;
+        const order = Array.from(container.querySelectorAll('.plan-item')).map(el => el.dataset.planId).filter(Boolean);
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        fetch('/panel/plans/reorder', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf},
+          body: JSON.stringify({order: order})
+        }).then(r => {
+          if (!r.ok) showToast('Ошибка сохранения порядка', 'error');
+        }).catch(() => showToast('Нет соединения', 'error'));
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', initSortable);
+  document.addEventListener('htmx:afterSwap', function(e) {
+    if (e.target.id === 'plans-grid-container' || e.target.closest('#plans-grid-container')) {
+      setTimeout(initSortable, 50);
+    }
+  });
+  document.addEventListener('htmx:afterSettle', function(e) {
+    if (e.target.id === 'plans-grid-container' || e.target.closest('#plans-grid-container')) {
+      setTimeout(initSortable, 10);
+    }
+  });
 </script>
+<style>
+  .sortable-ghost { opacity: 0.4; }
+  .sortable-chosen { box-shadow: 0 0 0 2px var(--accent); }
+  .sortable-fallback { box-shadow: 0 8px 32px rgba(0,0,0,0.4); transform: scale(1.02); z-index: 9999 !important; }
+  .drag-handle { cursor: grab; user-select: none; -webkit-user-select: none; touch-action: none; }
+  .drag-handle:active { cursor: grabbing; }
+  .plan-item { position: relative; }
+</style>
 {% endblock %}

@@ -1,0 +1,43 @@
+name: Python CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - test
+      - "codex/**"
+  pull_request:
+
+concurrency:
+  group: python-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test on Python 3.13
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Sync dependencies
+        run: uv sync --extra dev
+
+      - name: Verify sources compile
+        run: uv run python -m compileall app tests
+
+      - name: Run test suite
+        run: uv run pytest -q

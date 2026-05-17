@@ -92,14 +92,14 @@
 .row-actions { display: flex; gap: 4px; flex-shrink: 0; }
 .row-actions button {
   width: 24px; height: 24px; border-radius: 4px; border: none;
-  background: rgba(255,255,255,.06); color: var(--muted);
+  background: rgba(255,255,255,.06); color: var(--text-muted);
   font-size: .7rem; cursor: pointer; display: flex;
   align-items: center; justify-content: center;
 }
 .row-actions button:hover { background: rgba(255,255,255,.12); color: #fff; }
 .add-row-btn {
   padding: 6px; border-radius: 8px; border: 1px dashed rgba(255,255,255,.15);
-  background: transparent; color: var(--muted); font-size: .75rem;
+  background: transparent; color: var(--text-muted); font-size: .75rem;
   cursor: pointer; text-align: center; transition: all .15s;
 }
 .add-row-btn:hover { border-color: var(--accent); color: var(--accent); }
@@ -134,9 +134,9 @@
 
     <!-- Palette -->
     <div class="card p-3 mb-3">
-      <div class="fw-semibold text-white mb-2" style="font-size:.82rem">
+      <div class="fw-semibold" style="color:var(--text);font-size:.82rem; margin-bottom: 0.5rem">
         <i class="bi bi-grid me-2 text-muted"></i>Доступные кнопки
-        <span style="font-size:.7rem;color:#8892a4;font-weight:400;margin-left:.5rem">Перетащи на ряд ↓</span>
+        <span style="font-size:.7rem;color:var(--text-muted);font-weight:400;margin-left:.5rem">Перетащи на ряд ↓</span>
       </div>
       <div class="btn-palette" id="palette" ondragover="event.preventDefault()" ondrop="dropToPalette(event)">
         {% for b in all_buttons %}
@@ -154,7 +154,7 @@
     <!-- Rows editor -->
     <div class="card p-3 mb-3">
       <div class="d-flex align-items-center justify-content-between mb-3">
-        <div class="fw-semibold text-white" style="font-size:.82rem">
+        <div class="fw-semibold" style="color:var(--text);font-size:.82rem">
           <i class="bi bi-layout-three-columns me-2 text-muted"></i>Раскладка клавиатуры
         </div>
         <div class="d-flex gap-2">
@@ -175,7 +175,7 @@
 
     <!-- Style editor -->
     <div class="card p-3">
-      <div class="fw-semibold text-white mb-3" style="font-size:.82rem">
+      <div class="fw-semibold" style="color:var(--text); font-size:.82rem; margin-bottom: 0.75rem">
         <i class="bi bi-palette2 me-2 text-muted"></i>Стили кнопок
       </div>
       <div class="row g-2" id="style-editor">
@@ -381,9 +381,12 @@ function updatePreview() {
 
 // ── Save ──────────────────────────────────────────────────────────────────────
 async function saveLayout() {
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  const csrf = meta ? meta.getAttribute('content') : '';
   const resp = await fetch('/panel/keyboard/save', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf},
+    credentials: 'same-origin',
     body: JSON.stringify({ layout }),
   });
   const d = await resp.json();
@@ -391,6 +394,8 @@ async function saveLayout() {
 }
 
 async function saveStyles() {
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  const csrf = meta ? meta.getAttribute('content') : '';
   const styles = {};
   ALL_BUTTONS.forEach(b => {
     const sel = document.getElementById('style_' + b.id);
@@ -398,7 +403,8 @@ async function saveStyles() {
   });
   const resp = await fetch('/panel/keyboard/styles', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf},
+    credentials: 'same-origin',
     body: JSON.stringify({ styles }),
   });
   const d = await resp.json();

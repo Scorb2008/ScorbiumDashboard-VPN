@@ -65,18 +65,18 @@
             {% if i == 0 %}<span style="color:#eab308">🥇</span>
             {% elif i == 1 %}<span style="color:#9ca3af">🥈</span>
             {% elif i == 2 %}<span style="color:#b45309">🥉</span>
-            {% else %}<span style="color:#8892a4">{{ i + 1 }}</span>{% endif %}
+            {% else %}<span style="color:var(--text-muted)">{{ i + 1 }}</span>{% endif %}
           </td>
           <td>
-            <div style="font-size:.875rem;color:#fff">{{ row.full_name }}</div>
-            {% if row.username %}<div style="font-size:.75rem;color:#8892a4">@{{ row.username }}</div>{% endif %}
+            <div style="font-size:.875rem;color:var(--text)">{{ row.full_name }}</div>
+            {% if row.username %}<div style="font-size:.75rem;color:var(--text-muted)">@{{ row.username }}</div>{% endif %}
           </td>
           <td><code style="color:#00d4aa;font-size:.8rem">{{ row.referrer_id }}</code></td>
           <td><b>{{ row.count }}</b></td>
           <td><span class="badge badge-custom" style="background:rgba(59,130,246,.15);color:#3b82f6">{{ row.bonus_days }} дн.</span></td>
         </tr>
         {% else %}
-        <tr><td colspan="5" class="text-center py-4" style="color:#8892a4">Рефералов пока нет</td></tr>
+        <tr><td colspan="5" class="text-center py-4" style="color:var(--text-muted)">Рефералов пока нет</td></tr>
         {% endfor %}
       </tbody>
     </table>

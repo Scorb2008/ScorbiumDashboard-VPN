@@ -5,14 +5,16 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from app.core.permissions import has_permission
-from app.utils.security import decode_access_token, decode_access_token_full
+from app.core.permissions import PERMISSIONS, has_permission
+from app.utils.security import decode_access_token_full
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
-async def get_db(session: AsyncSession = Depends(get_session)) -> AsyncSession:
-    return session
+async def get_db() -> AsyncSession:
+    """FastAPI dependency — yields an async DB session."""
+    async with get_session() as session:
+        yield session
 
 
 async def get_current_admin(token: str = Depends(oauth2_scheme)) -> dict:
@@ -24,19 +26,44 @@ async def get_current_admin(token: str = Depends(oauth2_scheme)) -> dict:
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    role = str(info.get("role", "")).strip().lower()
+    if role not in PERMISSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin role required",
+        )
+    jti = info.get("jti")
+    sub = info.get("sub", "")
+    if jti:
+        from app.core.database import get_session
+        from app.services.token_blacklist import TokenBlacklistService
+        async with get_session() as session:
+            blacklisted = await TokenBlacklistService(session).is_blacklisted(jti, sub)
+            if blacklisted:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Token has been revoked",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
     return info
 
 
 async def get_current_admin_username(token: str = Depends(oauth2_scheme)) -> str:
     """Backward-compatible: returns just the username string."""
-    subject = decode_access_token(token)
-    if subject is None:
+    info = decode_access_token_full(token)
+    if info is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return subject
+    role = str(info.get("role", "")).strip().lower()
+    if role not in PERMISSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin role required",
+        )
+    return str(info.get("sub"))
 
 
 def require_role(*roles: str) -> Callable:

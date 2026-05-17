@@ -1,0 +1,176 @@
+{% extends "cabinet/base.html" %}
+{% block title %}Баланс — {{ app_name }}{% endblock %}
+
+{% block head %}
+<style>{% include "cabinet/_premium_section_styles.html" %}</style>
+{% endblock %}
+
+{% block content %}
+<div class="cab-premium">
+  <section class="cab-premium-shell">
+    <div class="cab-premium-top">
+      <div class="cab-premium-copy">
+        <div class="cab-premium-kicker">Баланс</div>
+        <h1 class="cab-premium-title">Пополнение и история платежей без перегруженных блоков</h1>
+        <p class="cab-premium-subtitle">На одном экране видно текущий остаток, быстрые суммы пополнения и все последние операции по кабинету.</p>
+      </div>
+      <span class="cab-premium-badge">{{ payments|length if payments else 0 }} платеж{{ 'а' if payments and payments|length in (2, 3, 4) else 'ей' }}</span>
+    </div>
+
+    <div class="cab-premium-hero" style="margin-top:24px">
+      <article class="cab-premium-card cab-premium-balance-card">
+        <div>
+          <div class="cab-premium-stat-label">Текущий баланс</div>
+          <div class="cab-premium-balance-value">{{ "%.2f"|format(user.balance) }} ₽</div>
+        </div>
+        <div class="cab-premium-note">
+          <i class="bi bi-wallet2"></i>
+          <div>
+            <strong>Деньги на месте</strong>
+            <span>Используйте баланс для покупки подписок без лишних переходов на внешние сценарии оплаты.</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="cab-premium-card">
+        <div class="cab-premium-kicker" style="margin-bottom:10px">Быстрое пополнение</div>
+        <h2 style="margin:0;font-family:'Space Grotesk','Manrope',sans-serif;font-size:1.5rem;letter-spacing:-.04em">Выберите готовую сумму</h2>
+        <p class="cab-premium-subtitle" style="margin-top:12px">Пополнение открывается во внешнем окне YooKassa, после возврата кабинет сам проверит платёж и обновит баланс.</p>
+      </article>
+    </div>
+
+    <section class="cab-premium-panel" style="margin-top:18px">
+      <div class="cab-premium-panel-head">
+        <div>
+          <h2>Пополнить</h2>
+          <p>Часто используемые суммы вынесены в отдельную удобную сетку.</p>
+        </div>
+      </div>
+
+      <div class="cab-premium-chip-grid">
+        {% for amt in [100, 200, 500, 1000, 2000, 5000] %}
+        <button class="btn btn-o cab-premium-chip-btn" type="button" onclick="topupBalance({{ amt }})">{{ amt }} ₽</button>
+        {% endfor %}
+      </div>
+
+      <div class="cab-premium-form" style="margin-top:14px">
+        <input type="number" id="custom-topup-amount" class="inp" min="100" step="100" placeholder="Своя сумма, минимум 100 ₽" inputmode="numeric">
+        <div class="cab-premium-form-foot">
+          <span class="cab-premium-row-note">Пополнение зачисляется на внутренний баланс и потом используется для покупки тарифов.</span>
+          <button class="btn btn-p" type="button" onclick="topupCustomBalance()"><i class="bi bi-plus-circle"></i> Пополнить</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="cab-premium-panel" style="margin-top:18px">
+      <div class="cab-premium-panel-head">
+        <div>
+          <h2>История операций</h2>
+          <p>Последние пополнения и списания по кабинету.</p>
+        </div>
+      </div>
+
+      {% if payments %}
+      <div class="cab-premium-list">
+        {% for p in payments %}
+        {% if p.status == 'succeeded' %}
+        {% set pay_class = 'is-active' %}
+        {% elif p.status == 'failed' %}
+        {% set pay_class = 'is-expired' %}
+        {% else %}
+        {% set pay_class = 'is-pending' %}
+        {% endif %}
+        <article class="cab-premium-row">
+          <div class="cab-premium-row-top">
+            <div>
+              <h3 class="cab-premium-row-title">{{ "+" if p.payment_type == 'topup' else "" }}{{ "%.2f"|format(p.amount) }} ₽</h3>
+              <div class="cab-premium-row-subtitle">{{ p.created_at.strftime('%d.%m.%Y') }} · {{ p.provider }}</div>
+            </div>
+            <span class="cab-premium-pill {{ pay_class }}">{{ p.status }}</span>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="cab-premium-empty">
+        <div class="cab-premium-empty-icon"><i class="bi bi-receipt"></i></div>
+        <p>История платежей пока пуста. Как только появятся операции, они будут собраны здесь.</p>
+      </div>
+      {% endif %}
+    </section>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+function clearBalancePaymentQuery() {
+  try {
+    var url = new URL(window.location.href);
+    url.searchParams.delete('payment_id');
+    window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+  } catch (e) {}
+}
+
+async function handleTopupResult(payload) {
+  if (!payload) return;
+
+  if (payload.status === 'succeeded') {
+    showToast(payload.message || 'Баланс пополнен', 'success');
+    setTimeout(function() {
+      window.location.href = cabinetUrl(payload.redirect || '/cabinet/balance');
+    }, 900);
+    return;
+  }
+
+  if (payload.status === 'pending') {
+    showToast(payload.message || 'Платёж ещё обрабатывается', 'info');
+    return;
+  }
+
+  showToast(payload.message || 'Не удалось завершить пополнение', 'error');
+}
+
+async function topupBalance(amount) {
+  var fd = new FormData();
+  fd.append('amount', amount);
+  try {
+    var r = await cabinetJson('/cabinet/topup/yookassa', {method:'POST', body:fd});
+    if (!r.data.ok) {
+      showToast(r.data.message || 'Ошибка создания платежа', 'error');
+      return;
+    }
+    openExternal(r.data.payment_url);
+    showToast('Открыли оплату. После завершения вернитесь в кабинет.', 'info');
+  } catch (e) {
+    showToast('Ошибка сети', 'error');
+  }
+}
+
+function topupCustomBalance() {
+  var input = document.getElementById('custom-topup-amount');
+  var amount = input ? Number(input.value || 0) : 0;
+  if (!amount || amount < 100) {
+    showToast('Минимальная сумма пополнения 100 ₽', 'error');
+    return;
+  }
+  topupBalance(amount);
+}
+
+async function checkReturnedTopup() {
+  var paymentId = '';
+  try { paymentId = new URL(window.location.href).searchParams.get('payment_id') || ''; }
+  catch (e) { paymentId = ''; }
+  if (!paymentId) return;
+
+  try {
+    var result = await cabinetJson('/cabinet/pay/status/' + paymentId, {method:'GET'});
+    clearBalancePaymentQuery();
+    await handleTopupResult(result.data);
+  } catch (e) {
+    clearBalancePaymentQuery();
+    showToast('Не удалось проверить пополнение', 'error');
+  }
+}
+
+checkReturnedTopup();
+{% endblock %}

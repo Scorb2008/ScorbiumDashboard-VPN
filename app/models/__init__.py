@@ -12,8 +12,12 @@ from app.models.support import (
 )
 from app.models.broadcast import Broadcast, BroadcastStatus
 from app.models.promo import PromoCode, PromoType
+from app.models.promo_usage import PromoUsage
 from app.models.referral import Referral
 from app.models.bot_settings import BotSettings
+from app.models.branding_asset import BrandingAsset
+from app.models.audit_log import AuditLog
+from app.models.token_blacklist import BlacklistedToken
 
 __all__ = [
     "Base",
@@ -37,4 +41,7 @@ __all__ = [
     "PromoType",
     "Referral",
     "BotSettings",
+    "BrandingAsset",
+    "AuditLog",
+    "BlacklistedToken",
 ]
