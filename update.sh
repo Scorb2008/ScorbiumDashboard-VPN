@@ -5,7 +5,9 @@
 set -euo pipefail
 GREEN='\033[0;32m'; CYAN='\033[0;36m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; RESET='\033[0m'
 COMPOSE_FILE="docker-compose.prod.yml"
+NGINX_GENERATED_CONF="nginx/nginx.generated.conf"
 MIN_FREE_KB=1048576
+BACKUP_DIR="${BACKUP_DIR:-../ScorbiumDashboard-backups}"
 
 info()    { echo -e "${CYAN}[INFO]${RESET} $*"; }
 success() { echo -e "${GREEN}[OK]${RESET}   $*"; }
@@ -33,6 +35,17 @@ require_cmd() {
     command -v "$1" >/dev/null 2>&1 || error "Не найдена команда: $1"
 }
 
+read_env_value() {
+    local key="$1"
+    local line
+    line="$(grep -m1 "^${key}=" .env 2>/dev/null || true)"
+    printf '%s' "${line#*=}" | tr -d '\r'
+}
+
+read_env_trimmed() {
+    read_env_value "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+
 ensure_env_var() {
     local key="$1"
     local value="$2"
@@ -58,9 +71,28 @@ replace_env_var() {
 }
 
 check_clean_git_tree() {
-    local status
-    status="$(git status --porcelain)"
-    [[ -n "${status}" ]] && error "Рабочее дерево не чистое. Сначала сохраните локальные изменения или stash."
+    local status blocked ignored line path
+    status="$(git status --porcelain --untracked-files=all)"
+    [[ -z "${status}" ]] && return 0
+
+    blocked=""
+    ignored=""
+    while IFS= read -r line; do
+        [[ -z "${line}" ]] && continue
+        path="${line:3}"
+        if [[ "${line:0:2}" == "??" ]]; then
+            case "${path}" in
+                nginx/ssl|nginx/ssl/*|backup_*.sql|.env.backup.*)
+                    ignored+="${line}"$'\n'
+                    continue
+                    ;;
+            esac
+        fi
+        blocked+="${line}"$'\n'
+    done <<< "${status}"
+
+    [[ -n "${ignored}" ]] && warn "Игнорирую локальные служебные файлы:\n${ignored}"
+    [[ -n "${blocked}" ]] && error "Рабочее дерево не чистое. Сначала сохраните локальные изменения или stash.\n${blocked}"
 }
 
 check_disk_space() {
@@ -97,6 +129,101 @@ wait_for_container_health() {
         sleep "${delay}"
     done
     error "${label} не стал ready вовремя"
+}
+
+prepare_generated_nginx_conf() {
+    mkdir -p "$(dirname "${NGINX_GENERATED_CONF}")"
+    if [[ -d "${NGINX_GENERATED_CONF}" ]]; then
+        warn "${NGINX_GENERATED_CONF} оказался директорией. Пересоздаю как файл..."
+        rm -rf "${NGINX_GENERATED_CONF}"
+    fi
+    : > "${NGINX_GENERATED_CONF}"
+}
+
+sql_quote_literal() {
+    python3 - "$1" <<'PY'
+import sys
+value = sys.argv[1]
+print("'" + value.replace("'", "''") + "'")
+PY
+}
+
+sql_quote_ident() {
+    python3 - "$1" <<'PY'
+import sys
+value = sys.argv[1]
+print('"' + value.replace('"', '""') + '"')
+PY
+}
+
+get_db_admin_role() {
+    local candidate
+    for candidate in pgg_superadmins postgres; do
+        if docker exec vpn_db psql -U "${candidate}" -d postgres -tAc "SELECT 1" >/dev/null 2>&1; then
+            printf '%s\n' "${candidate}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+db_role_exists() {
+    local role_lit
+    role_lit="$(sql_quote_literal "$1")"
+    docker exec vpn_db psql -U "${DB_ADMIN_ROLE}" -d postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname = ${role_lit}" | grep -q 1
+}
+
+db_database_exists() {
+    local db_lit
+    db_lit="$(sql_quote_literal "$1")"
+    docker exec vpn_db psql -U "${DB_ADMIN_ROLE}" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = ${db_lit}" | grep -q 1
+}
+
+run_db_admin_sql() {
+    local sql="$1"
+    docker exec -i vpn_db psql -U "${DB_ADMIN_ROLE}" -d postgres -v ON_ERROR_STOP=1 >/dev/null <<SQL
+${sql}
+SQL
+}
+
+verify_app_db_connection() {
+    docker compose -f "${COMPOSE_FILE}" run --rm app sh -lc 'PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -c "select 1;" >/dev/null'
+}
+
+ensure_database_prerequisites() {
+    DB_ADMIN_ROLE="$(get_db_admin_role)" || error "Не удалось определить административную роль PostgreSQL внутри vpn_db"
+    info "Использую DB admin role: ${DB_ADMIN_ROLE}"
+
+    if ! db_role_exists "${DB_USER}"; then
+        warn "Роль ${DB_USER} отсутствует — создаю"
+        run_db_admin_sql "CREATE ROLE $(sql_quote_ident "${DB_USER}") LOGIN PASSWORD $(sql_quote_literal "${DB_PASSWORD}");"
+        success "Роль ${DB_USER} создана"
+    fi
+
+    if ! db_database_exists "${DB_NAME}"; then
+        warn "База ${DB_NAME} отсутствует — создаю"
+        run_db_admin_sql "CREATE DATABASE $(sql_quote_ident "${DB_NAME}") OWNER $(sql_quote_ident "${DB_USER}");"
+        success "База ${DB_NAME} создана"
+    fi
+
+    if ! verify_app_db_connection; then
+        warn "Текущий пароль роли ${DB_USER} не совпадает с .env — синхронизирую"
+        run_db_admin_sql "ALTER ROLE $(sql_quote_ident "${DB_USER}") WITH PASSWORD $(sql_quote_literal "${DB_PASSWORD}");"
+        verify_app_db_connection || error "Не удалось синхронизировать доступ app к БД. Проверьте DB_USER/DB_PASSWORD в .env"
+        success "Подключение app к БД восстановлено"
+    fi
+}
+
+validate_pasarguard_url() {
+    local panel_url="$1"
+    case "${panel_url}" in
+        ""|http://|https://)
+            error "PASARGUARD_ADMIN_PANEL в .env не заполнен корректно"
+            ;;
+    esac
+    if [[ ! "${panel_url}" =~ ^https?://[^/]+ ]]; then
+        error "PASARGUARD_ADMIN_PANEL имеет некорректный формат: ${panel_url}"
+    fi
 }
 
 run_app_http_check() {
@@ -145,8 +272,8 @@ docker compose version >/dev/null 2>&1 || error "Требуется Docker Compo
 check_disk_space
 check_clean_git_tree
 
-DOMAIN=$(grep "^DOMAIN=" .env | cut -d= -f2- | sed 's/[[:space:]]*#.*//' | xargs)
-HTTPS_PORT=$(grep "^HTTPS_PORT=" .env | cut -d= -f2- | xargs)
+DOMAIN="$(read_env_trimmed "DOMAIN")"
+HTTPS_PORT="$(read_env_trimmed "HTTPS_PORT")"
 HTTPS_PORT=${HTTPS_PORT:-443}
 
 [[ -z "$DOMAIN" || "$DOMAIN" == "localhost" ]] && error "DOMAIN не задан в .env (нужен продакшен-домен)"
@@ -168,22 +295,32 @@ ensure_env_var "DB_ENGINE" "postgresql"
 ensure_env_var "VPN_PANEL_TYPE" "marzban"
 ensure_env_var "APP_VERSION" "1.0.0"
 
+PASARGUARD_ADMIN_PANEL="$(read_env_trimmed "PASARGUARD_ADMIN_PANEL")"
+validate_pasarguard_url "${PASARGUARD_ADMIN_PANEL}"
+
 info "Домен: ${DOMAIN}, HTTPS порт: ${HTTPS_PORT}"
 
 # ── [1/4] git pull ────────────────────────────────────────────────────────────
 info "[1/4] Обновляю код..."
 
 # Бэкап БД перед обновлением
-DB_NAME=$(grep "^DB_NAME=" .env | cut -d= -f2- | xargs)
-DB_USER=$(grep "^DB_USER=" .env | cut -d= -f2- | xargs)
+DB_NAME="$(read_env_value "DB_NAME")"
+DB_USER="$(read_env_value "DB_USER")"
+DB_PASSWORD="$(read_env_value "DB_PASSWORD")"
 DB_NAME=${DB_NAME:-vpnbot}
 DB_USER=${DB_USER:-postgres}
-BACKUP_FILE="backup_$(date +%Y%m%d_%H%M%S).sql"
+DB_PASSWORD=${DB_PASSWORD:-postgres}
+mkdir -p "${BACKUP_DIR}"
+BACKUP_FILE="${BACKUP_DIR}/backup_$(date +%Y%m%d_%H%M%S).sql"
 info "Создаю бэкап БД → ${BACKUP_FILE}..."
 if docker ps --format '{{.Names}}' | grep -qx 'vpn_db'; then
-    docker exec vpn_db pg_dump -U "${DB_USER}" "${DB_NAME}" > "${BACKUP_FILE}" 2>/dev/null || error "Не удалось создать бэкап БД"
-    verify_backup_file "${BACKUP_FILE}"
-    success "Бэкап создан: ${BACKUP_FILE}"
+    if docker exec vpn_db pg_dump -U "${DB_USER}" "${DB_NAME}" > "${BACKUP_FILE}" 2>/dev/null; then
+        verify_backup_file "${BACKUP_FILE}"
+        success "Бэкап создан: ${BACKUP_FILE}"
+    else
+        warn "Не удалось создать бэкап БД. Продолжаю обновление без свежего backup."
+        rm -f "${BACKUP_FILE}"
+    fi
 else
     warn "Контейнер vpn_db не запущен, пропускаю бэкап"
 fi
@@ -198,7 +335,7 @@ if [[ -n "$NEW_VER" ]]; then
 fi
 
 # ── Синхронизируем TELEGRAM_WEBHOOK_URL с портом ──────────────────────────────
-CURRENT_WEBHOOK=$(grep "^TELEGRAM_WEBHOOK_URL=" .env | cut -d= -f2- | xargs)
+CURRENT_WEBHOOK="$(read_env_trimmed "TELEGRAM_WEBHOOK_URL")"
 if [[ "$HTTPS_PORT" == "443" ]]; then
     CORRECT_WEBHOOK="https://${DOMAIN}/webhook/bot"
 else
@@ -211,8 +348,9 @@ if [[ "$CURRENT_WEBHOOK" != "$CORRECT_WEBHOOK" ]]; then
     success "TELEGRAM_WEBHOOK_URL обновлён"
 fi
 
-# ── [2/4] nginx.conf ──────────────────────────────────────────────────────────
-info "[2/4] Генерирую nginx.conf (${DOMAIN}:${HTTPS_PORT})..."
+# ── [2/4] nginx.generated.conf ────────────────────────────────────────────────
+info "[2/4] Генерирую nginx/nginx.generated.conf (${DOMAIN}:${HTTPS_PORT})..."
+prepare_generated_nginx_conf
 
 CERT_PATH="nginx/ssl/live/${DOMAIN}/fullchain.pem"
 [[ ! -f "$CERT_PATH" ]] && warn "SSL сертификат не найден: ${CERT_PATH}. Запустите: certbot certonly --standalone -d ${DOMAIN}"
@@ -224,7 +362,7 @@ else
     REDIR="return 301 https://\$host:${HTTPS_PORT}\$request_uri;"
 fi
 
-cat > nginx/nginx.conf << NGINXEOF
+cat > "${NGINX_GENERATED_CONF}" << NGINXEOF
 worker_processes auto;
 error_log /var/log/nginx/error.log warn;
 pid /var/run/nginx.pid;
@@ -360,7 +498,7 @@ http {
     }
 }
 NGINXEOF
-success "nginx.conf готов"
+success "nginx generated conf готов"
 
 # ── [3/4] Пересобираем и запускаем ───────────────────────────────────────────
 info "[3/4] Пересобираю app..."
@@ -372,6 +510,7 @@ docker image prune -f --filter "until=168h" >/dev/null 2>&1 || true
 info "Запускаю базу данных и применяю миграции до старта приложения..."
 docker compose -f "${COMPOSE_FILE}" up -d db
 wait_for_container_health "vpn_db" "PostgreSQL" 18 5
+ensure_database_prerequisites
 
 docker compose -f "${COMPOSE_FILE}" run --rm app uv run python fix_alembic.py
 docker compose -f "${COMPOSE_FILE}" run --rm app uv run alembic upgrade head

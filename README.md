@@ -32,7 +32,7 @@
 - Баланс, пополнение и история платежей
 - Подписки, копирование и открытие ключей
 - Профиль, рефералы, промокоды, поддержка, инструкции
-- Работа через Telegram Login Widget и Mini App
+- Работа через Telegram Login Widget и Mini App внутри `/cabinet/`
 
 ### Telegram-бот
 - Покупка и продление подписок
@@ -59,8 +59,7 @@ main.py
      -> FastAPI
         -> /api/v1/*       REST API
         -> /panel/*        админ-панель
-        -> /cabinet/*      кабинет пользователя
-        -> /miniapp/*      Telegram Mini App
+        -> /cabinet/*      кабинет пользователя и вход из Telegram Mini App
         -> /webhook/bot    webhook Telegram-бота
 ```
 
@@ -88,7 +87,6 @@ main.py
 app/
   api/
     cabinet/      пользовательский кабинет
-    miniapp/      Telegram Mini App
     middleware/   middleware FastAPI
     panel/        админ-панель
     v1/           REST API
@@ -196,7 +194,7 @@ bash setup.sh
 
 Скрипт:
 - создаст `.env`
-- сгенерирует `nginx/nginx.conf`
+- сгенерирует `nginx/nginx.generated.conf`
 - подготовит контейнеры
 - настроит продакшен-схему запуска
 
@@ -222,7 +220,7 @@ bash update.sh
 - делает backup базы
 - делает `git pull --ff-only`
 - обновляет важные `.env` переменные
-- генерирует актуальный `nginx.conf`
+- генерирует актуальный `nginx/nginx.generated.conf`
 - пересобирает `app`
 - запускает `fix_alembic.py`
 - выполняет `alembic upgrade head`
@@ -302,8 +300,7 @@ DOMAIN=example.com
 
 Основные пути:
 - `/panel/` — админ-панель
-- `/cabinet/` — кабинет пользователя
-- `/miniapp/` — Telegram Mini App
+- `/cabinet/` — кабинет пользователя и точка входа для Telegram Mini App
 - `/api/v1/` — REST API
 - `/webhook/bot` — webhook Telegram-бота
 - `/ws/notifications` — WebSocket-уведомления панели
@@ -319,6 +316,7 @@ DOMAIN=example.com
 - В prod-режиме бот работает через webhook.
 - Handler-модули бота при сборке диспетчера динамически перезагружаются.
 - Корневой `/` редиректит в `/panel/`.
+- Пользовательский Mini App сейчас работает через `/cabinet/`, а не через отдельный пользовательский `/miniapp/` маршрут.
 - Кабинет и Mini App используют Telegram-аутентификацию, а не обычный логин/пароль панели.
 
 ---
@@ -326,4 +324,3 @@ DOMAIN=example.com
 ## Лицензия
 
 [MIT](LICENSE)
-
