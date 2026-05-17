@@ -62,8 +62,8 @@ async def _verify_remote_provider_payment(
             remote = await svc.get_transaction_status(external_id)
             status_raw = str(remote.get("status", "")).upper()
             amount_raw = (remote.get("payment_details") or {}).get("amount")
-            if not remote.get("ok") or status_raw not in {"SUCCESS", "PAID", "COMPLETED"}:
-                log.warning(f"Platega webhook: remote status is not paid for {external_id}: {status_raw}")
+            if not remote.get("ok") or status_raw != "CONFIRMED":
+                log.warning(f"Platega webhook: remote status is not confirmed for {external_id}: {status_raw}")
                 return False
             if amount_raw is not None and not _money_equal(amount_raw, payment.amount):
                 log.warning(f"Platega webhook: amount mismatch for payment {payment_id}")
@@ -110,6 +110,27 @@ async def _verify_remote_provider_payment(
         return False
 
     return False
+
+
+def _platega_headers_match(request: Request, settings: dict) -> bool:
+    from app.services.platega import PlategaService
+
+    svc = PlategaService.from_settings(settings)
+    if not svc:
+        log.error("Platega webhook: provider is not configured")
+        return False
+
+    merchant_expected = svc.merchant_id.strip()
+    secret_expected = svc.api_secret.strip()
+
+    merchant_actual = (request.headers.get("X-MerchantId") or "").strip()
+    secret_actual = (request.headers.get("X-Secret") or "").strip()
+
+    if merchant_actual != merchant_expected or secret_actual != secret_expected:
+        log.warning("Platega webhook: invalid auth headers")
+        return False
+
+    return True
 
 
 async def _notify_topup_success(payment_user_id: int, amount, balance) -> None:
@@ -557,10 +578,14 @@ async def platega_webhook(request: Request, db: AsyncSession = Depends(get_db)) 
         log.error(f"Platega webhook: invalid JSON: {e}")
         return "ERROR"
 
-    transaction_id = data.get("transactionId", "")
-    status = data.get("status", "")
+    settings = await BotSettingsService(db).get_all()
+    if not _platega_headers_match(request, settings):
+        return "OK"
 
-    if status not in ("SUCCESS", "PAID", "COMPLETED"):
+    transaction_id = str(data.get("id", "")).strip()
+    status = str(data.get("status", "")).upper().strip()
+
+    if status != "CONFIRMED":
         return "OK"
 
     payload_raw = data.get("payload", "")
@@ -574,6 +599,16 @@ async def platega_webhook(request: Request, db: AsyncSession = Depends(get_db)) 
             extend_key_id = int(parts[3]) if len(parts) > 3 else None
         else:
             log.error(f"Platega webhook: unknown payload format: {payload_raw}")
+            return "OK"
+
+        payment = await PaymentService(db).get_by_id(payment_id)
+        if not payment:
+            log.error(f"Platega webhook: payment {payment_id} not found")
+            return "OK"
+
+        callback_amount = data.get("amount")
+        if callback_amount is not None and not _money_equal(callback_amount, payment.amount):
+            log.warning(f"Platega webhook: callback amount mismatch for payment {payment_id}")
             return "OK"
 
         if not await _verify_remote_provider_payment(
@@ -592,7 +627,7 @@ async def platega_webhook(request: Request, db: AsyncSession = Depends(get_db)) 
             extend_key_id,
         )
         if not payment:
-            log.error(f"Platega webhook: payment {payment_id} not found")
+            log.info(f"Platega webhook: duplicate or stale payment ignored: {payment_id}")
             return "OK"
         if not just_confirmed and not just_processed:
             log.info(f"Platega webhook: duplicate or stale payment ignored: {payment_id}")

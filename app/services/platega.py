@@ -4,14 +4,17 @@ Docs: https://docs.platega.io/
 Auth: X-MerchantId + X-Secret headers
 Base URL: https://app.platega.io
 """
-import os
 import json
 import http.client
-from typing import Optional, Dict, Any
+import os
+from typing import Any, Dict, Optional
+from urllib.parse import urlencode
 
 
 class PlategaService:
     """Service for Platega.io API integration."""
+
+    DEFAULT_DESCRIPTION = "VPN payment"
 
     def __init__(self, merchant_id: Optional[str] = None, secret: Optional[str] = None):
         self.merchant_id = merchant_id or os.getenv("PLATEGA_MERCHANT_ID", "")
@@ -49,8 +52,18 @@ class PlategaService:
             data = await loop.run_in_executor(None, response.read)
             data = data.decode("utf-8")
             if not data:
-                return {"ok": False, "error": "Empty response"}
-            result = json.loads(data)
+                return {"ok": False, "error": f"HTTP {response.status}: empty response"}
+            try:
+                result = json.loads(data)
+            except json.JSONDecodeError:
+                return {"ok": False, "error": f"HTTP {response.status}: {data[:500]}"}
+            if response.status >= 400:
+                return {
+                    "ok": False,
+                    "error": result.get("message") or result.get("error") or f"HTTP {response.status}",
+                    "status_code": response.status,
+                    "raw": result,
+                }
             return result
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -71,17 +84,22 @@ class PlategaService:
         user_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Create a transaction via POST /v2/transaction/process
+        Create a transaction.
+
+        Docs:
+        - POST /v2/transaction/process  when payment method is not preselected
+        - POST /transaction/process     when payment method is preselected
+
         Returns: transactionId, status, url/redirect, expiresIn, rate
         """
+        final_description = (description or self.DEFAULT_DESCRIPTION).strip()
         body = {
             "paymentDetails": {
                 "amount": amount,
                 "currency": currency,
             },
+            "description": final_description,
         }
-        if description:
-            body["description"] = description
         if return_url:
             body["return"] = return_url
         if failed_url:
@@ -92,9 +110,10 @@ class PlategaService:
             body["paymentMethod"] = payment_method
         # Add Telegram ID for Stars payments
         if user_telegram_id and user_id:
-            body["description"] = f"TgId:{user_telegram_id} UserId:{user_id} {description}".strip()
+            body["description"] = f"TgId:{user_telegram_id} UserId:{user_id} {final_description}".strip()
 
-        result = await self._make_request("POST", "/v2/transaction/process", body)
+        path = "/transaction/process" if payment_method is not None else "/v2/transaction/process"
+        result = await self._make_request("POST", path, body)
         if "transactionId" in result:
             return {
                 "ok": True,
@@ -109,8 +128,8 @@ class PlategaService:
         return {"ok": False, "error": result.get("error", "Unknown error")}
 
     async def get_transaction_status(self, transaction_id: str) -> Dict[str, Any]:
-        """Get transaction status via GET /v2/transaction/{id}"""
-        result = await self._make_request("GET", f"/v2/transaction/{transaction_id}")
+        """Get transaction status via GET /transaction/{id}."""
+        result = await self._make_request("GET", f"/transaction/{transaction_id}")
         if "id" in result or "status" in result:
             return {
                 "ok": True,
@@ -123,8 +142,8 @@ class PlategaService:
         return {"ok": False, "error": result.get("error", "Unknown error")}
 
     async def get_qr_code(self, transaction_id: str) -> Dict[str, Any]:
-        """Get QR code for H2H transaction via GET /v2/h2h/{id}"""
-        result = await self._make_request("GET", f"/v2/h2h/{transaction_id}")
+        """Get QR code for H2H transaction via GET /h2h/{id}."""
+        result = await self._make_request("GET", f"/h2h/{transaction_id}")
         if "amount" in result:
             return {
                 "ok": True,
@@ -139,8 +158,16 @@ class PlategaService:
         currency_from: str = "RUB",
         currency_to: str = "USDT",
     ) -> Dict[str, Any]:
-        """Get exchange rate via GET /v2/rates/payment_method_rate"""
-        path = f"/v2/rates/payment_method_rate?paymentMethod={payment_method}&currencyFrom={currency_from}&currencyTo={currency_to}"
+        """Get exchange rate via GET /rates/payment_method_rate."""
+        query = urlencode(
+            {
+                "merchantId": self.merchant_id,
+                "paymentMethod": payment_method,
+                "currencyFrom": currency_from,
+                "currencyTo": currency_to,
+            }
+        )
+        path = f"/rates/payment_method_rate?{query}"
         result = await self._make_request("GET", path)
         if "rate" in result:
             return {
@@ -154,8 +181,8 @@ class PlategaService:
         return {"ok": False, "error": result.get("error", "Unknown error")}
 
     async def get_balance(self) -> Dict[str, Any]:
-        """Get merchant balances via GET /v2/balance/all"""
-        result = await self._make_request("GET", "/v2/balance/all")
+        """Get merchant balances via GET /balance/all."""
+        result = await self._make_request("GET", "/balance/all")
         if isinstance(result, list):
             return {"ok": True, "balances": result}
         return {"ok": False, "error": result.get("error", "Unknown error")}
@@ -165,9 +192,21 @@ class PlategaService:
         return bool(self.merchant_id and self.api_secret)
 
     @staticmethod
+    def _decode_setting(settings: dict, key: str) -> str:
+        value = str(settings.get(key) or "").strip()
+        if not value:
+            return ""
+
+        from app.services.encryption import decrypt_value, is_encrypted
+
+        if is_encrypted(value):
+            return decrypt_value(value).strip()
+        return value
+
+    @staticmethod
     def from_settings(settings: dict) -> Optional["PlategaService"]:
-        merchant_id = (settings.get("platega_merchant_id") or "").strip()
-        secret = (settings.get("platega_secret") or "").strip()
+        merchant_id = PlategaService._decode_setting(settings, "platega_merchant_id")
+        secret = PlategaService._decode_setting(settings, "platega_secret")
         if not merchant_id or not secret:
             return None
         return PlategaService(merchant_id, secret)
