@@ -52,9 +52,6 @@
               data-request-access="write"></script>
           </div>
           {% endif %}
-          {% if telegram_client_id %}
-          <button id="login-btn" class="btn btn-p btn-w" onclick="handleLoginClick()" {% if bu %}style="display:none"{% endif %}><i class="bi bi-person-check"></i> Войти</button>
-          {% endif %}
           {% if not bu and not telegram_client_id %}
           <div class="ib"><i class="bi bi-exclamation-triangle cr"></i><span>Вход через Telegram не настроен</span></div>
           {% endif %}
@@ -70,11 +67,7 @@
 </style>
 {% endblock %}
 
-{% block head %}
-{% if telegram_client_id %}
-<script src="https://telegram.org/js/telegram-login.js"></script>
-{% endif %}
-{% endblock %}
+{% block head %}{% endblock %}
 
 {% block scripts %}
 function setMiniAppControls(opts) {
@@ -91,10 +84,8 @@ function setLoginState(m) {
 function showWebLoginFallback() {
   document.getElementById('login-status').style.display = 'none';
   var webLogin = document.getElementById('web-login');
-  var b = document.getElementById('login-btn');
   var w = document.getElementById('telegram-login');
   if (webLogin) webLogin.style.display = '';
-  if (b) b.style.display = '';
   if (w) w.style.display = '';
   setMiniAppControls({ retry:false, home:false });
 }
@@ -157,21 +148,8 @@ async function bootMiniAppLogin() {
   }
   showWebLoginFallback();
 })();
-if (!isMiniAppRuntime()) {
-  setTimeout(function() {
-    if (isMiniAppRuntime()) return;
-    if (document.querySelector('#telegram-login') && !document.querySelector('#telegram-login iframe')) {
-      var b = document.getElementById('login-btn');
-      if (b) b.style.display = '';
-    }
-  }, 1800);
-}
 function onTelegramAuth(user) {
   setLoginState('Проверка...');
-  var w = document.getElementById('telegram-login');
-  var b = document.getElementById('login-btn');
-  if (w) w.style.display = 'none';
-  if (b) b.style.display = 'none';
   cabinetJson('/cabinet/auth', {method:'POST', body:JSON.stringify(user)})
     .then(function(r) { if (r.data.ok) { window.location.replace(cabinetUrl(r.data.redirect || '/cabinet/')); } else { showToast(r.data.message || 'Ошибка','error'); showWebLoginFallback(); }})
     .catch(function() { showToast('Ошибка сети','error'); showWebLoginFallback(); });
@@ -183,31 +161,4 @@ function onTelegramAuth(user) {
     try { var d = JSON.parse(e.data); if (d.event === 'auth_user' && d.auth_data) onTelegramAuth(d.auth_data); } catch(err) {}
   });
 })();
-{% if telegram_client_id %}
-var oidcInitialized = false;
-var TG_CLIENT_ID = {{ telegram_client_id }};
-var TG_REDIRECT_URI = window.location.origin + '/cabinet/';
-function handleLoginClick() {
-  if (typeof Telegram === 'undefined' || !Telegram.Login || !Telegram.Login.init) {
-    showToast('Сервис входа недоступен. Попробуйте обновить страницу.', 'error');
-    return;
-  }
-  try {
-    if (!oidcInitialized) { Telegram.Login.init({client_id:TG_CLIENT_ID, redirect_uri:TG_REDIRECT_URI, request_access:['write']}, onOidcCallback); oidcInitialized = true; }
-    Telegram.Login.open(onOidcCallback);
-  } catch(e) {
-    showToast('Ошибка входа. Попробуйте обновить страницу.', 'error');
-  }
-}
-function onOidcCallback(data) {
-  if (data.error) { showToast(data.error,'error'); return; }
-  if (!data.id_token) return;
-  setLoginState('Подтверждение...');
-  document.getElementById('login-btn').style.display = 'none';
-  document.getElementById('login-hint').style.display = 'none';
-  cabinetJson('/cabinet/auth', {method:'POST', body:JSON.stringify({id_token:data.id_token})})
-    .then(function(r) { if (r.data.ok) { window.location.replace(cabinetUrl(r.data.redirect || '/cabinet/')); } else { showToast(r.data.message||'Ошибка','error'); showWebLoginFallback(); }})
-    .catch(function() { showToast('Ошибка сети','error'); showWebLoginFallback(); });
-}
-{% endif %}
 {% endblock %}
