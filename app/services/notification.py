@@ -8,11 +8,7 @@ from app.utils.log import log
 
 
 class NotificationManager:
-    """In-memory pub/sub for real-time WebSocket notifications.
-
-    NOTE: This works for a single worker. For multi-worker deployments
-    add a Redis-backed adapter.
-    """
+    """In-memory pub/sub for real-time WebSocket notifications."""
 
     def __init__(self) -> None:
         self._connections: Set[WebSocket] = set()
@@ -47,7 +43,4 @@ class NotificationManager:
             async with self._lock:
                 self._connections -= dead
 
-
-# Module-level singleton
 notification_manager = NotificationManager()
-
