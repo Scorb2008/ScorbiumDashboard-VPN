@@ -18,6 +18,27 @@ jobs:
     name: Test on Python 3.13
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      APP_NAME: Scorbium Dashboard CI
+      APP_VERSION: test
+      SERVER_HOST: 127.0.0.1
+      SERVER_PORT: "8000"
+      WEB_SUPERADMIN_USERNAME: admin
+      WEB_SUPERADMIN_PASSWORD: supersecure
+      DB_ENGINE: postgresql
+      DB_NAME: vpnbot
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      TELEGRAM_BOT_TOKEN: "123456:TESTTOKEN"
+      TELEGRAM_ADMIN_IDS: "[123456789]"
+      TELEGRAM_TYPE_PROTOCOL: long
+      TELEGRAM_WEBHOOK_URL: ""
+      TELEGRAM_WEBHOOK_PATH: /webhook/bot
+      PASARGUARD_ADMIN_PANEL: https://example.com:8012
+      PASARGUARD_API_KEY: test-api-key
+      LOG_LEVEL: INFO
 
     steps:
       - name: Checkout repository

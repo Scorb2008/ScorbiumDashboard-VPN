@@ -341,6 +341,7 @@ def create_app() -> FastAPI:
         from fastapi.templating import Jinja2Templates
         tpl = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
         return tpl.TemplateResponse(
+            request,
             "forbidden.html",
             {
                 "request": request,
@@ -503,7 +504,7 @@ def create_app() -> FastAPI:
         from fastapi.templating import Jinja2Templates
         from pathlib import Path
         templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
-        return templates.TemplateResponse("metrics/dashboard.html", {"request": request})
+        return templates.TemplateResponse(request, "metrics/dashboard.html", {"request": request})
 
     @app.post(config.telegram.telegram_webhook_path, include_in_schema=False)
     async def telegram_webhook(request: Request):

@@ -152,3 +152,4 @@ try:
     log.success("✅ All configs initialized successfully")
 except Exception as e:
     log.error(f"❌ Failed to initialize configs: {e}. \n Error in {__file__}: {e}")
+    raise

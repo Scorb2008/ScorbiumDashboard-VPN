@@ -61,9 +61,6 @@ class _PasarGuardConfig(BaseSettings):
         if value.scheme == "http" and value.host not in ["localhost", "127.0.0.1"]:
             log.warning(f"⚠️ Admin panel URL uses HTTP (not secure): {value}")
 
-        if not value.path or value.path == "/":
-            log.warning(f"⚠️ Admin panel URL has no specific path: {value}")
-
         return value
 
     @model_validator(mode="after")

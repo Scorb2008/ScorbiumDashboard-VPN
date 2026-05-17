@@ -92,3 +92,4 @@ try:
     log.debug(f"Utils: {utils}")
 except Exception as e:
     log.error(f"❌ Failed to initialize Utils config: {e}")
+    raise

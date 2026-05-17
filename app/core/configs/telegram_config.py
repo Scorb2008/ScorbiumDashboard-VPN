@@ -86,13 +86,24 @@ class _TelegramConfig(BaseSettings):
     @field_validator("telegram_admin_ids", mode="before")
     @classmethod
     def parse_admin_ids(cls, value):
+        if value is None or value == "":
+            return []
+
+        if isinstance(value, int):
+            return [value]
+
         if isinstance(value, str):
-            if not value:
-                return []
             try:
                 return [int(id.strip()) for id in re.split(r"[,\s;]+", value) if id.strip()]
             except ValueError:
                 raise TelegramException("Invalid TELEGRAM_ADMIN_IDS format")
+
+        if isinstance(value, (list, tuple, set)):
+            try:
+                return [int(item) for item in value]
+            except (TypeError, ValueError):
+                raise TelegramException("Invalid TELEGRAM_ADMIN_IDS format")
+
         return value
 
     @field_validator("telegram_client_id", mode="before")
@@ -122,3 +133,4 @@ try:
     log.success("✅ Telegram config initialized successfully\n")
 except Exception as e:
     log.error(f"❌ Failed to initialize Telegram config: {e} \n Error in {__file__}: {e}")
+    raise

@@ -103,4 +103,4 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
     except Exception:
         ctx["system_metrics"] = None
 
-    return templates.TemplateResponse("dashboard.html", ctx)
+    return templates.TemplateResponse(request, "dashboard.html", ctx)

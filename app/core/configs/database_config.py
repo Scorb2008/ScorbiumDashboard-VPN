@@ -1,13 +1,13 @@
-from pydantic import Field, SecretStr, model_validator, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Literal, Optional
 from functools import lru_cache
-import ipaddress
 import re
+from typing import Literal
 
+from pydantic import Field, SecretStr, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.core.exceptions import DatabaseInvalidError, DatabaseValueError
 from app.utils.log import log
 from app.utils.path import env_file
-from app.core.exceptions import *
 
 class _DatabaseConfig(BaseSettings):
     """
@@ -112,7 +112,7 @@ class _DatabaseConfig(BaseSettings):
         
         if not 1 <= value <= 65535:
             log.error(f"❌ Database port {value} is out of valid range (1-65535)")
-            raise DatabaseValueError(f"Database port must be between 1 and 65535")
+            raise DatabaseValueError("Database port must be between 1 and 65535")
         
         if value != 5432:
             log.info(f"⚠️ Using non-standard PostgreSQL port: {value}")

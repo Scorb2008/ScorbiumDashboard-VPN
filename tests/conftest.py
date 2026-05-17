@@ -2,7 +2,6 @@ import asyncio
 import pytest
 from decimal import Decimal
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -13,10 +12,6 @@ from app.models.payment import Payment, PaymentStatus, PaymentProvider, PaymentT
 from app.models.plan import Plan
 from app.models.vpn_key import VpnKey, VpnKeyStatus
 from app.models.referral import Referral, ReferralBonusType
-from app.models.promo import PromoCode, PromoType
-from app.models.promo_usage import PromoUsage
-from app.models.vpn_key import VpnKey, VpnKeyStatus
-from app.models.branding_asset import BrandingAsset
 
 
 @pytest.fixture(scope="session")

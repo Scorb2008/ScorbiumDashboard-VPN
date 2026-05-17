@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 from .log import log
 
 
@@ -12,7 +11,7 @@ def get_env():
         env_path = current_path / '.env'
         
         if env_path.exists():
-            print(f"✅ Found .env file")
+            print("✅ Found .env file")
             return env_path
         
         current_path = current_path.parent  
