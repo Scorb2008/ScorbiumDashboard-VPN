@@ -597,7 +597,7 @@ textarea.inp { resize: vertical; }
   display: flex; flex-direction: column; gap: 14px;
 }
 .ll2 {
-  width: 44px; height: 44px; border-radius: 12px;
+  width: 44px; height: 44px; border-radius: 12px; overflow: hidden;
   display: flex; align-items: center; justify-content: center;
   font-size: 1.2rem;
   color: #07111f;
