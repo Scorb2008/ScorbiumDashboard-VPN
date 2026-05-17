@@ -3,10 +3,11 @@ PayPal'ych (pal24.pro) payment service integration.
 Docs: https://docs.paypalych.io/
 Auth: Bearer token in Authorization header
 """
-import os
 import json
 import http.client
-from typing import Optional, Dict, Any
+import os
+from typing import Any, Dict, Optional
+from urllib.parse import urlencode
 
 
 class PayPalychService:
@@ -16,26 +17,32 @@ class PayPalychService:
         self.api_token = api_token or os.getenv("PAYPALYCH_API_TOKEN", "")
         self.base_url = "pal24.pro"
 
-    def _get_headers(self) -> Dict[str, str]:
+    def _get_headers(self, content_type: Optional[str] = None) -> Dict[str, str]:
         """Return request headers with Bearer auth."""
-        return {
+        headers = {
             "Authorization": f"Bearer {self.api_token}",
-            "Content-Type": "application/json"
         }
+        if content_type:
+            headers["Content-Type"] = content_type
+        return headers
 
     async def _make_request(
         self,
         method: str,
         path: str,
-        body: Optional[Dict] = None
+        body: Optional[Dict] = None,
+        content_type: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Make HTTP request to PayPal'ych API."""
         import asyncio
         conn = None
         try:
             conn = http.client.HTTPSConnection(self.base_url, timeout=15)
-            payload = json.dumps(body) if body else ""
-            headers = self._get_headers()
+            if body and content_type == "application/x-www-form-urlencoded":
+                payload = urlencode(body, doseq=True)
+            else:
+                payload = json.dumps(body) if body else ""
+            headers = self._get_headers(content_type)
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(
                 None,
@@ -45,8 +52,19 @@ class PayPalychService:
             data = await loop.run_in_executor(None, response.read)
             data = data.decode("utf-8")
             if not data:
-                return {"ok": False, "error": "Empty response"}
-            result = json.loads(data)
+                return {"ok": False, "error": f"HTTP {response.status}: empty response"}
+            try:
+                result = json.loads(data)
+            except json.JSONDecodeError:
+                return {"ok": False, "error": f"HTTP {response.status}: {data[:500]}"}
+            if response.status >= 400:
+                return {
+                    "ok": False,
+                    "error": result.get("error") or result.get("message") or f"HTTP {response.status}",
+                    "error_key": result.get("error_key", ""),
+                    "status_code": response.status,
+                    "raw": result,
+                }
             return result
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -97,7 +115,12 @@ class PayPalychService:
         if payment_method:
             body["payment_method"] = payment_method
 
-        result = await self._make_request("POST", "/api/v1/bill/create", body)
+        result = await self._make_request(
+            "POST",
+            "/api/v1/bill/create",
+            body,
+            content_type="application/x-www-form-urlencoded",
+        )
         if result.get("success"):
             return {
                 "ok": True,
@@ -133,7 +156,12 @@ class PayPalychService:
             "id": bill_id,
             "active": "1" if active else "0"
         }
-        result = await self._make_request("POST", "/api/v1/bill/toggle_activity", body)
+        result = await self._make_request(
+            "POST",
+            "/api/v1/bill/toggle_activity",
+            body,
+            content_type="application/x-www-form-urlencoded",
+        )
         if result.get("success"):
             return {
                 "ok": True,
@@ -162,18 +190,25 @@ class PayPalychService:
                 "status": result.get("status", "NEW"),
                 "amount": result.get("amount", 0),
                 "commission": result.get("commission", 0),
+                "account_amount": result.get("account_amount"),
+                "account_currency_code": result.get("account_currency_code", ""),
                 "currency_in": result.get("currency_in", "RUB"),
                 "created_at": result.get("created_at", ""),
             }
         return {"ok": False, "error": result.get("error", "Unknown error")}
 
     def is_configured(self) -> bool:
-        """Check if Platega is configured."""
+        """Check if PayPalych is configured."""
         return bool(self.api_token)
 
     @staticmethod
     def from_settings(settings: dict) -> Optional["PayPalychService"]:
-        token = (settings.get("paypalych_api_token") or "").strip()
+        token = str(settings.get("paypalych_api_token") or "").strip()
+        if token:
+            from app.services.encryption import decrypt_value, is_encrypted
+
+            if is_encrypted(token):
+                token = decrypt_value(token).strip()
         if not token:
             return None
         return PayPalychService(token)
@@ -189,7 +224,7 @@ class PayPalychService:
                 rub_balance = next(
                     (b.get("balance_available", 0) for b in balances if b.get("currency") == "RUB"), 0
                 )
-                return {"ok": True, "message": f"✅ Platega.io подключен. Баланс: {rub_balance} ₽"}
+                return {"ok": True, "message": f"✅ PayPalych.io подключен. Баланс: {rub_balance} ₽"}
             return {"ok": False, "message": f"Ошибка: {result.get('error', 'Неизвестно')}"}
         except Exception as e:
             return {"ok": False, "message": f"Ошибка подключения: {str(e)}"}

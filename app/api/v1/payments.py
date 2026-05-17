@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from decimal import Decimal, InvalidOperation
 from typing import Optional
+import hashlib
 
 from app.api.dependencies import get_db, get_current_admin
 from app.core.config import config
@@ -77,12 +78,14 @@ async def _verify_remote_provider_payment(
             if not svc:
                 log.error("PayPalych webhook: service not configured")
                 return False
-            remote = await svc.get_bill_status(external_id)
+            remote = await svc.get_payment_status(external_id)
             status_raw = str(remote.get("status", "")).upper()
-            if not remote.get("ok") or status_raw not in {"PAID", "SUCCESS", "COMPLETED"}:
+            if not remote.get("ok") or status_raw not in {"SUCCESS", "OVERPAID"}:
                 log.warning(f"PayPalych webhook: remote status is not paid for {external_id}: {status_raw}")
                 return False
-            amount_raw = remote.get("amount")
+            amount_raw = remote.get("account_amount")
+            if amount_raw is None:
+                amount_raw = remote.get("amount")
             if amount_raw is not None and not _money_equal(amount_raw, payment.amount):
                 log.warning(f"PayPalych webhook: amount mismatch for payment {payment_id}")
                 return False
@@ -131,6 +134,21 @@ def _platega_headers_match(request: Request, settings: dict) -> bool:
         return False
 
     return True
+
+
+def _compute_paypalych_signature(out_sum: str, inv_id: str, api_token: str) -> str:
+    payload = f"{out_sum}:{inv_id}:{api_token}"
+    return hashlib.md5(payload.encode("utf-8")).hexdigest().upper()
+
+
+def _verify_paypalych_signature(
+    out_sum: str,
+    inv_id: str,
+    signature: str,
+    api_token: str,
+) -> bool:
+    expected = _compute_paypalych_signature(out_sum, inv_id, api_token)
+    return expected == (signature or "").strip().upper()
 
 
 async def _notify_topup_success(payment_user_id: int, amount, balance) -> None:
@@ -660,20 +678,34 @@ async def platega_webhook(request: Request, db: AsyncSession = Depends(get_db)) 
 async def paypalych_webhook(request: Request, db: AsyncSession = Depends(get_db)) -> str:
     """Handle PayPalych bill webhook."""
     try:
-        data = await request.json()
+        data = await request.form()
     except Exception as e:
-        log.error(f"PayPalych webhook: invalid JSON: {e}")
+        log.error(f"PayPalych webhook: invalid form payload: {e}")
         return "ERROR"
 
-    bill_id = data.get("bill_id", "")
-    status = data.get("status", "")
+    status = str(data.get("Status", "")).upper().strip()
+    order_id = str(data.get("InvId", "")).strip()
+    transaction_id = str(data.get("TrsId", "")).strip()
+    custom_raw = str(data.get("custom", "")).strip()
+    out_sum = str(data.get("OutSum", "")).strip()
+    signature = str(data.get("SignatureValue", "")).strip()
 
-    if status not in ("PAID", "SUCCESS", "COMPLETED"):
+    if status not in {"SUCCESS", "OVERPAID"}:
         return "OK"
 
-    custom_raw = data.get("custom", "")
     try:
         from app.services.telegram_notify import TelegramNotifyService
+        from app.services.paypalych import PayPalychService
+
+        settings = await BotSettingsService(db).get_all()
+        svc = PayPalychService.from_settings(settings)
+        if not svc:
+            log.error("PayPalych webhook: service not configured")
+            return "OK"
+
+        if not _verify_paypalych_signature(out_sum, order_id, signature, svc.api_token):
+            log.warning("PayPalych webhook: invalid signature")
+            return "OK"
 
         parts = custom_raw.split("_")
         if parts[0] == "pp" and len(parts) >= 3:
@@ -684,10 +716,19 @@ async def paypalych_webhook(request: Request, db: AsyncSession = Depends(get_db)
             log.error(f"PayPalych webhook: unknown custom format: {custom_raw}")
             return "OK"
 
+        payment = await PaymentService(db).get_by_id(payment_id)
+        if not payment:
+            log.error(f"PayPalych webhook: payment {payment_id} not found")
+            return "OK"
+
+        if out_sum and not _money_equal(out_sum, payment.amount):
+            log.warning(f"PayPalych webhook: callback amount mismatch for payment {payment_id}")
+            return "OK"
+
         if not await _verify_remote_provider_payment(
             db,
             provider="paypalych",
-            external_id=str(bill_id),
+            external_id=str(transaction_id),
             payment_id=payment_id,
         ):
             return "OK"
@@ -695,12 +736,12 @@ async def paypalych_webhook(request: Request, db: AsyncSession = Depends(get_db)
         payment, key, just_confirmed, just_processed = await _finalize_subscription_payment(
             db,
             int(payment_id),
-            bill_id,
+            transaction_id,
             plan_id,
             extend_key_id,
         )
         if not payment:
-            log.error(f"PayPalych webhook: payment {payment_id} not found")
+            log.info(f"PayPalych webhook: duplicate or stale payment ignored: {payment_id}")
             return "OK"
         if not just_confirmed and not just_processed:
             log.info(f"PayPalych webhook: duplicate or stale payment ignored: {payment_id}")

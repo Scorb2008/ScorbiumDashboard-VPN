@@ -98,10 +98,11 @@ def test_platega_from_settings_decrypts_sensitive_values():
 async def test_paypalych_service_awaits_request(monkeypatch):
     service = PayPalychService("token")
 
-    async def fake_request(method, path, body=None):
+    async def fake_request(method, path, body=None, content_type=None):
         assert method == "POST"
         assert path == "/api/v1/bill/create"
         assert body["amount"] == 299
+        assert content_type == "application/x-www-form-urlencoded"
         return {"success": True, "bill_id": "bill_1", "link_url": "https://pay", "link_page_url": "https://page"}
 
     monkeypatch.setattr(service, "_make_request", fake_request)
@@ -111,3 +112,14 @@ async def test_paypalych_service_awaits_request(monkeypatch):
     assert result["ok"] is True
     assert result["bill_id"] == "bill_1"
     assert result["link_url"] == "https://pay"
+
+
+def test_paypalych_from_settings_decrypts_token():
+    from app.services.encryption import encrypt_value
+
+    service = PayPalychService.from_settings(
+        {"paypalych_api_token": encrypt_value("bearer-token")}
+    )
+
+    assert service is not None
+    assert service.api_token == "bearer-token"

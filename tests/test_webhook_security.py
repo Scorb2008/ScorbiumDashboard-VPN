@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from starlette.requests import Request
 
 from app.api.v1.payments import _get_yookassa_webhook_secret, _platega_headers_match, platega_webhook
+from app.api.v1.payments import _compute_paypalych_signature, _verify_paypalych_signature, paypalych_webhook
 from app.models.bot_settings import BotSettings
 from app.models.payment import Payment, PaymentProvider, PaymentStatus, PaymentType
 from app.models.plan import Plan
@@ -97,6 +98,14 @@ def test_platega_headers_match_expected_credentials():
     ) is False
 
 
+def test_paypalych_signature_matches_docs():
+    signature = _compute_paypalych_signature("380.55", "order-123", "token-abc")
+
+    assert signature == hashlib.md5(b"380.55:order-123:token-abc").hexdigest().upper()
+    assert _verify_paypalych_signature("380.55", "order-123", signature, "token-abc") is True
+    assert _verify_paypalych_signature("380.56", "order-123", signature, "token-abc") is False
+
+
 async def test_platega_webhook_uses_confirmed_status_and_documented_id_field(session, monkeypatch):
     await reset_bot_settings_cache()
     user = User(id=987654321, username="platega-user", full_name="Platega User")
@@ -163,6 +172,87 @@ async def test_platega_webhook_uses_confirmed_status_and_documented_id_field(ses
     )
 
     result = await platega_webhook(request, db=session)
+
+    assert result == "OK"
+    assert sent
+
+
+async def test_paypalych_webhook_uses_form_post_and_signature(session, monkeypatch):
+    await reset_bot_settings_cache()
+    user = User(id=777000111, username="pp-user", full_name="PayPalych User")
+    plan = Plan(
+        id=88,
+        name="PayPalych Plan",
+        slug="paypalych-plan",
+        description="Test",
+        duration_days=30,
+        price=100,
+        is_active=True,
+    )
+    payment = Payment(
+        id=778,
+        user_id=user.id,
+        provider=PaymentProvider.PAYPALYCH.value,
+        payment_type=PaymentType.SUBSCRIPTION.value,
+        amount=100,
+        currency="RUB",
+        status=PaymentStatus.PENDING.value,
+    )
+    session.add_all(
+        [
+            user,
+            plan,
+            payment,
+            BotSettings(key="paypalych_api_token", value="token-abc"),
+        ]
+    )
+    await session.commit()
+
+    sent = []
+
+    class _Notify:
+        async def send_message(self, chat_id, message):
+            sent.append((chat_id, message))
+
+    async def fake_verify_remote(*args, **kwargs):
+        assert kwargs["external_id"] == "trs-123"
+        assert kwargs["payment_id"] == 778
+        return True
+
+    async def fake_finalize(*args, **kwargs):
+        fake_payment = SimpleNamespace(user_id=user.id)
+        fake_key = SimpleNamespace(access_url="https://vpn-key", expires_at=None)
+        return fake_payment, fake_key, True, True
+
+    monkeypatch.setattr("app.api.v1.payments._verify_remote_provider_payment", fake_verify_remote)
+    monkeypatch.setattr("app.api.v1.payments._finalize_subscription_payment", fake_finalize)
+    monkeypatch.setattr("app.services.telegram_notify.TelegramNotifyService", lambda: _Notify())
+
+    signature = _compute_paypalych_signature("100", "order-778", "token-abc")
+
+    body = (
+        "Status=SUCCESS&InvId=order-778&OutSum=100&CurrencyIn=RUB&"
+        "Commission=0&TrsId=trs-123&custom=pp_778_88&SignatureValue="
+        f"{signature}"
+    ).encode("utf-8")
+    scope = {
+        "type": "http",
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "https",
+        "path": "/api/v1/payments/webhook/paypalych",
+        "raw_path": b"/api/v1/payments/webhook/paypalych",
+        "query_string": b"",
+        "headers": [(b"content-type", b"application/x-www-form-urlencoded")],
+        "client": ("127.0.0.1", 12345),
+        "server": ("testserver", 443),
+    }
+
+    async def receive():
+        return {"type": "http.request", "body": body, "more_body": False}
+
+    request = Request(scope, receive)
+    result = await paypalych_webhook(request, db=session)
 
     assert result == "OK"
     assert sent
