@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
 from app.core.config import config
-from app.core.database import init_db, close_db
+from app.core.database import AsyncSessionFactory, init_db, close_db
 from app.api.v1 import get_router
 from app.api.panel import get_panel_router
 from app.api.middleware import RateLimitMiddleware
@@ -309,6 +309,44 @@ def create_app() -> FastAPI:
     from starlette.middleware.base import BaseHTTPMiddleware as _BHM
     from app.api.middleware.csrf import CSRFMiddleware, generate_csrf_token as _gct, CSRF_COOKIE as _CC
 
+    class _PanelSessionGuard(_BHM):
+        async def dispatch(self, request: Request, call_next):
+            request.state.panel_admin_info = None
+            request.state.revoked_panel_session = False
+
+            if request.url.path.startswith("/panel"):
+                token = request.cookies.get("vpn_session", "")
+                if token:
+                    from app.core.permissions import PERMISSIONS
+                    from app.services.token_blacklist import TokenBlacklistService
+                    from app.utils.security import decode_access_token_full
+
+                    info = decode_access_token_full(token)
+                    role = str((info or {}).get("role", "")).strip().lower()
+                    if info and role in PERMISSIONS:
+                        request.state.panel_admin_info = info
+                        jti = str(info.get("jti", "")).strip()
+                        sub = str(info.get("sub", "")).strip()
+                        if jti and sub:
+                            async with AsyncSessionFactory() as session:
+                                revoked = await TokenBlacklistService(session).is_blacklisted(jti, sub)
+                            if revoked:
+                                request.state.panel_admin_info = None
+                                request.state.revoked_panel_session = True
+
+            response = await call_next(request)
+            if getattr(request.state, "revoked_panel_session", False):
+                response.delete_cookie(
+                    "vpn_session",
+                    path="/",
+                    secure=_is_secure_request(request),
+                    httponly=True,
+                    samesite="lax",
+                )
+            return response
+
+    app.add_middleware(_PanelSessionGuard)
+
     class _CSRFInjector(_BHM):
         async def dispatch(self, request: Request, call_next):
             resp = await call_next(request)
@@ -448,6 +486,7 @@ def create_app() -> FastAPI:
     async def ws_notifications(websocket: WebSocket):
         """Real-time notification stream for admin panel."""
         from app.services.notification import notification_manager
+        from app.services.token_blacklist import TokenBlacklistService
         from app.utils.security import decode_access_token_full
         from app.core.permissions import has_permission
 
@@ -460,6 +499,13 @@ def create_app() -> FastAPI:
                     token = part.split("=", 1)[1]
                     break
         info = decode_access_token_full(token) if token else None
+        if info:
+            jti = str(info.get("jti", "")).strip()
+            sub = str(info.get("sub", "")).strip()
+            if jti and sub:
+                async with AsyncSessionFactory() as session:
+                    if await TokenBlacklistService(session).is_blacklisted(jti, sub):
+                        info = None
         if not info or not has_permission(info.get("role", ""), "dashboard"):
             await websocket.close(code=4003)
             return
@@ -478,6 +524,8 @@ def create_app() -> FastAPI:
     @app.websocket("/ws/metrics")
     async def websocket_metrics(websocket: WebSocket):
         """WebSocket endpoint for real-time system metrics. Requires valid session cookie."""
+        from app.core.permissions import has_permission
+        from app.services.token_blacklist import TokenBlacklistService
         from app.utils.security import decode_access_token_full
 
         cookie = websocket.cookies.get("vpn_session")
@@ -487,6 +535,16 @@ def create_app() -> FastAPI:
         admin_info = decode_access_token_full(cookie)
         if not admin_info:
             await websocket.close(code=4001)
+            return
+        jti = str(admin_info.get("jti", "")).strip()
+        sub = str(admin_info.get("sub", "")).strip()
+        if jti and sub:
+            async with AsyncSessionFactory() as session:
+                if await TokenBlacklistService(session).is_blacklisted(jti, sub):
+                    await websocket.close(code=4001)
+                    return
+        if not has_permission(admin_info.get("role", ""), "monitoring"):
+            await websocket.close(code=4003)
             return
         await websocket.accept()
         try:

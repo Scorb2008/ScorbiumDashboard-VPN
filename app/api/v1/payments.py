@@ -15,6 +15,15 @@ from app.services.plan import PlanService
 from app.utils.log import log
 
 router = APIRouter()
+YOOKASSA_ALLOWED_IPS = {
+    "185.71.76.0/27",
+    "185.71.77.0/27",
+    "77.75.153.0/25",
+    "77.75.156.11",
+    "77.75.156.35",
+    "77.75.154.128/25",
+    "2a02:5180::/32",
+}
 
 
 async def _get_yookassa_webhook_secret(db: AsyncSession) -> str:
@@ -372,8 +381,9 @@ async def freekassa_webhook(request: Request, db: AsyncSession = Depends(get_db)
 
 @router.post("/webhook/yookassa", summary="Yookassa webhook", include_in_schema=False)
 async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
-    """Atomic Yookassa webhook: verify signature, confirm payment + provision."""
+    """Atomic YooKassa webhook: verify source IP, confirm payment + provision."""
     import json
+    import ipaddress
 
     try:
         raw_body = await request.body()
@@ -382,20 +392,25 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
         log.error(f"Yookassa webhook: invalid JSON body: {e}")
         return {"status": "error", "message": "invalid body"}
 
-    # Signature verification — fetch secret from DB first, then .env fallback
-    from app.services.webhook_security import verify_yookassa_signature
-
-    sig_header = request.headers.get("Authorization", "").strip()
-    secret = await _get_yookassa_webhook_secret(db)
-    if not secret:
-        log.error("Yookassa webhook: secret is not configured")
-        return {"status": "error", "message": "webhook not configured"}
-    if not sig_header:
-        log.warning("Yookassa webhook: missing Authorization header")
-        return {"status": "error", "message": "missing signature"}
-    if not await verify_yookassa_signature(raw_body, sig_header, secret):
-        log.warning("Yookassa webhook: invalid signature")
-        return {"status": "error", "message": "invalid signature"}
+    client_ip = (
+        request.headers.get("X-Real-IP")
+        or request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+        or (request.client.host if request.client else "")
+    )
+    try:
+        addr = ipaddress.ip_address(client_ip)
+        allowed = {
+            ipaddress.ip_network(value, strict=False)
+            if "/" in value
+            else ipaddress.ip_network(f"{value}/32", strict=False)
+            for value in YOOKASSA_ALLOWED_IPS
+        }
+        if not any(addr in network for network in allowed):
+            log.warning("Yookassa webhook: blocked IP %s", client_ip)
+            return {"status": "error", "message": "forbidden"}
+    except ValueError:
+        log.warning("Yookassa webhook: invalid IP %s", client_ip)
+        return {"status": "error", "message": "forbidden"}
 
     event = data.get("event")
     obj = data.get("object", {})
@@ -420,6 +435,11 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
         return {"status": "ok"}
 
     try:
+        status_value = str(obj.get("status", "")).lower().strip()
+        if status_value and status_value != "succeeded":
+            log.warning("Yookassa webhook: unexpected object status %s for payment %s", status_value, payment_id)
+            return {"status": "ok"}
+
         if not plan_id:
             result = await _finalize_topup_payment(
                 db, int(payment_id), str(external_id)

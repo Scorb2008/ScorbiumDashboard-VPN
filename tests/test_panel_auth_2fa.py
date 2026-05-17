@@ -3,11 +3,12 @@ from http.cookies import SimpleCookie
 import pyotp
 from fastapi import Request
 
-from app.api.panel.routes.auth import PREAUTH_COOKIE, twofa_login_submit, login_submit
-from app.api.panel.routes.shared import SESSION_COOKIE
+from app.api.panel.routes.auth import PREAUTH_COOKIE, logout, twofa_login_submit, login_submit
+from app.api.panel.routes.shared import SESSION_COOKIE, _get_admin_info
 from app.models.admin import Admin, AdminRole
+from app.models.token_blacklist import BlacklistedToken
 from app.services.admin_auth import authenticate_admin_credentials
-from app.utils.security import hash_password
+from app.utils.security import create_access_token, hash_password
 
 
 def _make_request(*, cookies: dict[str, str] | None = None) -> Request:
@@ -135,3 +136,32 @@ async def test_env_superadmin_login_upgrades_existing_operator_role(session, mon
     assert authenticated is not None
     assert authenticated.role == AdminRole.SUPERADMIN.value
     assert admin.role == AdminRole.SUPERADMIN.value
+
+
+async def test_logout_blacklists_active_panel_session(session):
+    token = create_access_token(subject="secure-admin", role=AdminRole.SUPERADMIN.value)
+    response = await logout(
+        _make_request(cookies={SESSION_COOKIE: token, PREAUTH_COOKIE: token}),
+        db=session,
+    )
+
+    assert response.status_code == 302
+
+    rows = await session.execute(
+        BlacklistedToken.__table__.select().where(
+            BlacklistedToken.sub == "secure-admin",
+        )
+    )
+    entries = rows.fetchall()
+    assert len(entries) == 2
+
+
+def test_get_admin_info_rejects_revoked_panel_session():
+    request = _make_request(cookies={SESSION_COOKIE: "token"})
+    request.state.revoked_panel_session = True
+    request.state.panel_admin_info = {
+        "sub": "admin",
+        "role": AdminRole.SUPERADMIN.value,
+    }
+
+    assert _get_admin_info(request) is None

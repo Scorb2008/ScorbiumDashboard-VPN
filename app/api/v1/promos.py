@@ -36,7 +36,11 @@ async def toggle_promo(promo_id: int, db: AsyncSession = Depends(get_db), _=Depe
 
 
 @router.post("/apply", response_model=PromoApplyResult)
-async def apply_promo(data: PromoApply, db: AsyncSession = Depends(get_db)):
+async def apply_promo(
+    data: PromoApply,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(get_current_admin),
+):
     promo = await PromoService(db).apply(data.code)
     if not promo:
         return PromoApplyResult(valid=False, message="Промокод недействителен или исчерпан")

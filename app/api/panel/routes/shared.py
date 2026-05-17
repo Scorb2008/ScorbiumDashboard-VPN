@@ -3,6 +3,7 @@ import html
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 from fastapi import Request, Response
 from fastapi.templating import Jinja2Templates
@@ -13,7 +14,6 @@ from app.core.config import config
 from app.models.payment import PaymentStatus
 from app.schemas.user import UserDetail, UserRead
 from app.services.branding_asset import BrandingAssetService
-from app.services.bot_settings import BotSettingsService
 from app.services.payment import PaymentService
 from app.services.support import SupportService
 from app.utils.log import log
@@ -65,6 +65,7 @@ _DEFAULT_LAYOUT = [
 ]
 
 _startup_time = datetime.now(timezone.utc)
+_STATE_UNSET = object()
 
 
 def _get_uptime() -> str:
@@ -136,6 +137,13 @@ def _clear_cookie(response: Response, request: Request, key: str) -> None:
 
 def _get_admin_info(request: Request) -> dict | None:
     """Extract admin info (sub + role) from session cookie. Returns None if invalid."""
+    if getattr(request.state, "revoked_panel_session", False):
+        return None
+
+    state_info: Any = getattr(request.state, "panel_admin_info", _STATE_UNSET)
+    if state_info is not _STATE_UNSET:
+        return state_info
+
     token = request.cookies.get(SESSION_COOKIE)
     if not token:
         return None
@@ -269,7 +277,6 @@ async def _base_ctx(
     open_tickets = await SupportService(db).count_open()
     pending_payments = await PaymentService(db).count_by_status(PaymentStatus.PENDING)
     role = admin_info["role"] if admin_info else ""
-    settings = await BotSettingsService(db).get_all()
     custom_logo = await BrandingAssetService(db).get_logo_url()
     now = datetime.now(timezone.utc)
     moscow_tz = timezone(timedelta(hours=3))

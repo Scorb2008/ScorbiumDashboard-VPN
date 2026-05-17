@@ -19,6 +19,7 @@ from app.services.admin import AdminService
 from app.services.admin_auth import authenticate_admin_credentials
 from app.services.branding_asset import BrandingAssetService
 from app.services.bot_settings import BotSettingsService
+from app.services.token_blacklist import TokenBlacklistService
 from app.utils.security import create_access_token, decode_access_token_full
 
 from .shared import (
@@ -155,8 +156,23 @@ async def login_submit(
     return resp
 
 
+async def _blacklist_cookie_token(db: AsyncSession, token: str | None) -> None:
+    if not token:
+        return
+    payload = decode_access_token_full(token)
+    if not payload:
+        return
+    jti = str(payload.get("jti", "")).strip()
+    sub = str(payload.get("sub", "")).strip()
+    if not jti or not sub:
+        return
+    await TokenBlacklistService(db).blacklist_jti(jti, sub, expires_at=None)
+
+
 @router.get("/logout")
-async def logout(request: Request):
+async def logout(request: Request, db: AsyncSession = Depends(get_db)):
+    await _blacklist_cookie_token(db, request.cookies.get(SESSION_COOKIE))
+    await _blacklist_cookie_token(db, request.cookies.get(PREAUTH_COOKIE))
     resp = RedirectResponse(url="/panel/login", status_code=302)
     _clear_cookie(resp, request, SESSION_COOKIE)
     _clear_cookie(resp, request, PREAUTH_COOKIE)

@@ -3,9 +3,15 @@ import hmac
 import json
 from types import SimpleNamespace
 
+import pytest
 from starlette.requests import Request
 
-from app.api.v1.payments import _get_yookassa_webhook_secret, _platega_headers_match, platega_webhook
+from app.api.v1.payments import (
+    _get_yookassa_webhook_secret,
+    _platega_headers_match,
+    platega_webhook,
+    yookassa_webhook,
+)
 from app.api.v1.payments import _compute_paypalych_signature, _verify_paypalych_signature, paypalych_webhook
 from app.models.bot_settings import BotSettings
 from app.models.payment import Payment, PaymentProvider, PaymentStatus, PaymentType
@@ -55,6 +61,85 @@ async def test_get_yookassa_webhook_secret_falls_back_to_env(session, monkeypatc
     )
 
     assert await _get_yookassa_webhook_secret(session) == "env_secret_12345"
+
+
+@pytest.mark.asyncio
+async def test_yookassa_webhook_accepts_whitelisted_ip_without_signature_header(session, monkeypatch):
+    user = User(id=111222333, username="yk-user", full_name="Yk User")
+    plan = Plan(
+        id=42,
+        name="YK Plan",
+        slug="yk-plan",
+        description="Test",
+        duration_days=30,
+        price=100,
+        is_active=True,
+    )
+    payment = Payment(
+        id=42,
+        user_id=user.id,
+        provider=PaymentProvider.YOOKASSA.value,
+        payment_type=PaymentType.SUBSCRIPTION.value,
+        amount=100,
+        currency="RUB",
+        status=PaymentStatus.PENDING.value,
+        external_id="yk_payment_42",
+    )
+    session.add_all([user, plan, payment])
+    await session.commit()
+
+    async def fake_finalize(db, payment_id, external_id, plan_id, extend_key_id=None):
+        assert payment_id == 42
+        assert external_id == "yk_payment_42"
+        assert plan_id == 42
+        return payment, SimpleNamespace(access_url="https://vpn.test/key", expires_at=None), True, True
+
+    class _Notify:
+        async def send_message(self, chat_id, message):
+            return True
+
+    monkeypatch.setattr("app.api.v1.payments._finalize_subscription_payment", fake_finalize)
+    monkeypatch.setattr("app.services.telegram_notify.TelegramNotifyService", lambda: _Notify())
+
+    request = _make_json_request(
+        "/api/v1/payments/webhook/yookassa",
+        {
+            "event": "payment.succeeded",
+            "object": {
+                "id": "yk_payment_42",
+                "status": "succeeded",
+                "metadata": {
+                    "payment_id": "42",
+                    "plan_id": "42",
+                },
+            },
+        },
+        {"X-Real-IP": "185.71.76.5"},
+    )
+
+    result = await yookassa_webhook(request, db=session)
+
+    assert result == {"status": "ok"}
+
+
+@pytest.mark.asyncio
+async def test_yookassa_webhook_rejects_non_whitelisted_ip(session):
+    request = _make_json_request(
+        "/api/v1/payments/webhook/yookassa",
+        {
+            "event": "payment.succeeded",
+            "object": {
+                "id": "yk_payment_99",
+                "status": "succeeded",
+                "metadata": {"payment_id": "99", "plan_id": "1"},
+            },
+        },
+        {"X-Real-IP": "203.0.113.9"},
+    )
+
+    result = await yookassa_webhook(request, db=session)
+
+    assert result == {"status": "error", "message": "forbidden"}
 
 
 def _make_json_request(path: str, payload: dict, headers: dict[str, str]) -> Request:
