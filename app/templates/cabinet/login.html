@@ -188,8 +188,16 @@ var oidcInitialized = false;
 var TG_CLIENT_ID = {{ telegram_client_id }};
 var TG_REDIRECT_URI = window.location.origin + '/cabinet/';
 function handleLoginClick() {
-  if (!oidcInitialized) { Telegram.Login.init({client_id:TG_CLIENT_ID, redirect_uri:TG_REDIRECT_URI, request_access:['write']}, onOidcCallback); oidcInitialized = true; }
-  Telegram.Login.open(onOidcCallback);
+  if (typeof Telegram === 'undefined' || !Telegram.Login || !Telegram.Login.init) {
+    showToast('Сервис входа недоступен. Попробуйте обновить страницу.', 'error');
+    return;
+  }
+  try {
+    if (!oidcInitialized) { Telegram.Login.init({client_id:TG_CLIENT_ID, redirect_uri:TG_REDIRECT_URI, request_access:['write']}, onOidcCallback); oidcInitialized = true; }
+    Telegram.Login.open(onOidcCallback);
+  } catch(e) {
+    showToast('Ошибка входа. Попробуйте обновить страницу.', 'error');
+  }
 }
 function onOidcCallback(data) {
   if (data.error) { showToast(data.error,'error'); return; }
