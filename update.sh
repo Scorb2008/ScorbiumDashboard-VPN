@@ -4,15 +4,146 @@
 # =============================================================================
 set -euo pipefail
 GREEN='\033[0;32m'; CYAN='\033[0;36m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; RESET='\033[0m'
+COMPOSE_FILE="docker-compose.prod.yml"
+MIN_FREE_KB=1048576
 
 info()    { echo -e "${CYAN}[INFO]${RESET} $*"; }
 success() { echo -e "${GREEN}[OK]${RESET}   $*"; }
 warn()    { echo -e "${YELLOW}[WARN]${RESET} $*"; }
 error()   { echo -e "${RED}[ERR]${RESET}  $*"; exit 1; }
 
+print_recent_logs() {
+    warn "Последние логи контейнеров:"
+    docker compose -f "${COMPOSE_FILE}" logs app --tail=25 2>/dev/null || true
+    docker compose -f "${COMPOSE_FILE}" logs nginx --tail=25 2>/dev/null || true
+    docker compose -f "${COMPOSE_FILE}" logs db --tail=25 2>/dev/null || true
+}
+
+on_error() {
+    local exit_code=$?
+    echo ""
+    warn "Обновление завершилось с ошибкой (code=${exit_code})"
+    print_recent_logs
+    exit "${exit_code}"
+}
+
+trap on_error ERR
+
+require_cmd() {
+    command -v "$1" >/dev/null 2>&1 || error "Не найдена команда: $1"
+}
+
+ensure_env_var() {
+    local key="$1"
+    local value="$2"
+    if grep -q "^${key}=" .env; then
+        return 0
+    fi
+    echo "${key}=${value}" >> .env
+    success "${key} добавлен в .env"
+}
+
+replace_env_var() {
+    local key="$1"
+    local value="$2"
+    if grep -q "^${key}=" .env; then
+        if sed --version 2>/dev/null | grep -q GNU; then
+            sed -i "s|^${key}=.*|${key}=${value}|" .env
+        else
+            sed -i '' "s|^${key}=.*|${key}=${value}|" .env
+        fi
+    else
+        echo "${key}=${value}" >> .env
+    fi
+}
+
+check_clean_git_tree() {
+    local status
+    status="$(git status --porcelain)"
+    [[ -n "${status}" ]] && error "Рабочее дерево не чистое. Сначала сохраните локальные изменения или stash."
+}
+
+check_disk_space() {
+    local free_kb
+    free_kb="$(df -Pk . | awk 'NR==2 {print $4}')"
+    [[ -z "${free_kb}" ]] && warn "Не удалось определить свободное место"
+    if [[ -n "${free_kb}" && "${free_kb}" -lt "${MIN_FREE_KB}" ]]; then
+        error "Недостаточно свободного места (< 1 GB). Освободите диск перед обновлением."
+    fi
+}
+
+verify_backup_file() {
+    local path="$1"
+    [[ ! -s "${path}" ]] && error "Бэкап ${path} пустой или не создан"
+    if ! head -n 5 "${path}" | grep -Eq 'PostgreSQL database dump|--'; then
+        warn "Бэкап ${path} создан, но его заголовок выглядит нестандартно. Проверьте файл вручную."
+    fi
+}
+
+wait_for_container_health() {
+    local container="$1"
+    local label="$2"
+    local attempts="$3"
+    local delay="$4"
+
+    info "Жду готовности ${label}..."
+    for i in $(seq 1 "${attempts}"); do
+        local status
+        status="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "${container}" 2>/dev/null || echo "unknown")"
+        if [[ "${status}" == "healthy" || "${status}" == "running" ]]; then
+            success "${label} готов"
+            return 0
+        fi
+        sleep "${delay}"
+    done
+    error "${label} не стал ready вовремя"
+}
+
+run_app_http_check() {
+    local path="$1"
+    local expected="$2"
+    docker compose -f "${COMPOSE_FILE}" exec -T app python - "$path" "$expected" <<'PY'
+import sys
+import urllib.request
+import urllib.error
+
+path = sys.argv[1]
+allowed = {int(x) for x in sys.argv[2].split(",")}
+url = f"http://localhost:8000{path}"
+req = urllib.request.Request(url, method="GET")
+opener = urllib.request.build_opener(urllib.request.HTTPRedirectHandler())
+try:
+    with opener.open(req, timeout=10) as resp:
+        code = resp.getcode()
+except urllib.error.HTTPError as exc:
+    code = exc.code
+
+if code not in allowed:
+    raise SystemExit(f"{path} returned unexpected status {code}, expected one of {sorted(allowed)}")
+print(f"{path} -> {code}")
+PY
+}
+
+run_smoke_checks() {
+    info "Запускаю smoke-check после обновления..."
+    docker compose -f "${COMPOSE_FILE}" exec -T nginx nginx -t
+    run_app_http_check "/health" "200"
+    run_app_http_check "/api/v1/health/" "200"
+    run_app_http_check "/panel/" "200,302,303,307"
+    run_app_http_check "/cabinet/" "200,302,303,307"
+    success "Smoke-check пройден"
+}
+
 # ── Проверки ──────────────────────────────────────────────────────────────────
 [[ ! -f .env ]] && error ".env не найден. Запустите setup.sh сначала."
-[[ ! -f docker-compose.prod.yml ]] && error "Запустите скрипт из корня проекта."
+[[ ! -f "${COMPOSE_FILE}" ]] && error "Запустите скрипт из корня проекта."
+
+require_cmd git
+require_cmd docker
+require_cmd openssl
+docker compose version >/dev/null 2>&1 || error "Требуется Docker Compose v2"
+check_disk_space
+check_clean_git_tree
 
 DOMAIN=$(grep "^DOMAIN=" .env | cut -d= -f2- | sed 's/[[:space:]]*#.*//' | xargs)
 HTTPS_PORT=$(grep "^HTTPS_PORT=" .env | cut -d= -f2- | xargs)
@@ -28,6 +159,15 @@ if ! grep -q "^JWT_SECRET_KEY=" .env || [[ -z "$(grep "^JWT_SECRET_KEY=" .env | 
     success "JWT_SECRET_KEY добавлен в .env"
 fi
 
+ensure_env_var "TELEGRAM_WEBHOOK_PATH" "/webhook/bot"
+ensure_env_var "SERVER_HOST" "0.0.0.0"
+ensure_env_var "SERVER_PORT" "8000"
+ensure_env_var "DB_HOST" "db"
+ensure_env_var "DB_PORT" "5432"
+ensure_env_var "DB_ENGINE" "postgresql"
+ensure_env_var "VPN_PANEL_TYPE" "marzban"
+ensure_env_var "APP_VERSION" "1.0.0"
+
 info "Домен: ${DOMAIN}, HTTPS порт: ${HTTPS_PORT}"
 
 # ── [1/4] git pull ────────────────────────────────────────────────────────────
@@ -40,22 +180,20 @@ DB_NAME=${DB_NAME:-vpnbot}
 DB_USER=${DB_USER:-postgres}
 BACKUP_FILE="backup_$(date +%Y%m%d_%H%M%S).sql"
 info "Создаю бэкап БД → ${BACKUP_FILE}..."
-docker exec vpn_db pg_dump -U "${DB_USER}" "${DB_NAME}" > "${BACKUP_FILE}" 2>/dev/null && success "Бэкап создан: ${BACKUP_FILE}" || warn "Не удалось создать бэкап (БД не запущена?)"
+if docker ps --format '{{.Names}}' | grep -qx 'vpn_db'; then
+    docker exec vpn_db pg_dump -U "${DB_USER}" "${DB_NAME}" > "${BACKUP_FILE}" 2>/dev/null || error "Не удалось создать бэкап БД"
+    verify_backup_file "${BACKUP_FILE}"
+    success "Бэкап создан: ${BACKUP_FILE}"
+else
+    warn "Контейнер vpn_db не запущен, пропускаю бэкап"
+fi
 
-git pull || error "git pull failed. Проверьте: git status"
+git pull --ff-only || error "git pull --ff-only failed. Проверьте ветку и локальные изменения."
 
 # ── APP_VERSION из pyproject.toml ─────────────────────────────────────────────
 NEW_VER=$(grep '^version' pyproject.toml 2>/dev/null | head -1 | sed 's/.*= *"\(.*\)"/\1/' || true)
 if [[ -n "$NEW_VER" ]]; then
-    if grep -q "^APP_VERSION=" .env; then
-        if sed --version 2>/dev/null | grep -q GNU; then
-            sed -i "s/^APP_VERSION=.*/APP_VERSION=${NEW_VER}/" .env
-        else
-            sed -i '' "s/^APP_VERSION=.*/APP_VERSION=${NEW_VER}/" .env
-        fi
-    else
-        echo "APP_VERSION=${NEW_VER}" >> .env
-    fi
+    replace_env_var "APP_VERSION" "${NEW_VER}"
     info "APP_VERSION → ${NEW_VER}"
 fi
 
@@ -69,11 +207,7 @@ fi
 if [[ "$CURRENT_WEBHOOK" != "$CORRECT_WEBHOOK" ]]; then
     warn "TELEGRAM_WEBHOOK_URL устарел: ${CURRENT_WEBHOOK}"
     info "Обновляю → ${CORRECT_WEBHOOK}"
-    if sed --version 2>/dev/null | grep -q GNU; then
-        sed -i "s|^TELEGRAM_WEBHOOK_URL=.*|TELEGRAM_WEBHOOK_URL=${CORRECT_WEBHOOK}|" .env
-    else
-        sed -i '' "s|^TELEGRAM_WEBHOOK_URL=.*|TELEGRAM_WEBHOOK_URL=${CORRECT_WEBHOOK}|" .env
-    fi
+    replace_env_var "TELEGRAM_WEBHOOK_URL" "${CORRECT_WEBHOOK}"
     success "TELEGRAM_WEBHOOK_URL обновлён"
 fi
 
@@ -157,6 +291,17 @@ http {
             proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto \$scheme;
         }
+        location = /cabinet {
+            return 301 /cabinet/;
+        }
+        location /cabinet/ {
+            limit_req zone=panel burst=20 nodelay;
+            proxy_pass http://vpn_app;
+            proxy_set_header Host              \$host;
+            proxy_set_header X-Real-IP         \$remote_addr;
+            proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+        }
         location /app/ {
             proxy_pass http://vpn_app;
             proxy_set_header Host              \$host;
@@ -219,46 +364,42 @@ success "nginx.conf готов"
 
 # ── [3/4] Пересобираем и запускаем ───────────────────────────────────────────
 info "[3/4] Пересобираю app..."
-docker compose -f docker-compose.prod.yml build app
+docker compose -f "${COMPOSE_FILE}" build app
 
 info "Очищаю старые образы..."
 docker image prune -f --filter "until=168h" >/dev/null 2>&1 || true
 
-info "Перезапускаю контейнеры..."
-docker compose -f docker-compose.prod.yml up -d app
+info "Запускаю базу данных и применяю миграции до старта приложения..."
+docker compose -f "${COMPOSE_FILE}" up -d db
+wait_for_container_health "vpn_db" "PostgreSQL" 18 5
+
+docker compose -f "${COMPOSE_FILE}" run --rm app uv run python fix_alembic.py
+docker compose -f "${COMPOSE_FILE}" run --rm app uv run alembic upgrade head
+success "Миграции БД применены"
+
+info "Перезапускаю контейнеры приложения..."
+docker compose -f "${COMPOSE_FILE}" up -d app
 
 info "Жду готовности app (макс 90 сек)..."
-for i in $(seq 1 18); do
-    STATUS=$(docker inspect --format='{{.State.Health.Status}}' vpn_app 2>/dev/null || echo "unknown")
-    if [[ "$STATUS" == "healthy" ]]; then
-        success "App готов"
-        break
-    fi
-    if [[ $i -eq 18 ]]; then
-        warn "App не стал healthy за 90 сек, продолжаю..."
-        docker compose -f docker-compose.prod.yml logs app --tail=20
-    fi
-    sleep 5
-done
+wait_for_container_health "vpn_app" "App" 18 5
 
 # ── [4/4] Миграции ────────────────────────────────────────────────────────────
-info "[4/4] Применяю миграции БД..."
-docker compose -f docker-compose.prod.yml exec app uv run python fix_alembic.py
-success "Миграции применены"
+info "[4/4] Перезапускаю nginx и выполняю smoke-check..."
 
 # ── Перезапускаем nginx с новым конфигом ─────────────────────────────────────
-docker compose -f docker-compose.prod.yml up -d nginx
+docker compose -f "${COMPOSE_FILE}" up -d nginx
 sleep 2
 # Try reload first, fallback to restart
-docker compose -f docker-compose.prod.yml exec nginx nginx -s reload 2>/dev/null || docker compose -f docker-compose.prod.yml restart nginx
+docker compose -f "${COMPOSE_FILE}" exec nginx nginx -s reload 2>/dev/null || docker compose -f "${COMPOSE_FILE}" restart nginx
 sleep 3
 NGINX_STATUS=$(docker inspect --format='{{.State.Status}}' vpn_nginx 2>/dev/null || echo "unknown")
 if [[ "$NGINX_STATUS" == "running" ]]; then
     success "nginx запущен"
 else
     warn "nginx не запустился, проверьте логи:"
-    docker compose -f docker-compose.prod.yml logs nginx --tail=15
+    docker compose -f "${COMPOSE_FILE}" logs nginx --tail=15
 fi
+run_smoke_checks
 
 # ── Итог ──────────────────────────────────────────────────────────────────────
 echo ""
