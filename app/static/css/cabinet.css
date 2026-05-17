@@ -692,6 +692,8 @@ textarea.inp { resize: vertical; }
   .lg { grid-template-columns: 1fr; }
   .r3 { grid-template-columns: 1fr 1fr; }
   .r2 { grid-template-columns: 1fr; }
+  .r3, .r2, .rf, .pg { align-items: start; }
+  .r3 > *, .r2 > *, .rf > * { min-height: auto; }
 }
 
 .mini-mode .nav-inner {
@@ -732,6 +734,8 @@ textarea.inp { resize: vertical; }
   .ttl { flex-direction: column; align-items: flex-start; }
   .r3 { grid-template-columns: 1fr; }
   .pay, .tr, .pr { flex-direction: column; align-items: stretch; }
+  .r3, .r2, .rf, .pg { align-items: start; }
+  .r3 > *, .r2 > *, .rf > * { min-height: auto; }
   .cp-actions { grid-template-columns: 1fr; }
   .pg { grid-template-columns: 1fr; }
   .tg { grid-template-columns: repeat(3, 1fr); }
