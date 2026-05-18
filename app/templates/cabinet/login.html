@@ -44,8 +44,12 @@
         {% set bu = settings.get('bot_username', '') %}
         <div id="web-login" class="s" {% if is_mini_app %}style="display:none"{% endif %}>
           {% if telegram_client_id %}
-          <div style="display:flex;justify-content:center">
-            <button id="login-btn" class="btn btn-p btn-w" onclick="oidcLogin()"><i class="bi bi-telegram"></i> Войти через Telegram</button>
+          <div id="telegram-login" style="display:flex;justify-content:center">
+            <script async src="https://telegram.org/js/telegram-widget.js?22"
+              data-telegram-login="{{ telegram_client_id }}"
+              data-size="large"
+              data-radius="14"
+              data-request-access="write"></script>
           </div>
           {% elif bu %}
           <div id="telegram-login" style="display:flex;justify-content:center">
@@ -157,34 +161,11 @@ function onTelegramAuth(user) {
     .then(function(r) { if (r.data.ok) { window.location.replace(cabinetUrl(r.data.redirect || '/cabinet/')); } else { showToast(r.data.message || 'Ошибка','error'); showWebLoginFallback(); }})
     .catch(function() { showToast('Ошибка сети','error'); showWebLoginFallback(); });
 }
-function onOidcResult(token) {
-  setLoginState('Проверка...');
-  cabinetJson('/cabinet/auth', {method:'POST', body:JSON.stringify({id_token:token})})
-    .then(function(r) { if (r.data.ok) { window.location.replace(cabinetUrl(r.data.redirect || '/cabinet/')); } else { showToast(r.data.message || 'Ошибка','error'); showWebLoginFallback(); }})
-    .catch(function() { showToast('Ошибка сети','error'); showWebLoginFallback(); });
-}
-{% if telegram_client_id %}
-var TG_CLIENT_ID = {{ telegram_client_id }};
-var TG_ORIGIN = window.location.origin;
-function oidcLogin() {
-  var w = 550, h = 470;
-  var left = Math.max(0, (screen.width - w) / 2);
-  var top = Math.max(0, (screen.height - h) / 2);
-  var url = 'https://oauth.telegram.org/auth?client_id=' + encodeURIComponent(TG_CLIENT_ID) + '&origin=' + encodeURIComponent(TG_ORIGIN) + '&redirect_uri=' + encodeURIComponent(TG_ORIGIN + '/cabinet/') + '&request_access=write';
-  var popup = window.open(url, 'telegram_oidc', 'width=' + w + ',height=' + h + ',left=' + left + ',top=' + top);
-  if (!popup) { showToast('Разрешите всплывающие окна для этого сайта','error'); return; }
-}
-{% endif %}
 (function() {
   var origin = 'https://oauth.telegram.org';
   window.addEventListener('message', function(e) {
     if (e.origin !== origin) return;
-    try { var d = JSON.parse(e.data); } catch(err) { return; }
-    if (d.event === 'auth_user' && d.auth_data) { onTelegramAuth(d.auth_data); return; }
-    if (d.event === 'auth_result' && d.result) {
-      if (d.result.id_token) { onOidcResult(d.result.id_token); }
-      else if (d.result.id) { onTelegramAuth(d.result); }
-    }
+    try { var d = JSON.parse(e.data); if (d.event === 'auth_user' && d.auth_data) onTelegramAuth(d.auth_data); } catch(err) {}
   });
 })();
 {% endblock %}
