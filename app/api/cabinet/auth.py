@@ -92,11 +92,8 @@ def _verify_telegram_init_data(init_data: str) -> dict | None:
         return None
 
 
-def _verify_telegram_login(data: dict) -> dict | None:
+def _verify_telegram_login(data: dict, secret: str | None = None) -> dict | None:
     try:
-        bot_token = config.telegram.telegram_bot_token.get_secret_value()
-        secret_key = hashlib.sha256(bot_token.encode()).digest()
-
         data = dict(data)
         hash_val = data.pop("hash", "")
         if not hash_val:
@@ -105,9 +102,17 @@ def _verify_telegram_login(data: dict) -> dict | None:
         items = sorted(data.items(), key=lambda x: x[0])
         data_check_string = "\n".join(f"{k}={v}" for k, v in items)
 
-        computed = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(computed, hash_val):
-            return None
+        if secret:
+            secret_key = hashlib.sha256(secret.encode()).digest()
+            computed = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+            if not hmac.compare_digest(computed, hash_val):
+                return None
+        else:
+            bot_token = config.telegram.telegram_bot_token.get_secret_value()
+            secret_key = hashlib.sha256(bot_token.encode()).digest()
+            computed = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+            if not hmac.compare_digest(computed, hash_val):
+                return None
 
         auth_date = int(data.get("auth_date", 0))
         if datetime.now(timezone.utc).timestamp() - auth_date > 86400:
@@ -239,6 +244,10 @@ async def cabinet_auth(request: Request, db: AsyncSession = Depends(get_db)):
             return JSONResponse({"ok": False, "message": "Auth verification failed"}, status_code=401)
     else:
         tg_data = _verify_telegram_login(body)
+        if not tg_data:
+            client_secret = config.telegram.telegram_client_secret.get_secret_value()
+            if client_secret:
+                tg_data = _verify_telegram_login(body, secret=client_secret)
         if not tg_data:
             return JSONResponse({"ok": False, "message": "Auth verification failed"}, status_code=401)
         try:
