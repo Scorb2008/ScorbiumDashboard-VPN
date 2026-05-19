@@ -516,6 +516,7 @@ async def test_marzban(request: Request, db: AsyncSession = Depends(get_db)):
 async def telegram_groups_page(request: Request, db: AsyncSession = Depends(get_db)):
     _require_permission(request, "system")
     ctx = await _base_ctx(request, db, "telegram")
+    ctx["bot_settings"] = await BotSettingsService(db).get_all()
     try:
         from app.services.pasarguard.pasarguard import get_vpn_panel
         groups = await get_vpn_panel().get_groups()
