@@ -44,21 +44,26 @@
         {% set bu = settings.get('bot_username', '') %}
         <div id="web-login" class="s" {% if is_mini_app %}style="display:none"{% endif %}>
           {% if telegram_client_id %}
-          <div id="telegram-login" style="display:flex;justify-content:center">
-            <script async src="https://telegram.org/js/telegram-widget.js?22"
-              data-telegram-login="{{ telegram_client_id }}"
-              data-size="large"
-              data-radius="14"
-              data-request-access="write"></script>
-          </div>
+          <div id="telegram-login" style="display:flex;justify-content:center;min-height:40px"></div>
+          <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="{{ telegram_client_id }}" data-size="large" data-radius="14" data-request-access="write" data-userpic="false" data-onauth="onTelegramAuth(user)" data-auth-url="{{ request.url._scheme }}://{{ request.url.hostname }}{% if request.url.port and request.url.port not in (80,443) %}:{{ request.url.port }}{% endif %}/cabinet/auth"></script>
           {% elif bu %}
-          <div id="telegram-login" style="display:flex;justify-content:center">
-            <script async src="/static/js/telegram-widget.js"
-              data-telegram-login="{{ bu }}"
-              data-size="large"
-              data-radius="14"
-              data-request-access="write"></script>
-          </div>
+          <div id="telegram-login" style="display:flex;justify-content:center;min-height:40px"></div>
+          <script>
+          (function(){
+            var el = document.getElementById('telegram-login');
+            if (!el) return;
+            var iframe = document.createElement('iframe');
+            var src = 'https://oauth.telegram.org/embed/{{ bu }}?origin=' + encodeURIComponent(window.location.origin) + '&return_to=' + encodeURIComponent(window.location.href) + '&size=large&request_access=write&radius=14';
+            iframe.src = src;
+            iframe.width = 238;
+            iframe.height = 40;
+            iframe.setAttribute('frameborder', '0');
+            iframe.style.border = 'none';
+            iframe.style.overflow = 'hidden';
+            iframe.style.colorScheme = 'light dark';
+            el.appendChild(iframe);
+          })();
+          </script>
           {% else %}
           <div class="ib"><i class="bi bi-exclamation-triangle cr"></i><span>Вход через Telegram не настроен</span></div>
           {% endif %}
