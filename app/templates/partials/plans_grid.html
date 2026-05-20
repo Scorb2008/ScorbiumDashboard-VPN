@@ -30,8 +30,8 @@
         </button>
         <button class="btn btn-sm btn-outline-secondary"
           hx-post="/panel/plans/{{ plan.id }}/toggle"
-          hx-target="#plans-grid-container"
-          hx-swap="innerHTML"
+          hx-target="#plan-{{ plan.id }}"
+          hx-swap="outerHTML"
           title="{{ 'Отключить' if plan.is_active else 'Включить' }}">
           <i class="bi bi-{{ 'pause' if plan.is_active else 'play' }}"></i>
         </button>

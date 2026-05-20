@@ -1,5 +1,4 @@
 """Plans management routes."""
-import html
 from decimal import Decimal
 from typing import Optional
 
@@ -103,30 +102,11 @@ async def toggle_plan_view(
         resp = Response(status_code=404)
         _toast(resp, 'Тариф не найден', 'error')
         return resp
-    status_label = "active" if plan.is_active else "closed"
-    status_text = "Активен" if plan.is_active else "Отключён"
-    icon = "pause" if plan.is_active else "play"
-    h = html.escape
-    html_resp = f"""<div class="col-md-6 col-xl-4" id="plan-{plan.id}">
-      <div class="card h-100 p-3">
-        <div class="d-flex align-items-start justify-content-between mb-2">
-          <div><div class="fw-bold text-white">{h(plan.name)}</div>
-          <code style="font-size:.7rem;color:#8892a4">{h(plan.slug)}</code></div>
-          <span class="badge badge-custom badge-{status_label}">{status_text}</span>
-        </div>
-        <div class="d-flex gap-3 mb-3" style="font-size:.8rem;color:#8892a4">
-          <span><i class="bi bi-clock me-1"></i>{h(str(plan.duration_days))} дн.</span>
-          <span><i class="bi bi-currency-ruble me-1"></i>{h(str(plan.price))} {h(plan.currency)}</span>
-        </div>
-        <div class="d-flex gap-2 mt-auto">
-          <button class="btn btn-sm btn-outline-secondary"
-            hx-post="/panel/plans/{plan.id}/toggle" hx-target="#plan-{plan.id}" hx-swap="outerHTML">
-            <i class="bi bi-{icon}"></i>
-          </button>
-        </div>
-      </div>
-    </div>"""
-    resp = HTMLResponse(html_resp)
+    await db.commit()
+    plans = await PlanService(db).get_all()
+    resp = templates.TemplateResponse(
+        "partials/plans_grid.html", {"request": request, "plans": plans}
+    )
     _toast(resp, f"Тариф {'включён' if plan.is_active else 'отключён'}")
     return resp
 
@@ -137,7 +117,11 @@ async def delete_plan_view(
 ):
     _require_permission(request, "plans")
     await PlanService(db).delete(plan_id)
-    resp = HTMLResponse("")
+    await db.commit()
+    plans = await PlanService(db).get_all()
+    resp = templates.TemplateResponse(
+        "partials/plans_grid.html", {"request": request, "plans": plans}
+    )
     _toast(resp, "Тариф удалён")
     return resp
 
