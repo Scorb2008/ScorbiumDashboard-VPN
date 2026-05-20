@@ -226,12 +226,18 @@ async function bootMiniAppLogin() {
   oidcScript.onload = initTelegramOidc;
   oidcScript.onerror = function() { showLegacyTelegramLogin(); };
   document.head.appendChild(oidcScript);
+  if (!isMiniAppRuntime()) {
+    document.getElementById('login-status').style.display = 'none';
+  }
+  {% else %}
+  if (!isMiniAppRuntime()) {
+    showWebLoginFallback();
+  }
   {% endif %}
   if (isMiniAppRuntime()) {
     bootMiniAppLogin();
     return;
   }
-  showWebLoginFallback();
 })();
 function onTelegramAuth(user) {
   setLoginState('Проверка...');
