@@ -728,11 +728,9 @@
         </div>
         <div class="d-flex align-items-center gap-2">
           <span id="yk-status" class="badge badge-custom {% if ps.yookassa_enabled %}badge-active{% else %}badge-closed{% endif %}" style="font-size:.65rem">{% if ps.yookassa_enabled %}Вкл{% else %}Выкл{% endif %}</span>
-          {% if ps.yookassa_configured %}
           <div class="form-check form-switch mb-0" style="transform:scale(.75)">
-            <input class="form-check-input" type="checkbox" id="yk-toggle" {% if ps.yookassa_toggle %}checked{% endif %} onchange="psToggle('ps_yookassa_enabled', this.checked, 'yk')">
+            <input class="form-check-input" type="checkbox" id="yk-toggle" {% if ps.yookassa_toggle %}checked{% endif %} {% if not ps.yookassa_configured %}disabled{% endif %} onchange="psToggle('ps_yookassa_enabled', this.checked, 'yk')">
           </div>
-          {% endif %}
         </div>
       </div>
       <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.75rem;padding-left:36px">
@@ -783,11 +781,9 @@
         </div>
         <div class="d-flex align-items-center gap-2">
           <span id="cb-status" class="badge badge-custom {% if ps.cryptobot_enabled %}badge-active{% else %}badge-closed{% endif %}" style="font-size:.65rem">{% if ps.cryptobot_enabled %}Вкл{% else %}Выкл{% endif %}</span>
-          {% if ps.cryptobot_configured %}
           <div class="form-check form-switch mb-0" style="transform:scale(.75)">
-            <input class="form-check-input" type="checkbox" id="cb-toggle" {% if ps.cryptobot_toggle %}checked{% endif %} onchange="psToggle('ps_cryptobot_enabled', this.checked, 'cb')">
+            <input class="form-check-input" type="checkbox" id="cb-toggle" {% if ps.cryptobot_toggle %}checked{% endif %} {% if not ps.cryptobot_configured %}disabled{% endif %} onchange="psToggle('ps_cryptobot_enabled', this.checked, 'cb')">
           </div>
-          {% endif %}
         </div>
       </div>
       <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.75rem;padding-left:36px">
@@ -827,11 +823,9 @@
         </div>
         <div class="d-flex align-items-center gap-2">
           <span id="fk-status" class="badge badge-custom {% if ps.freekassa_enabled %}badge-active{% else %}badge-closed{% endif %}" style="font-size:.65rem">{% if ps.freekassa_enabled %}Вкл{% else %}Выкл{% endif %}</span>
-          {% if ps.freekassa_configured %}
           <div class="form-check form-switch mb-0" style="transform:scale(.75)">
-            <input class="form-check-input" type="checkbox" id="fk-toggle" {% if ps.freekassa_enabled %}checked{% endif %} onchange="psToggle('ps_freekassa_enabled', this.checked, 'fk')">
+            <input class="form-check-input" type="checkbox" id="fk-toggle" {% if ps.freekassa_enabled %}checked{% endif %} {% if not ps.freekassa_configured %}disabled{% endif %} onchange="psToggle('ps_freekassa_enabled', this.checked, 'fk')">
           </div>
-          {% endif %}
         </div>
       </div>
       <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.75rem;padding-left:36px">
@@ -896,11 +890,9 @@
         </div>
         <div class="d-flex align-items-center gap-2">
           <span id="ak-status" class="badge badge-custom {% if ps.aikassa_enabled %}badge-active{% else %}badge-closed{% endif %}" style="font-size:.65rem">{% if ps.aikassa_enabled %}Вкл{% else %}Выкл{% endif %}</span>
-          {% if ps.aikassa_configured %}
           <div class="form-check form-switch mb-0" style="transform:scale(.75)">
-            <input class="form-check-input" type="checkbox" id="ak-toggle" {% if ps.aikassa_enabled %}checked{% endif %} onchange="psToggle('ps_aikassa_enabled', this.checked, 'ak')">
+            <input class="form-check-input" type="checkbox" id="ak-toggle" {% if ps.aikassa_enabled %}checked{% endif %} {% if not ps.aikassa_configured %}disabled{% endif %} onchange="psToggle('ps_aikassa_enabled', this.checked, 'ak')">
           </div>
-          {% endif %}
         </div>
       </div>
       <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.75rem;padding-left:36px">
@@ -945,11 +937,9 @@
         </div>
         <div class="d-flex align-items-center gap-2">
           <span id="pl2-status" class="badge badge-custom {% if ps.platega_enabled %}badge-active{% else %}badge-closed{% endif %}" style="font-size:.65rem">{% if ps.platega_enabled %}Вкл{% else %}Выкл{% endif %}</span>
-          {% if ps.platega_configured %}
           <div class="form-check form-switch mb-0" style="transform:scale(.75)">
-            <input class="form-check-input" type="checkbox" id="pl2-toggle" {% if ps.platega_toggle %}checked{% endif %} onchange="psToggle('ps_platega_enabled', this.checked, 'pl2')">
+            <input class="form-check-input" type="checkbox" id="pl2-toggle" {% if ps.platega_toggle %}checked{% endif %} {% if not ps.platega_configured %}disabled{% endif %} onchange="psToggle('ps_platega_enabled', this.checked, 'pl2')">
           </div>
-          {% endif %}
         </div>
       </div>
       <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.75rem;padding-left:36px">
@@ -996,11 +986,9 @@
         </div>
         <div class="d-flex align-items-center gap-2">
           <span id="pl-status" class="badge badge-custom {% if ps.paypalych_enabled %}badge-active{% else %}badge-closed{% endif %}" style="font-size:.65rem">{% if ps.paypalych_enabled %}Вкл{% else %}Выкл{% endif %}</span>
-          {% if ps.paypalych_configured %}
           <div class="form-check form-switch mb-0" style="transform:scale(.75)">
-            <input class="form-check-input" type="checkbox" id="pl-toggle" {% if ps.paypalych_toggle %}checked{% endif %} onchange="psToggle('ps_paypalych_enabled', this.checked, 'pl')">
+            <input class="form-check-input" type="checkbox" id="pl-toggle" {% if ps.paypalych_toggle %}checked{% endif %} {% if not ps.paypalych_configured %}disabled{% endif %} onchange="psToggle('ps_paypalych_enabled', this.checked, 'pl')">
           </div>
-          {% endif %}
         </div>
       </div>
       <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.75rem;padding-left:36px">
@@ -1382,15 +1370,14 @@ function handlePsResponse(event, key) {
       }
     });
 
-    // Show/hide toggle switch
+    // Enable/disable toggle switch based on saved configuration
     const toggleWrap = card.querySelector('.form-check.form-switch');
     if (toggleWrap) {
-      if (configured) {
-        toggleWrap.style.display = '';
-        const cb = toggleWrap.querySelector('.form-check-input');
-        if (cb && data.enabled !== undefined) cb.checked = data.enabled;
-      } else {
-        toggleWrap.style.display = 'none';
+      const cb = toggleWrap.querySelector('.form-check-input');
+      if (cb) {
+        cb.disabled = !configured;
+        if (!configured) cb.checked = false;
+        else if (data.enabled !== undefined) cb.checked = data.enabled;
       }
     }
 

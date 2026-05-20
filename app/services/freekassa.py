@@ -144,6 +144,15 @@ class FreeKassaService:
         """Получить баланс магазина — используется для проверки подключения."""
         return await self._post("balance", {})
 
+    async def test_connection(self) -> dict:
+        """Проверяет доступность API и валидность сохранённых ключей."""
+        data = await self.get_balance()
+        if not data:
+            return {"ok": False, "error": "FreeKassa API не ответила"}
+        if data.get("type") == "error":
+            return {"ok": False, "error": data.get("msg") or data.get("message") or "Ошибка FreeKassa API"}
+        return {"ok": True, "data": data}
+
     async def create_order(
         self,
         payment_id: str,

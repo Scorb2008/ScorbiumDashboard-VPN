@@ -129,9 +129,10 @@ async def ps_save_yookassa(request: Request, db: AsyncSession = Depends(get_db))
 
     saved_shop = await svc.get("yookassa_shop_id_override") or ""
     saved_key = bool(await svc.get("yookassa_secret_key_override"))
-    enabled = bool(saved_shop and saved_key)
+    configured = bool(saved_shop and saved_key)
+    enabled = (await svc.get("ps_yookassa_enabled")) == "1"
 
-    return JSONResponse({"ok": True, "message": "ЮКасса сохранена", "configured": enabled, "enabled": enabled})
+    return JSONResponse({"ok": True, "message": "ЮКасса сохранена", "configured": configured, "enabled": enabled})
 
 
 @router.post("/payment-systems/yookassa/test")
@@ -204,8 +205,10 @@ async def ps_save_cryptobot(request: Request, db: AsyncSession = Depends(get_db)
     await svc.set("cryptobot_token", token_raw)
     await db.commit()
 
+    enabled = (await svc.get("ps_cryptobot_enabled")) == "1"
+
     return JSONResponse(
-        {"ok": True, "message": "CryptoBot токен сохранён", "configured": True, "enabled": True}
+        {"ok": True, "message": "CryptoBot токен сохранён", "configured": True, "enabled": enabled}
     )
 
 
@@ -269,13 +272,31 @@ async def ps_toggle(request: Request, db: AsyncSession = Depends(get_db)):
     if key not in _ALLOWED_TOGGLE_KEYS:
         return JSONResponse({"error": "Invalid key"}, status_code=400)
 
+    if value == "1":
+        svc = BotSettingsService(db)
+        config_checks = {
+            "ps_yookassa_enabled": bool((await svc.get("yookassa_shop_id_override") or "").strip() and (await svc.get("yookassa_secret_key_override") or "").strip()),
+            "ps_cryptobot_enabled": bool((await svc.get("cryptobot_token") or "").strip()),
+            "ps_freekassa_enabled": bool((await svc.get("freekassa_shop_id") or "").strip() and (await svc.get("freekassa_api_key") or "").strip()),
+            "ps_aikassa_enabled": bool((await svc.get("aikassa_shop_id") or "").strip() and (await svc.get("aikassa_token") or "").strip()),
+            "ps_platega_enabled": bool((await svc.get("platega_merchant_id") or "").strip() and (await svc.get("platega_secret") or "").strip()),
+            "ps_paypalych_enabled": bool((await svc.get("paypalych_api_token") or "").strip()),
+            "ps_sbp_enabled": bool((await svc.get("yookassa_shop_id_override") or "").strip() and (await svc.get("yookassa_secret_key_override") or "").strip()),
+            "ps_stars_enabled": True,
+        }
+        if not config_checks.get(key, False):
+            return JSONResponse(
+                {"ok": False, "message": "Сначала сохраните и настройте платёжную систему"},
+                status_code=400,
+            )
+
     await BotSettingsService(db).set(key, value)
     await db.commit()
 
     from app.services.health import health_service
     health_service._alert_cooldowns.clear()
 
-    return JSONResponse({"ok": True})
+    return JSONResponse({"ok": True, "message": "Настройка обновлена"})
 
 
 @router.post("/payment-systems/freekassa")
@@ -297,7 +318,17 @@ async def ps_save_freekassa(request: Request, db: AsyncSession = Depends(get_db)
     if word2:
         await svc.set("freekassa_secret_word_2", word2)
     await db.commit()
-    return JSONResponse({"ok": True, "message": "FreeKassa сохранена", "configured": bool(shop_id and api_key)})
+    saved_shop = (await svc.get("freekassa_shop_id") or "").strip()
+    saved_key = (await svc.get("freekassa_api_key") or "").strip()
+    enabled = (await svc.get("ps_freekassa_enabled")) == "1"
+    return JSONResponse(
+        {
+            "ok": True,
+            "message": "FreeKassa сохранена",
+            "configured": bool(saved_shop and saved_key),
+            "enabled": enabled,
+        }
+    )
 
 
 @router.post("/payment-systems/freekassa/test")
@@ -314,7 +345,9 @@ async def ps_test_freekassa(request: Request, db: AsyncSession = Depends(get_db)
 
     try:
         from app.services.freekassa import FreeKassaService
-        fk = FreeKassaService(shop_id, api_key)
+        word1 = (await svc.get("freekassa_secret_word_1") or "").strip()
+        word2 = (await svc.get("freekassa_secret_word_2") or "").strip()
+        fk = FreeKassaService(shop_id, api_key, word1, word2)
         result = await fk.test_connection()
         if result.get("ok"):
             return JSONResponse({"ok": True, "message": "✅ FreeKassa подключена"})
@@ -340,7 +373,17 @@ async def ps_save_aikassa(request: Request, db: AsyncSession = Depends(get_db)):
     if token:
         await svc.set("aikassa_token", token)
     await db.commit()
-    return JSONResponse({"ok": True, "message": "AiKassa сохранена", "configured": bool(shop_id and token)})
+    saved_shop = (await svc.get("aikassa_shop_id") or "").strip()
+    saved_token = (await svc.get("aikassa_token") or "").strip()
+    enabled = (await svc.get("ps_aikassa_enabled")) == "1"
+    return JSONResponse(
+        {
+            "ok": True,
+            "message": "AiKassa сохранена",
+            "configured": bool(saved_shop and saved_token),
+            "enabled": enabled,
+        }
+    )
 
 
 @router.post("/payment-systems/aikassa/test")
@@ -449,7 +492,17 @@ async def ps_save_platega(request: Request, db: AsyncSession = Depends(get_db)):
     if secret:
         await svc.set("platega_secret", secret)
     await db.commit()
-    return JSONResponse({"ok": True, "message": "Platega сохранена", "configured": bool(merchant_id and secret)})
+    saved_merchant = (await svc.get("platega_merchant_id") or "").strip()
+    saved_secret = (await svc.get("platega_secret") or "").strip()
+    enabled = (await svc.get("ps_platega_enabled")) == "1"
+    return JSONResponse(
+        {
+            "ok": True,
+            "message": "Platega сохранена",
+            "configured": bool(saved_merchant and saved_secret),
+            "enabled": enabled,
+        }
+    )
 
 
 @router.post("/payment-systems/platega/test")
