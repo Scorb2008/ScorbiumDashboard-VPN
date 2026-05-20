@@ -167,6 +167,18 @@
               </button>
             </div>
             {% endif %}
+
+            {% if settings.get('ps_platega_enabled', '0') == '1' %}
+            <div class="cab-payment-method">
+              <div>
+                <strong>Platega</strong>
+                <span>Оплата через платёжный шлюз Platega.io с возвратом обратно в кабинет.</span>
+              </div>
+              <button class="btn btn-o" type="button" onclick="payPlatega({{ plan.id }})">
+                <i class="bi bi-credit-card"></i> Platega
+              </button>
+            </div>
+            {% endif %}
           </div>
         </div>
       </article>
@@ -311,6 +323,29 @@ async function paySbp(id) {
     if (promoCode) rememberPlansPromoCode(promoCode);
     openExternal(r.data.payment_url);
     showToast('Открыли оплату через СБП. После завершения вернитесь в кабинет.', 'info');
+  } catch (e) {
+    showToast('Ошибка сети', 'error');
+  }
+}
+
+async function payPlatega(id) {
+  var promoCode = getPlansPromoCode();
+  var fd = new FormData();
+  fd.append('plan_id', id);
+  if (promoCode) fd.append('promo_code', promoCode);
+  try {
+    var r = await cabinetJson('/cabinet/pay/platega', {method:'POST', body:fd});
+    if (!r.data.ok) {
+      showToast(r.data.message || 'Ошибка создания платежа', 'error');
+      return;
+    }
+    if (r.data.status === 'succeeded') {
+      await handlePaymentResult(r.data);
+      return;
+    }
+    if (promoCode) rememberPlansPromoCode(promoCode);
+    openExternal(r.data.payment_url);
+    showToast('Открыли оплату через Platega. После завершения вернитесь в кабинет.', 'info');
   } catch (e) {
     showToast('Ошибка сети', 'error');
   }

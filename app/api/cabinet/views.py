@@ -21,6 +21,7 @@ from app.services.support import SupportService
 from app.services.referral import ReferralService
 from app.services.bot_settings import BotSettingsService
 from app.services.branding_asset import BrandingAssetService
+from app.services.platega import PlategaService
 from app.services.yookassa import YookassaService
 from app.models.payment import PaymentProvider, PaymentStatus
 from app.models.promo import PromoType
@@ -302,6 +303,115 @@ async def _create_cabinet_yookassa_payment(
         })
     except Exception as e:
         log.error("Cabinet Yookassa payment error (%s): %s", provider.value, e)
+        await db.rollback()
+        return JSONResponse({"ok": False, "message": "Не удалось создать платёж"}, status_code=502)
+
+
+async def _create_cabinet_platega_payment(
+    request: Request,
+    db: AsyncSession,
+    *,
+    user,
+    plan,
+    promo_code: str,
+):
+    promo = None
+    if promo_code.strip():
+        promo, promo_error = await _resolve_discount_promo(
+            db,
+            user_id=user.id,
+            plan_id=plan.id,
+            promo_code=promo_code,
+        )
+        if promo_error:
+            return JSONResponse({"ok": False, "message": promo_error}, status_code=400)
+
+    charged_amount, discount_amount = _apply_discount(plan.price, promo)
+    settings = await BotSettingsService(db).get_all()
+    platega = PlategaService.from_settings(settings)
+    if not platega:
+        return JSONResponse({"ok": False, "message": "Platega не настроена"}, status_code=400)
+
+    try:
+        payment_provider = (
+            PaymentProvider.BALANCE if charged_amount == Decimal("0.00") else PaymentProvider.PLATEGA
+        )
+        payment_meta = {
+            "plan_id": plan.id,
+            "kind": "cabinet_plan_purchase",
+            "original_amount": str(_normalize_money(plan.price)),
+            "final_amount": str(charged_amount),
+        }
+        if promo:
+            payment_meta["promo_code"] = promo.code
+            payment_meta["discount_value"] = str(promo.value)
+            payment_meta["discount_amount"] = str(discount_amount)
+
+        payment = await PaymentService(db).create_pending(
+            user.id,
+            plan,
+            payment_provider,
+            amount=charged_amount,
+            meta=json.dumps(payment_meta),
+        )
+
+        if promo:
+            consumed = await PromoService(db).consume(promo, user.id, plan_id=plan.id)
+            if not consumed:
+                await db.rollback()
+                return JSONResponse({"ok": False, "message": "Промокод уже использован"}, status_code=400)
+
+        if charged_amount == Decimal("0.00"):
+            confirmed = await PaymentService(db).confirm_once(payment.id, f"promo_free_{payment.id}")
+            if not confirmed.payment:
+                await db.rollback()
+                return JSONResponse({"ok": False, "message": "Ошибка при оформлении"}, status_code=500)
+            _, key, payment_error = await _finalize_subscription_payment(
+                db, payment, f"promo_free_{payment.id}"
+            )
+            if payment_error or not key:
+                await db.rollback()
+                return JSONResponse({"ok": False, "message": "Ошибка при создании ключа"}, status_code=500)
+            await db.commit()
+            return JSONResponse({
+                "ok": True,
+                "status": "succeeded",
+                "message": "Промокод полностью покрыл стоимость тарифа",
+                "access_url": key.access_url,
+                "redirect": "/cabinet/keys",
+            })
+
+        return_url = _absolute_cabinet_url(request, "/cabinet/plans", payment_id=payment.id)
+        payload = f"pl_{payment.id}_{plan.id}"
+        transaction = await platega.create_transaction(
+            amount=float(charged_amount),
+            currency=str(plan.currency or "RUB"),
+            description=f"VPN подписка — {plan.name}",
+            return_url=return_url,
+            failed_url=return_url,
+            payload_data=payload,
+            user_telegram_id=str(user.id),
+            user_id=str(user.id),
+        )
+        if not transaction.get("ok") or not transaction.get("url"):
+            await db.rollback()
+            return JSONResponse(
+                {"ok": False, "message": transaction.get("error", "Не удалось создать платёж Platega")},
+                status_code=502,
+            )
+
+        payment.external_id = transaction.get("transaction_id") or payment.external_id
+        await db.commit()
+        return JSONResponse({
+            "ok": True,
+            "status": "pending",
+            "message": "Ссылка на оплату через Platega создана",
+            "payment_id": payment.id,
+            "payment_url": transaction.get("url"),
+            "return_url": return_url,
+        })
+    except Exception as e:
+        log.error("Cabinet Platega payment error: %s", e)
         await db.rollback()
         return JSONResponse({"ok": False, "message": "Не удалось создать платёж"}, status_code=502)
 
@@ -900,6 +1010,34 @@ async def cabinet_pay_yookassa_sbp(
     )
 
 
+@router.post("/cabinet/pay/platega")
+async def cabinet_pay_platega(
+    request: Request,
+    plan_id: int = Form(0),
+    promo_code: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await _require_active_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False, "message": "Not authenticated"}, status_code=401)
+
+    settings = await BotSettingsService(db).get_all()
+    if settings.get("ps_platega_enabled", "0") != "1":
+        return JSONResponse({"ok": False, "message": "Оплата через Platega сейчас недоступна"}, status_code=400)
+
+    plan = await PlanService(db).get_by_id(plan_id)
+    if not plan or not plan.is_active:
+        return JSONResponse({"ok": False, "message": "Тариф не найден"}, status_code=404)
+
+    return await _create_cabinet_platega_payment(
+        request,
+        db,
+        user=user,
+        plan=plan,
+        promo_code=promo_code,
+    )
+
+
 @router.post("/cabinet/topup/yookassa")
 async def cabinet_topup_yookassa(
     request: Request,
@@ -1015,6 +1153,57 @@ async def cabinet_pay_status(
             "status": "processing",
             "message": "Оплата получена, ключ ещё подготавливается",
             "redirect": "/cabinet/keys",
+        })
+
+    if payment.provider == PaymentProvider.PLATEGA.value and payment.external_id:
+        try:
+            settings = await BotSettingsService(db).get_all()
+            platega = PlategaService.from_settings(settings)
+            if not platega:
+                return JSONResponse({"ok": False, "message": "Platega не настроена"}, status_code=502)
+            remote = await platega.get_transaction_status(payment.external_id)
+        except Exception as e:
+            log.warning("Cabinet Platega status check failed: {}", e)
+            return JSONResponse({"ok": False, "message": "Не удалось проверить статус платежа"}, status_code=502)
+
+        remote_status = str(remote.get("status", "")).upper()
+        if remote.get("ok") and remote_status == "CONFIRMED":
+            payment, key, payment_error = await _finalize_subscription_payment(
+                db,
+                payment,
+                payment.external_id,
+            )
+            await db.commit()
+            if payment_error:
+                return JSONResponse({"ok": False, "status": "failed", "message": payment_error}, status_code=400)
+            if key:
+                return JSONResponse({
+                    "ok": True,
+                    "status": "succeeded",
+                    "message": "Оплата подтверждена, подписка готова",
+                    "access_url": key.access_url,
+                    "redirect": "/cabinet/keys",
+                })
+            return JSONResponse({
+                "ok": True,
+                "status": "processing",
+                "message": "Оплата получена, ключ ещё подготавливается",
+                "redirect": "/cabinet/keys",
+            })
+
+        if remote_status in {"FAILED", "CANCELLED", "EXPIRED"}:
+            await PaymentService(db).fail(payment.id)
+            await db.commit()
+            return JSONResponse({
+                "ok": False,
+                "status": "failed",
+                "message": "Платёж отменён или истёк",
+            })
+
+        return JSONResponse({
+            "ok": True,
+            "status": payment.status,
+            "message": "Платёж ещё ожидает подтверждения",
         })
 
     if payment.provider not in (
