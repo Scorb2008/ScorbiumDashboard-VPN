@@ -22,6 +22,13 @@ _SAFE_PATHS = {
     "/health",
 }
 
+_CABINET_PUBLIC_PATHS = {
+    "/cabinet/auth",
+    "/cabinet/auth/",
+    "/cabinet/logout",
+    "/cabinet/logout/",
+}
+
 
 def generate_csrf_token() -> str:
     return secrets.token_urlsafe(CSRF_LENGTH)
@@ -39,7 +46,7 @@ def _should_skip(request: Request) -> bool:
         return True
     if path.startswith("/static/"):
         return True
-    if path.startswith("/cabinet/"):
+    if path in _CABINET_PUBLIC_PATHS:
         return True
     if path.startswith("/docs") or path.startswith("/redoc") or path.startswith("/openapi"):
         return True

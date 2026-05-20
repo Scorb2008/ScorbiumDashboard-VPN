@@ -721,9 +721,21 @@ async def cabinet_trial_activate(request: Request, db: AsyncSession = Depends(ge
     settings = await BotSettingsService(db).get_all()
     if settings.get("trial_enabled", "0") != "1":
         return JSONResponse({"ok": False, "message": "Пробный период отключён"}, status_code=400)
+
+    from sqlalchemy import select
+    from app.models.user import User
+
+    locked = await db.execute(
+        select(User).where(User.id == user.id).with_for_update()
+    )
+    locked_user = locked.scalar_one_or_none()
+    if not locked_user or locked_user.is_banned:
+        return JSONResponse({"ok": False, "message": "Аккаунт заблокирован"}, status_code=403)
+
     keys = await VpnKeyService(db).get_all_for_user(user.id)
     if keys:
         return JSONResponse({"ok": False, "message": "Пробный период доступен только новым пользователям"}, status_code=400)
+
     trial_days = int(settings.get("trial_days", "3"))
     try:
         key = await VpnKeyService(db).provision_days(user.id, trial_days, name="Пробный")
@@ -940,6 +952,7 @@ async def cabinet_topup_yookassa(
         return JSONResponse({"ok": False, "message": "Не удалось создать платёж"}, status_code=502)
 
 
+@router.get("/cabinet/pay/status/{payment_id}")
 @router.post("/cabinet/pay/status/{payment_id}")
 async def cabinet_pay_status(
     request: Request, payment_id: int, db: AsyncSession = Depends(get_db),

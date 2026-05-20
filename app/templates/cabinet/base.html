@@ -146,17 +146,26 @@ function rememberMiniAppInitData(value) {
   catch (e) {}
 }
 
+function shouldPropagateMiniAppInitData() {
+  return !!(getMiniAppInitData() && !window.CABINET_BOOT.isAuthenticated);
+}
+
 function cabinetUrl(path) {
   var initData = getMiniAppInitData();
   var target = new URL(path, window.location.origin);
-  if (initData && target.origin === window.location.origin && target.pathname.startsWith('/cabinet'))
+  if (
+    initData &&
+    shouldPropagateMiniAppInitData() &&
+    target.origin === window.location.origin &&
+    target.pathname.startsWith('/cabinet')
+  )
     target.searchParams.set(window.CABINET_BOOT.initDataParam, initData);
   return target.pathname + target.search + target.hash;
 }
 
 function decorateCabinetLinks() {
   var initData = getMiniAppInitData();
-  if (!initData) return;
+  if (!initData || !shouldPropagateMiniAppInitData()) return;
   document.querySelectorAll('a[href]').forEach(function(link) {
     var href = link.getAttribute('href');
     if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
