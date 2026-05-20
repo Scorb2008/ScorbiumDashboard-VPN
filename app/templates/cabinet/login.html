@@ -159,9 +159,11 @@ function setLoginState(m) {
 function showWebLoginFallback() {
   document.getElementById('login-status').style.display = 'none';
   var webLogin = document.getElementById('web-login');
-  var w = document.getElementById('telegram-login');
+  var oidcRoot = document.getElementById('telegram-login-oidc');
+  var legacyRoot = document.getElementById('telegram-login-legacy');
   if (webLogin) webLogin.style.display = '';
-  if (w) w.style.display = '';
+  if (oidcRoot) oidcRoot.style.display = 'none';
+  if (legacyRoot) legacyRoot.style.display = 'flex';
   setMiniAppControls({ retry:false, home:false });
 }
 function showMiniAppFailure(m) {

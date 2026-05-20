@@ -433,10 +433,10 @@ def create_app() -> FastAPI:
             elif is_cabinet:
                 resp.headers["Content-Security-Policy"] = (
                     "default-src 'self'; "
-                    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://telegram.org; "
+                    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://telegram.org https://oauth.telegram.org; "
                     "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
                     "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; "
-                    "img-src 'self' data: https://telegram.org; "
+                    "img-src 'self' data: https://telegram.org https://oauth.telegram.org; "
                     "connect-src 'self' wss: https://telegram.org https://oauth.telegram.org; "
                     "frame-src https://telegram.org https://oauth.telegram.org; "
                     "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org https://t.me; "
