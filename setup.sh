@@ -25,6 +25,7 @@ diagnose_db_failure() {
     warn "Возникла проблема с подключением к PostgreSQL."
     echo "  Проверьте:"
     echo "  1) DB_HOST=db и DB_PORT=5432 в .env"
+    echo "  1.1) если внешний порт занят — задайте другой DB_EXTERNAL_PORT (например 5433)"
     echo "  2) DB_USER / DB_PASSWORD совпадают с уже существующим volume PostgreSQL"
     echo "  3) контейнер БД healthy: docker inspect vpn_db"
     echo "  4) логи БД: docker compose -f docker-compose.prod.yml logs db --tail=40"
@@ -134,7 +135,7 @@ preflight_checks() {
     fi
 
     # Port conflicts
-    local ports_to_check=(80 5432 8000)
+    local ports_to_check=(80 8000)
     local in_use=()
     for port in "${ports_to_check[@]}"; do
         if ss -tlnp 2>/dev/null | grep -q ":${port} " || netstat -tlnp 2>/dev/null | grep -q ":${port} "; then
@@ -146,12 +147,12 @@ preflight_checks() {
 
     if [[ ${#in_use[@]} -gt 0 ]]; then
         warn "Порты уже заняты: ${in_use[*]}"
-        info "Порты 80 и 5432 могут конфликтовать с nginx и PostgreSQL."
+        info "Порт 80 может конфликтовать с nginx."
         info "Если это контейнеры от предыдущей установки — они будут остановлены."
         read -rp "Продолжить? [Y/n]: " CONFIRM; CONFIRM=${CONFIRM:-Y}
         [[ ! "$CONFIRM" =~ ^[Yy]$ ]] && exit 0
     else
-        success "Порты 80, 5432, 8000 свободны"
+        success "Порты 80 и 8000 свободны"
     fi
 
     # Check for existing containers
@@ -236,6 +237,18 @@ read -rp "Имя БД [vpnbot]: " DB_NAME; DB_NAME=${DB_NAME:-vpnbot}
 read -rp "Пользователь БД [postgres]: " DB_USER; DB_USER=${DB_USER:-postgres}
 DEFAULT_DB_PASS=$(openssl rand -hex 16 2>/dev/null || python3 -c "import secrets; print(secrets.token_hex(16))")
 read -rsp "Пароль БД [случайный]: " DB_PASS; echo ""; DB_PASS=${DB_PASS:-$DEFAULT_DB_PASS}
+read -rp "Внешний порт PostgreSQL [5432]: " DB_EXTERNAL_PORT; DB_EXTERNAL_PORT=${DB_EXTERNAL_PORT:-5432}
+
+if [[ ! "$DB_EXTERNAL_PORT" =~ ^[0-9]+$ ]] || (( DB_EXTERNAL_PORT < 1 || DB_EXTERNAL_PORT > 65535 )); then
+    error "Порт PostgreSQL должен быть числом от 1 до 65535"
+fi
+
+if ss -tlnp 2>/dev/null | grep -q ":${DB_EXTERNAL_PORT} " || netstat -tlnp 2>/dev/null | grep -q ":${DB_EXTERNAL_PORT} "; then
+    proc=$(ss -tlnp 2>/dev/null | grep ":${DB_EXTERNAL_PORT} " | awk '{print $7}' | head -1 || echo "unknown")
+    warn "Порт PostgreSQL ${DB_EXTERNAL_PORT} уже занят (${proc})"
+    read -rp "Продолжить с этим портом? [y/N]: " CONFIRM_DB_PORT; CONFIRM_DB_PORT=${CONFIRM_DB_PORT:-N}
+    [[ ! "$CONFIRM_DB_PORT" =~ ^[Yy]$ ]] && exit 1
+fi
 
 # Validate DB password
 if [[ ${#DB_PASS} -lt 8 ]]; then
@@ -392,6 +405,7 @@ DB_ENGINE=postgresql
 DB_NAME=${DB_NAME}
 DB_HOST=db
 DB_PORT=5432
+DB_EXTERNAL_PORT=${DB_EXTERNAL_PORT}
 DB_USER=${DB_USER}
 DB_PASSWORD=${DB_PASS}
 
