@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Request, Response, UploadFile
-from fastapi.responses import HTMLResponse, Response as StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
