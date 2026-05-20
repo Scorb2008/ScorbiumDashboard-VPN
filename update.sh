@@ -100,8 +100,12 @@ check_clean_git_tree() {
         blocked+="${line}"$'\n'
     done <<< "${status}"
 
-    [[ -n "${ignored}" ]] && warn "Игнорирую локальные служебные файлы:\n${ignored}"
-    [[ -n "${blocked}" ]] && error "Рабочее дерево не чистое. Сначала сохраните локальные изменения или stash.\n${blocked}"
+    if [[ -n "${ignored}" ]]; then
+        warn "Игнорирую локальные служебные файлы:\n${ignored}"
+    fi
+    if [[ -n "${blocked}" ]]; then
+        error "Рабочее дерево не чистое. Сначала сохраните локальные изменения или stash.\n${blocked}"
+    fi
 }
 
 check_disk_space() {
