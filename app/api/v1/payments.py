@@ -70,9 +70,9 @@ async def _verify_remote_provider_payment(
                 log.error("Platega webhook: service not configured")
                 return False
             remote = await svc.get_transaction_status(external_id)
-            status_raw = str(remote.get("status", "")).upper()
+            status_raw = PlategaService.normalize_status(remote.get("status", ""))
             amount_raw = (remote.get("payment_details") or {}).get("amount")
-            if not remote.get("ok") or status_raw != "CONFIRMED":
+            if not remote.get("ok") or not PlategaService.is_success_status(status_raw):
                 log.warning(f"Platega webhook: remote status is not confirmed for {external_id}: {status_raw}")
                 return False
             if amount_raw is not None and not _money_equal(amount_raw, payment.amount):
@@ -632,10 +632,12 @@ async def platega_webhook(request: Request, db: AsyncSession = Depends(get_db)) 
     if not _platega_headers_match(request, settings):
         return "OK"
 
-    transaction_id = str(data.get("id", "")).strip()
-    status = str(data.get("status", "")).upper().strip()
+    from app.services.platega import PlategaService
 
-    if status != "CONFIRMED":
+    transaction_id = str(data.get("id", "")).strip()
+    status = PlategaService.normalize_status(data.get("status", ""))
+
+    if not PlategaService.is_success_status(status):
         return "OK"
 
     payload_raw = data.get("payload", "")

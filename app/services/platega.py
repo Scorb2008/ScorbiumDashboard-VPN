@@ -15,6 +15,15 @@ class PlategaService:
     """Service for Platega.io API integration."""
 
     DEFAULT_DESCRIPTION = "VPN payment"
+    SUCCESS_STATUSES = {"CONFIRMED", "SUCCESS", "PAID", "COMPLETED"}
+    FAILURE_STATUSES = {
+        "FAILED",
+        "EXPIRED",
+        "CANCELED",
+        "CANCELLED",
+        "CHARGEBACK",
+        "CHARGEBACKED",
+    }
 
     def __init__(self, merchant_id: Optional[str] = None, secret: Optional[str] = None):
         self.merchant_id = merchant_id or os.getenv("PLATEGA_MERCHANT_ID", "")
@@ -190,6 +199,18 @@ class PlategaService:
     def is_configured(self) -> bool:
         """Check if Platega is configured."""
         return bool(self.merchant_id and self.api_secret)
+
+    @classmethod
+    def normalize_status(cls, status: str | None) -> str:
+        return str(status or "").strip().upper()
+
+    @classmethod
+    def is_success_status(cls, status: str | None) -> bool:
+        return cls.normalize_status(status) in cls.SUCCESS_STATUSES
+
+    @classmethod
+    def is_failure_status(cls, status: str | None) -> bool:
+        return cls.normalize_status(status) in cls.FAILURE_STATUSES
 
     @staticmethod
     def _decode_setting(settings: dict, key: str) -> str:

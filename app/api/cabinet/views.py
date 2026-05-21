@@ -618,28 +618,36 @@ async def cabinet_promo_apply(
             })
 
         target_key = await _get_days_promo_target_key(db, user.id)
-        if not target_key:
-            return JSONResponse({
-                "ok": False,
-                "message": "Для промокода на дни нужна хотя бы одна подписка",
-            }, status_code=400)
-
         consumed = await promo_service.consume(promo, user.id)
         if not consumed:
             await db.rollback()
             return JSONResponse({"ok": False, "message": "Промокод уже использован"}, status_code=400)
 
-        updated_key = await VpnKeyService(db).extend(target_key.id, int(Decimal(str(promo.value))))
-        if not updated_key:
-            await db.rollback()
-            return JSONResponse({"ok": False, "message": "Не удалось продлить подписку"}, status_code=500)
+        promo_days = int(Decimal(str(promo.value)))
+        if not target_key:
+            updated_key = await VpnKeyService(db).provision_days(
+                user.id,
+                promo_days,
+                name=f"Промокод — {promo.code}",
+            )
+            if not updated_key:
+                await db.rollback()
+                return JSONResponse({"ok": False, "message": "Не удалось создать подписку по промокоду"}, status_code=500)
+            success_message = f"Подписка по промокоду создана на {promo_days} дн."
+        else:
+            updated_key = await VpnKeyService(db).extend(target_key.id, promo_days)
+            if not updated_key:
+                await db.rollback()
+                return JSONResponse({"ok": False, "message": "Не удалось продлить подписку"}, status_code=500)
+            success_message = f"Подписка продлена на {promo_days} дн."
 
         await db.commit()
         return JSONResponse({
             "ok": True,
-            "message": f"Подписка продлена на {int(Decimal(str(promo.value)))} дн.",
+            "message": success_message,
             "promo_type": promo_type,
             "expires_at": updated_key.expires_at.isoformat() if updated_key.expires_at else None,
+            "access_url": updated_key.access_url,
         })
     except Exception as e:
         await db.rollback()
@@ -1166,8 +1174,8 @@ async def cabinet_pay_status(
             log.warning("Cabinet Platega status check failed: {}", e)
             return JSONResponse({"ok": False, "message": "Не удалось проверить статус платежа"}, status_code=502)
 
-        remote_status = str(remote.get("status", "")).upper()
-        if remote.get("ok") and remote_status == "CONFIRMED":
+        remote_status = PlategaService.normalize_status(remote.get("status", ""))
+        if remote.get("ok") and PlategaService.is_success_status(remote_status):
             payment, key, payment_error = await _finalize_subscription_payment(
                 db,
                 payment,
@@ -1191,7 +1199,7 @@ async def cabinet_pay_status(
                 "redirect": "/cabinet/keys",
             })
 
-        if remote_status in {"FAILED", "CANCELLED", "EXPIRED"}:
+        if PlategaService.is_failure_status(remote_status):
             await PaymentService(db).fail(payment.id)
             await db.commit()
             return JSONResponse({

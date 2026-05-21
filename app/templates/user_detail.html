@@ -281,7 +281,7 @@
       </div>
       <div class="modal-footer border-0">
         <button class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
-        <button class="btn btn-sm btn-accent" onclick="sendMsg()"><i class="bi bi-send me-1"></i>Отправить</button>
+        <button class="btn btn-sm btn-accent" id="detail-msg-send-btn" onclick="sendMsg()"><i class="bi bi-send me-1"></i>Отправить</button>
       </div>
     </div>
   </div>
@@ -331,14 +331,27 @@ async function changeBalance(action) {
   if (r.ok) setTimeout(() => location.reload(), 800);
 }
 async function sendMsg() {
+  const btn = document.getElementById('detail-msg-send-btn');
+  if (btn?.disabled) return;
   const text = document.getElementById('msg-text').value.trim();
   if (!text) return;
   const fd = new FormData(); fd.append('chat_id', '{{ user.id }}'); fd.append('text', text);
   const meta = document.querySelector('meta[name="csrf-token"]');
   const csrf = meta ? meta.getAttribute('content') : '';
-  const r = await fetch('/panel/telegram/send', { method: 'POST', body: fd, headers:{'X-CSRF-Token':csrf}, credentials:'same-origin' });
-  bootstrap.Modal.getInstance(document.getElementById('msgModal'))?.hide();
-  showToast(r.ok ? 'Отправлено' : 'Ошибка', r.ok ? 'success' : 'error');
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Отправка...';
+    }
+    const r = await fetch('/panel/telegram/send', { method: 'POST', body: fd, headers:{'X-CSRF-Token':csrf}, credentials:'same-origin' });
+    bootstrap.Modal.getInstance(document.getElementById('msgModal'))?.hide();
+    showToast(r.ok ? 'Отправлено' : 'Ошибка', r.ok ? 'success' : 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-send me-1"></i>Отправить';
+    }
+  }
 }
 function copyKeyUrl(url) {
   navigator.clipboard.writeText(url).then(() => showToast('URL скопирован', 'success')).catch(() => showToast('Не удалось скопировать', 'error'));

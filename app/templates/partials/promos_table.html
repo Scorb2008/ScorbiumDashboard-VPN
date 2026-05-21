@@ -58,7 +58,7 @@
               </button>
               <button class="btn btn-sm btn-outline-danger"
                 hx-delete="/panel/promos/{{ promo.id }}"
-                hx-target="#promo-row-{{ promo.id }}" hx-swap="outerHTML"
+                hx-target="#promos-table" hx-swap="outerHTML"
                 hx-confirm="Удалить промокод {{ promo.code }}?">
                 <i class="bi bi-trash"></i>
               </button>

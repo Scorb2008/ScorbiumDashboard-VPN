@@ -19,6 +19,22 @@ from .shared import _require_permission, _toast, _base_ctx, templates
 router = APIRouter()
 
 
+def _parse_payment_status(value: Optional[str]) -> Optional[PaymentStatus]:
+    if not value:
+        return None
+    try:
+        return PaymentStatus(value)
+    except ValueError:
+        return None
+
+
+def _render_payments_rows(request: Request, payments):
+    return templates.TemplateResponse(
+        "partials/payments_rows.html",
+        {"request": request, "payments": payments},
+    )
+
+
 @router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def payments_page(
@@ -30,14 +46,19 @@ async def payments_page(
     _require_permission(request, "payments")
     ctx = await _base_ctx(request, db, "payments")
     from app.models.payment import PaymentType as PT
-    ps = PaymentStatus(status) if status else None
-    pt = PT(payment_type) if payment_type else None
+    ps = _parse_payment_status(status)
+    try:
+        pt = PT(payment_type) if payment_type else None
+    except ValueError:
+        pt = None
     ctx["payments"] = await PaymentService(db).get_all(
         limit=200, status=ps, payment_type=pt
     )
     ctx["total_topups"] = await PaymentService(db).total_topups()
     ctx["current_status"] = status or ""
     ctx["current_type"] = payment_type or ""
+    if request.headers.get("HX-Request") == "true":
+        return _render_payments_rows(request, ctx["payments"])
     return templates.TemplateResponse("payments.html", ctx)
 
 

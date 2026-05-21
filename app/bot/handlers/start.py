@@ -34,6 +34,11 @@ async def _safe_answer(callback: CallbackQuery) -> None:
         pass
 
 
+def _message_text_or_none(message: Message) -> str | None:
+    text = (message.text or "").strip()
+    return text or None
+
+
 class PromoState(StatesGroup):
     waiting_code = State()
 
@@ -291,8 +296,13 @@ async def topup_got_amount(message: Message, state: FSMContext) -> None:
     async with AsyncSessionFactory() as session:
         lang = await _get_lang_from_session(message.from_user.id, session)
 
+    raw_text = _message_text_or_none(message)
+    if raw_text is None:
+        await message.answer(t("topup_invalid_amount", lang))
+        return
+
     try:
-        amount = Decimal(message.text.strip().replace(",", "."))
+        amount = Decimal(raw_text.replace(",", "."))
         if amount < 50 or amount > 100000:
             raise ValueError
     except (ValueError, Exception):
@@ -472,9 +482,14 @@ async def ask_promo(callback: CallbackQuery, state: FSMContext) -> None:
 
 @router.message(PromoState.waiting_code)
 async def process_promo(message: Message, state: FSMContext) -> None:
-    code = message.text.strip().upper()
     async with AsyncSessionFactory() as session:
         lang = await _get_lang_from_session(message.from_user.id, session)
+        raw_text = _message_text_or_none(message)
+        if raw_text is None:
+            await message.answer(t("promo_invalid", lang), reply_markup=back_kb(lang))
+            return
+
+        code = raw_text.upper()
         promo_service = PromoService(session)
         validation = await promo_service.validate_for_user(code, user_id=message.from_user.id)
         promo = validation.promo
@@ -493,23 +508,30 @@ async def process_promo(message: Message, state: FSMContext) -> None:
                 keys = await VpnKeyService(session).get_active_for_user(message.from_user.id)
                 if not keys:
                     keys = await VpnKeyService(session).get_all_for_user(message.from_user.id)
-                if not keys:
-                    result_text = (
-                        "❌ Для промокода на дни нужна хотя бы одна подписка"
-                        if lang == "ru"
-                        else (
-                            "❌ You need at least one subscription to use a days promo"
-                            if lang == "en"
-                            else "❌ برای استفاده از کد روز، حداقل یک اشتراک لازم است"
-                        )
+                consumed = await promo_service.consume(promo, user_id=message.from_user.id)
+                if not consumed:
+                    result_text = validation.message or t("promo_invalid", lang)
+                elif not keys:
+                    new_key = await VpnKeyService(session).provision_days(
+                        message.from_user.id,
+                        int(promo.value),
+                        name=f"Промокод — {code}",
                     )
-                else:
-                    consumed = await promo_service.consume(promo, user_id=message.from_user.id)
-                    if not consumed:
-                        result_text = validation.message or t("promo_invalid", lang)
+                    if not new_key:
+                        result_text = (
+                            "❌ Не удалось создать подписку по промокоду"
+                            if lang == "ru"
+                            else (
+                                "❌ Failed to create a subscription from this promo code"
+                                if lang == "en"
+                                else "❌ ساخت اشتراک با این کد تخفیف ممکن نشد"
+                            )
+                        )
                     else:
-                        await VpnKeyService(session).extend(keys[0].id, int(promo.value))
                         result_text = t("promo_days", lang, value=int(promo.value))
+                else:
+                    await VpnKeyService(session).extend(keys[0].id, int(promo.value))
+                    result_text = t("promo_days", lang, value=int(promo.value))
             else:
                 result_text = (
                     "✅ Скидочный промокод сохраните для оплаты в личном кабинете"
@@ -728,10 +750,20 @@ async def support_close_ticket(callback: CallbackQuery) -> None:
 async def support_reply_message(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
     ticket_id = data.get("ticket_id")
-    text = message.text.strip()
 
     async with AsyncSessionFactory() as session:
         lang = await _get_lang_from_session(message.from_user.id, session)
+        text = _message_text_or_none(message)
+        if text is None:
+            await message.answer(
+                {
+                    "ru": "Отправьте текстовое сообщение для ответа.",
+                    "en": "Please send a text reply.",
+                    "fa": "لطفا پاسخ را به صورت متن ارسال کنید.",
+                }.get(lang, "Отправьте текстовое сообщение для ответа."),
+                reply_markup=back_kb(lang),
+            )
+            return
         msg = await SupportService(session).add_message(
             ticket_id=ticket_id,
             sender_id=message.from_user.id,
@@ -775,7 +807,17 @@ async def support_reply_message(message: Message, state: FSMContext) -> None:
 async def support_subject(message: Message, state: FSMContext) -> None:
     async with AsyncSessionFactory() as session:
         lang = await _get_lang_from_session(message.from_user.id, session)
-    subject = message.text.strip()
+    subject = _message_text_or_none(message)
+    if subject is None:
+        await message.answer(
+            {
+                "ru": "Отправьте тему текстом.",
+                "en": "Please send the subject as text.",
+                "fa": "لطفا موضوع را به صورت متن ارسال کنید.",
+            }.get(lang, "Отправьте тему текстом."),
+            reply_markup=back_kb(lang),
+        )
+        return
     too_short = {
         "ru": "Тема слишком короткая. Введите ещё раз:",
         "en": "Subject too short. Try again:",
@@ -797,10 +839,20 @@ async def support_subject(message: Message, state: FSMContext) -> None:
 async def support_message(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
     subject = data.get("subject", "—")
-    text = message.text.strip()
 
     async with AsyncSessionFactory() as session:
         lang = await _get_lang_from_session(message.from_user.id, session)
+        text = _message_text_or_none(message)
+        if text is None:
+            await message.answer(
+                {
+                    "ru": "Опишите проблему текстом.",
+                    "en": "Please describe the issue in text.",
+                    "fa": "لطفا مشکل را به صورت متن توضیح دهید.",
+                }.get(lang, "Опишите проблему текстом."),
+                reply_markup=back_kb(lang),
+            )
+            return
         ticket = await SupportService(session).create_ticket(
             user_id=message.from_user.id,
             subject=subject,

@@ -12,7 +12,9 @@
   </div>
 </div>
 
-{% include "partials/plans_grid.html" %}
+<div id="plans-grid-wrapper">
+  {% include "partials/plans_grid.html" %}
+</div>
 
 <!-- Plan modal -->
 <div class="modal fade" id="planModal" tabindex="-1">
@@ -24,8 +26,8 @@
       </div>
       <form id="planForm"
             hx-post="/panel/plans"
-            hx-target="#plans-grid-container"
-            hx-swap="innerHTML"
+            hx-target="#plans-grid-wrapper"
+            hx-swap="outerHTML"
             hx-on::after-request="onPlanSaved(event)">
         <div class="modal-body">
           <input type="hidden" id="plan-id" name="plan_id" value="" />
@@ -50,7 +52,7 @@
         </div>
         <div class="modal-footer border-0 pt-0">
           <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Отмена</button>
-          <button type="submit" class="btn btn-accent btn-sm px-4">Сохранить</button>
+          <button type="submit" class="btn btn-accent btn-sm px-4" id="plan-save-btn">Сохранить</button>
         </div>
       </form>
     </div>
@@ -87,10 +89,19 @@
   }
 
   function onPlanSaved(e) {
+    const submitBtn = document.getElementById('plan-save-btn');
+    if (submitBtn) submitBtn.disabled = false;
     if (e.detail.successful) {
       bootstrap.Modal.getInstance(document.getElementById('planModal'))?.hide();
     }
   }
+
+  document.addEventListener('htmx:beforeRequest', function(e) {
+    if (e.target && e.target.id === 'planForm') {
+      const submitBtn = document.getElementById('plan-save-btn');
+      if (submitBtn) submitBtn.disabled = true;
+    }
+  });
 
   let plansSortable = null;
 
@@ -129,12 +140,22 @@
 
   document.addEventListener('DOMContentLoaded', initSortable);
   document.addEventListener('htmx:afterSwap', function(e) {
-    if (e.target.id === 'plans-grid-container' || e.target.closest('#plans-grid-container')) {
+    if (
+      e.target.id === 'plans-grid-wrapper' ||
+      e.target.id === 'plans-grid-container' ||
+      e.target.closest('#plans-grid-wrapper') ||
+      e.target.closest('#plans-grid-container')
+    ) {
       setTimeout(initSortable, 50);
     }
   });
   document.addEventListener('htmx:afterSettle', function(e) {
-    if (e.target.id === 'plans-grid-container' || e.target.closest('#plans-grid-container')) {
+    if (
+      e.target.id === 'plans-grid-wrapper' ||
+      e.target.id === 'plans-grid-container' ||
+      e.target.closest('#plans-grid-wrapper') ||
+      e.target.closest('#plans-grid-container')
+    ) {
       setTimeout(initSortable, 10);
     }
   });

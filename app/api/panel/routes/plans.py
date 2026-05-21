@@ -15,6 +15,12 @@ from .shared import _base_ctx, _require_permission, _toast, templates
 router = APIRouter()
 
 
+def _render_plans_grid(request: Request, plans):
+    return templates.TemplateResponse(
+        "partials/plans_grid.html", {"request": request, "plans": plans}
+    )
+
+
 @router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def plans_page(request: Request, db: AsyncSession = Depends(get_db)):
@@ -58,9 +64,7 @@ async def create_plan_view(
     )
     await db.commit()
     plans = await PlanService(db).get_all()
-    resp = templates.TemplateResponse(
-        "partials/plans_grid.html", {"request": request, "plans": plans}
-    )
+    resp = _render_plans_grid(request, plans)
     _toast(resp, f"Тариф «{name}» создан")
     return resp
 
@@ -76,6 +80,14 @@ async def edit_plan_view(
     db: AsyncSession = Depends(get_db),
 ):
     _require_permission(request, "plans")
+    if price <= 0:
+        resp = Response(status_code=400)
+        _toast(resp, "Цена должна быть больше нуля", "error")
+        return resp
+    if duration_days < 1:
+        resp = Response(status_code=400)
+        _toast(resp, "Длительность должна быть минимум 1 день", "error")
+        return resp
     plan = await PlanService(db).update(
         plan_id,
         name=name,
@@ -83,11 +95,13 @@ async def edit_plan_view(
         duration_days=duration_days,
         description=description or None,
     )
+    if not plan:
+        resp = Response(status_code=404)
+        _toast(resp, "Тариф не найден", "error")
+        return resp
     await db.commit()
     plans = await PlanService(db).get_all()
-    resp = templates.TemplateResponse(
-        "partials/plans_grid.html", {"request": request, "plans": plans}
-    )
+    resp = _render_plans_grid(request, plans)
     _toast(resp, f"Тариф «{plan.name if plan else plan_id}» обновлён")
     return resp
 
@@ -104,9 +118,7 @@ async def toggle_plan_view(
         return resp
     await db.commit()
     plans = await PlanService(db).get_all()
-    resp = templates.TemplateResponse(
-        "partials/plans_grid.html", {"request": request, "plans": plans}
-    )
+    resp = _render_plans_grid(request, plans)
     _toast(resp, f"Тариф {'включён' if plan.is_active else 'отключён'}")
     return resp
 
@@ -116,12 +128,14 @@ async def delete_plan_view(
     plan_id: int, request: Request, db: AsyncSession = Depends(get_db)
 ):
     _require_permission(request, "plans")
-    await PlanService(db).delete(plan_id)
+    deleted = await PlanService(db).delete(plan_id)
+    if not deleted:
+        resp = Response(status_code=404)
+        _toast(resp, "Тариф не найден", "error")
+        return resp
     await db.commit()
     plans = await PlanService(db).get_all()
-    resp = templates.TemplateResponse(
-        "partials/plans_grid.html", {"request": request, "plans": plans}
-    )
+    resp = _render_plans_grid(request, plans)
     _toast(resp, "Тариф удалён")
     return resp
 

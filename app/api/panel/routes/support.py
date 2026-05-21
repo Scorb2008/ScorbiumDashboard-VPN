@@ -1,4 +1,6 @@
 """Support tickets routes."""
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends, Form, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse
 
@@ -6,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.api.dependencies import get_db
-from app.models.support import SupportTicket, TicketStatus, TicketPriority
+from app.models.support import SupportTicket, TicketStatus, TicketPriority, TicketMessage
 from app.services.telegram_notify import TelegramNotifyService
 
 from .shared import _require_permission, _toast, _base_ctx, _render_messages, templates
@@ -63,24 +65,53 @@ async def reply_ticket(
     ticket_id: int,
     request: Request,
     text: str = Form(...),
+    notify_user: str | None = Form(None),
     db: AsyncSession = Depends(get_db),
 ):
     _require_permission(request, "support.write")
-    from app.models.support import TicketMessage
+    cleaned_text = text.strip()
+    if not cleaned_text:
+        resp = Response(status_code=400)
+        _toast(resp, "Сообщение не может быть пустым", "error")
+        return resp
+
     result = await db.execute(select(SupportTicket).where(SupportTicket.id == ticket_id))
     ticket = result.scalar_one_or_none()
     if not ticket:
         resp = Response(status_code=404)
         _toast(resp, 'Тикет не найден', 'error')
         return resp
-    msg = TicketMessage(ticket_id=ticket_id, sender_id=0, text=text, is_admin=True)
-    db.add(msg)
-    await db.commit()
-    await TelegramNotifyService().send_message(
-        ticket.user_id,
-        f"💬 <b>Ответ по тикету #{ticket.id}</b>\n\n{text}",
+
+    dedupe_cutoff = datetime.now(timezone.utc) - timedelta(seconds=15)
+    duplicate_query = await db.execute(
+        select(TicketMessage)
+        .where(
+            TicketMessage.ticket_id == ticket_id,
+            TicketMessage.is_admin.is_(True),
+            TicketMessage.text == cleaned_text,
+            TicketMessage.created_at >= dedupe_cutoff,
+        )
+        .order_by(TicketMessage.created_at.desc())
+        .limit(1)
     )
-    return HTMLResponse(_render_messages(ticket))
+    if duplicate_query.scalar_one_or_none():
+        resp = HTMLResponse(_render_messages(ticket))
+        _toast(resp, "Сообщение уже отправлено", "info")
+        return resp
+
+    msg = TicketMessage(ticket_id=ticket_id, sender_id=0, text=cleaned_text, is_admin=True)
+    db.add(msg)
+    if ticket.status == TicketStatus.CLOSED.value:
+        ticket.status = TicketStatus.IN_PROGRESS.value
+    await db.commit()
+    if notify_user:
+        await TelegramNotifyService().send_message(
+            ticket.user_id,
+            f"💬 <b>Ответ по тикету #{ticket.id}</b>\n\n{cleaned_text}",
+        )
+    resp = HTMLResponse(_render_messages(ticket))
+    _toast(resp, "Ответ отправлен")
+    return resp
 
 
 @router.post("/{ticket_id}/close", response_class=HTMLResponse)
@@ -106,13 +137,14 @@ async def update_ticket_status(
     ticket_id: int, request: Request, db: AsyncSession = Depends(get_db),
 ):
     _require_permission(request, "support.write")
-    body = await request.json()
-    new_status = body.get("status", "")
+    form = await request.form()
+    new_status = str(form.get("status") or "").strip()
     result = await db.execute(select(SupportTicket).where(SupportTicket.id == ticket_id))
     ticket = result.scalar_one_or_none()
     if not ticket:
         return JSONResponse({"ok": False, "message": "Тикет не найден"}, status_code=404)
-    if new_status in TicketStatus.__members__.values():
+    allowed_statuses = {item.value for item in TicketStatus}
+    if new_status in allowed_statuses:
         ticket.status = new_status
         await db.commit()
         return JSONResponse({"ok": True})
@@ -124,13 +156,14 @@ async def update_ticket_priority(
     ticket_id: int, request: Request, db: AsyncSession = Depends(get_db),
 ):
     _require_permission(request, "support.write")
-    body = await request.json()
-    new_priority = body.get("priority", "")
+    form = await request.form()
+    new_priority = str(form.get("priority") or "").strip()
     result = await db.execute(select(SupportTicket).where(SupportTicket.id == ticket_id))
     ticket = result.scalar_one_or_none()
     if not ticket:
         return JSONResponse({"ok": False, "message": "Тикет не найден"}, status_code=404)
-    if new_priority in TicketPriority.__members__.values():
+    allowed_priorities = {item.value for item in TicketPriority}
+    if new_priority in allowed_priorities:
         ticket.priority = new_priority
         await db.commit()
         return JSONResponse({"ok": True})
