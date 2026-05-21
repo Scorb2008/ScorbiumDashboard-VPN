@@ -1,0 +1,183 @@
+import json
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal
+from types import SimpleNamespace
+
+import pytest
+from fastapi import FastAPI, Request
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import func, select
+
+from app.api.cabinet import views as cabinet_views
+from app.api.dependencies import get_db
+from app.api.panel.routes import payments as payments_routes
+from app.api.panel.routes import support as support_routes
+from app.models.promo import PromoCode, PromoType
+from app.models.promo_usage import PromoUsage
+from app.models.support import SupportTicket, TicketMessage, TicketPriority, TicketStatus
+from app.services.platega import PlategaService
+
+
+def _make_request(path: str, *, headers: list[tuple[bytes, bytes]] | None = None) -> Request:
+    scope = {
+        "type": "http",
+        "http_version": "1.1",
+        "method": "GET",
+        "scheme": "https",
+        "path": path,
+        "raw_path": path.encode("utf-8"),
+        "query_string": b"",
+        "headers": headers or [],
+        "client": ("127.0.0.1", 12345),
+        "server": ("testserver", 443),
+    }
+    return Request(scope)
+
+
+@pytest.fixture
+async def cabinet_client(session, sample_user, monkeypatch):
+    app = FastAPI()
+    app.include_router(cabinet_views.router)
+
+    async def override_get_db():
+        yield session
+
+    async def fake_require_active_user(request, db):
+        return sample_user
+
+    app.dependency_overrides[get_db] = override_get_db
+    monkeypatch.setattr(cabinet_views, "_require_active_user", fake_require_active_user)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="https://testserver") as client:
+        yield client
+
+
+@pytest.mark.asyncio
+async def test_cabinet_promo_days_creates_subscription_without_existing_key(
+    cabinet_client, session, sample_user, monkeypatch
+):
+    promo = PromoCode(
+        code="DAYSWELCOME",
+        promo_type=PromoType.DAYS.value,
+        value=Decimal("5.00"),
+        max_uses=1,
+        current_uses=0,
+        is_active=True,
+    )
+    session.add(promo)
+    await session.commit()
+
+    expires_at = datetime.now(timezone.utc) + timedelta(days=5)
+
+    async def fake_provision_days(self, user_id: int, days: int, name: str | None = None):
+        assert user_id == sample_user.id
+        assert days == 5
+        assert name == "Промокод — DAYSWELCOME"
+        return SimpleNamespace(access_url="https://vpn.example/new-key", expires_at=expires_at)
+
+    monkeypatch.setattr(cabinet_views.VpnKeyService, "provision_days", fake_provision_days)
+
+    response = await cabinet_client.post("/cabinet/promo/apply", data={"code": "DAYSWELCOME"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["access_url"] == "https://vpn.example/new-key"
+    assert "создана" in payload["message"]
+
+    usage = await session.execute(
+        select(PromoUsage).where(
+            PromoUsage.promo_id == promo.id,
+            PromoUsage.user_id == sample_user.id,
+        )
+    )
+    assert usage.scalar_one_or_none() is not None
+
+
+@pytest.mark.asyncio
+async def test_payments_page_htmx_returns_rows_and_ignores_invalid_status(
+    session, sample_payment, monkeypatch
+):
+    monkeypatch.setattr(payments_routes, "_require_permission", lambda request, permission: {"sub": "admin", "role": "superadmin"})
+
+    async def fake_base_ctx(request, db, active):
+        return {"request": request, "active": active}
+
+    monkeypatch.setattr(payments_routes, "_base_ctx", fake_base_ctx)
+
+    request = _make_request(
+        "/panel/payments",
+        headers=[(b"hx-request", b"true")],
+    )
+
+    response = await payments_routes.payments_page(
+        request=request,
+        status="definitely-invalid",
+        payment_type="nope",
+        db=session,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert "<tbody" in body
+    assert "История платежей" not in body
+    assert f"#{sample_payment.id}" in body
+
+
+@pytest.mark.asyncio
+async def test_support_reply_deduplicates_double_submit(session, sample_user, monkeypatch):
+    ticket = SupportTicket(
+        user_id=sample_user.id,
+        subject="Duplicate check",
+        status=TicketStatus.OPEN.value,
+        priority=TicketPriority.MEDIUM.value,
+    )
+    session.add(ticket)
+    await session.commit()
+
+    sent: list[tuple[int, str]] = []
+
+    class FakeNotify:
+        async def send_message(self, chat_id, text):
+            sent.append((chat_id, text))
+
+    monkeypatch.setattr(support_routes, "_require_permission", lambda request, permission: {"sub": "admin", "role": "superadmin"})
+    monkeypatch.setattr(support_routes, "TelegramNotifyService", lambda: FakeNotify())
+
+    request = _make_request(f"/panel/support/{ticket.id}/reply")
+
+    first = await support_routes.reply_ticket(
+        ticket_id=ticket.id,
+        request=request,
+        text="One message only",
+        notify_user="on",
+        db=session,
+    )
+    second = await support_routes.reply_ticket(
+        ticket_id=ticket.id,
+        request=request,
+        text="One message only",
+        notify_user="on",
+        db=session,
+    )
+
+    count_result = await session.execute(
+        select(func.count(TicketMessage.id)).where(TicketMessage.ticket_id == ticket.id)
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert count_result.scalar_one() == 1
+    assert len(sent) == 1
+    toast_payload = json.loads(second.headers["HX-Trigger"])
+    assert toast_payload["showToast"]["type"] == "info"
+
+
+def test_platega_status_helpers_cover_documented_and_common_variants():
+    assert PlategaService.is_success_status("CONFIRMED") is True
+    assert PlategaService.is_success_status("confirmed") is True
+    assert PlategaService.is_success_status("paid") is True
+    assert PlategaService.is_failure_status("CANCELED") is True
+    assert PlategaService.is_failure_status("cancelled") is True
+    assert PlategaService.is_failure_status("CHARGEBACKED") is True
