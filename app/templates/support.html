@@ -171,7 +171,10 @@
   function handleSupportReplyAfterRequest(event) {
     setSupportReplyPending(false);
     if (event.detail.successful) {
-      event.target.reset();
+      const form = document.getElementById('support-reply-form');
+      const input = form?.querySelector('input[name="text"]');
+      if (form) form.reset();
+      if (input) input.value = '';
     }
   }
 

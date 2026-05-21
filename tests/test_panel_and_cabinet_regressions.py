@@ -11,10 +11,13 @@ from sqlalchemy import func, select
 from app.api.cabinet import views as cabinet_views
 from app.api.dependencies import get_db
 from app.api.panel.routes import payments as payments_routes
+from app.api.panel.routes import subscriptions as subscriptions_routes
 from app.api.panel.routes import support as support_routes
 from app.models.promo import PromoCode, PromoType
 from app.models.promo_usage import PromoUsage
 from app.models.support import SupportTicket, TicketMessage, TicketPriority, TicketStatus
+from app.models.vpn_key import VpnKey, VpnKeyStatus
+from app.services import encryption as encryption_service
 from app.services.platega import PlategaService
 
 
@@ -181,3 +184,80 @@ def test_platega_status_helpers_cover_documented_and_common_variants():
     assert PlategaService.is_failure_status("CANCELED") is True
     assert PlategaService.is_failure_status("cancelled") is True
     assert PlategaService.is_failure_status("CHARGEBACKED") is True
+
+
+def test_encryption_accepts_valid_fernet_key(monkeypatch):
+    key = encryption_service.generate_key()
+    monkeypatch.setenv("ENCRYPTION_KEY", key)
+    monkeypatch.setattr(encryption_service, "_FERNET", None)
+    monkeypatch.setattr(encryption_service, "_MASTER_KEY", None)
+
+    encrypted = encryption_service.encrypt_value("secret-value")
+
+    assert encryption_service.decrypt_value(encrypted) == "secret-value"
+    assert encryption_service.get_encryption_key_info().startswith("Configured")
+
+
+def test_encryption_falls_back_without_crashing_on_invalid_key(monkeypatch):
+    monkeypatch.setenv("ENCRYPTION_KEY", "!" * 44)
+    monkeypatch.setattr(encryption_service, "_FERNET", None)
+    monkeypatch.setattr(encryption_service, "_MASTER_KEY", None)
+
+    encrypted = encryption_service.encrypt_value("safe-fallback")
+
+    assert encryption_service.decrypt_value(encrypted) == "safe-fallback"
+    assert encryption_service.get_encryption_key_info().startswith("Auto-generated")
+
+
+@pytest.mark.asyncio
+async def test_subscriptions_page_includes_expired_and_revoked_keys(
+    session, sample_user, sample_plan, sample_vpn_key, monkeypatch
+):
+    expired_key = VpnKey(
+        user_id=sample_user.id,
+        plan_id=sample_plan.id,
+        pasarguard_key_id="vpn_123456789_2",
+        access_url="https://example.com/sub/expired",
+        name="Expired Key",
+        price=Decimal("10.00"),
+        expires_at=datetime.now(timezone.utc) - timedelta(days=1),
+        status=VpnKeyStatus.EXPIRED.value,
+    )
+    revoked_key = VpnKey(
+        user_id=sample_user.id,
+        plan_id=sample_plan.id,
+        pasarguard_key_id="vpn_123456789_3",
+        access_url="https://example.com/sub/revoked",
+        name="Revoked Key",
+        price=Decimal("10.00"),
+        expires_at=datetime.now(timezone.utc) - timedelta(days=2),
+        status=VpnKeyStatus.REVOKED.value,
+    )
+    session.add_all([expired_key, revoked_key])
+    await session.commit()
+
+    monkeypatch.setattr(subscriptions_routes, "_require_permission", lambda request, permission: {"sub": "admin", "role": "superadmin"})
+
+    async def fake_base_ctx(request, db, active, admin_info=None):
+        return {"request": request, "active": active, "admin_role": "superadmin"}
+
+    async def fake_refresh(self, keys):
+        for key in keys:
+            setattr(key, "panel_status_raw", key.status)
+
+    monkeypatch.setattr(subscriptions_routes, "_base_ctx", fake_base_ctx)
+    monkeypatch.setattr(subscriptions_routes.VpnKeyService, "refresh_traffic_for_keys", fake_refresh)
+    monkeypatch.setitem(subscriptions_routes.templates.env.globals, "has_perm", lambda role, perm: True)
+
+    response = await subscriptions_routes.subscriptions_page(
+        request=_make_request("/panel/subscriptions"),
+        db=session,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert f"#{sample_vpn_key.id}" in body
+    assert f"#{expired_key.id}" in body
+    assert f"#{revoked_key.id}" in body
+    assert "Истекла" in body
+    assert "Отозвана" in body

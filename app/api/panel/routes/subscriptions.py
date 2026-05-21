@@ -4,6 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Form, Request, Response
 from fastapi.responses import HTMLResponse
 
+from sqlalchemy import case, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db
@@ -22,7 +23,6 @@ async def subscriptions_page(request: Request, db: AsyncSession = Depends(get_db
     admin_info = _require_permission(request, "subscriptions")
     ctx = await _base_ctx(request, db, "subscriptions", admin_info)
     from app.models.vpn_key import VpnKey, VpnKeyStatus
-    from sqlalchemy import select
     from sqlalchemy.orm import undefer
 
     result = await db.execute(
@@ -31,8 +31,15 @@ async def subscriptions_page(request: Request, db: AsyncSession = Depends(get_db
             undefer(VpnKey.download),
             undefer(VpnKey.upload),
         )
-        .where(VpnKey.status == VpnKeyStatus.ACTIVE.value)
-        .order_by(VpnKey.expires_at.asc())  # type: ignore[comparison-overload]
+        .order_by(
+            case(
+                (VpnKey.status == VpnKeyStatus.ACTIVE.value, 0),
+                (VpnKey.status == VpnKeyStatus.EXPIRED.value, 1),
+                else_=2,
+            ),
+            VpnKey.expires_at.asc(),  # type: ignore[comparison-overload]
+            VpnKey.id.desc(),
+        )
     )
     subscriptions = list(result.scalars().all())
     await VpnKeyService(db).refresh_traffic_for_keys(subscriptions)

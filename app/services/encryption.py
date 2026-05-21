@@ -4,11 +4,36 @@ Uses a master key from the ENCRYPTION_KEY env var.
 """
 import os
 import base64
+
 from cryptography.fernet import Fernet
+
 from app.utils.log import log
 
 _MASTER_KEY: str | None = None
 _FERNET: Fernet | None = None
+
+
+def _build_fernet_from_env(key_env: str) -> Fernet:
+    normalized = key_env.strip()
+    if not normalized:
+        raise ValueError("Encryption key is empty")
+
+    # A standard Fernet key is already urlsafe-base64 encoded and 44 chars long.
+    if len(normalized) == 44:
+        try:
+            decoded = base64.urlsafe_b64decode(normalized.encode())
+            if len(decoded) != 32:
+                raise ValueError("Decoded Fernet key must be 32 bytes")
+            return Fernet(normalized.encode())
+        except Exception as exc:
+            raise ValueError("Invalid base64 Fernet key") from exc
+
+    raw_bytes = normalized.encode()
+    if len(raw_bytes) < 32:
+        raw_bytes = raw_bytes.ljust(32, b"\x00")
+    else:
+        raw_bytes = raw_bytes[:32]
+    return Fernet(base64.urlsafe_b64encode(raw_bytes))
 
 
 def _get_fernet() -> Fernet:
@@ -25,15 +50,17 @@ def _get_fernet() -> Fernet:
         )
         return _FERNET
 
-    # Support both raw 32-byte key and base64-encoded
-    if len(key_env) == 44:
-        key_bytes = base64.urlsafe_b64decode(key_env)
-    else:
-        key_bytes = base64.urlsafe_b64encode(key_env.ljust(32, "\x00")[:32].encode())
-
-    _MASTER_KEY = key_env
-    _FERNET = Fernet(key_bytes)
-    log.info("Encryption engine initialized")
+    try:
+        _FERNET = _build_fernet_from_env(key_env)
+        _MASTER_KEY = key_env
+        log.info("Encryption engine initialized")
+    except Exception as exc:
+        _FERNET = Fernet(Fernet.generate_key())
+        _MASTER_KEY = None
+        log.error(
+            "Invalid ENCRYPTION_KEY provided, falling back to in-memory key: %s",
+            exc,
+        )
     return _FERNET
 
 
@@ -64,7 +91,7 @@ def is_encrypted(value: str) -> bool:
 
 def get_encryption_key_info() -> str:
     """Return info about the encryption key status."""
-    f = _get_fernet()
+    _get_fernet()
     if _MASTER_KEY:
         return "Configured (from ENCRYPTION_KEY)"
     return "Auto-generated (set ENCRYPTION_KEY for persistence)"
