@@ -3,6 +3,7 @@ Middleware: проверяет подписку пользователя на о
 Fail-closed: если проверка не прошла или упала с ошибкой — блокируем.
 Администраторы бота проходят без проверки.
 """
+
 from typing import Any, Awaitable, Callable, Dict
 
 from aiogram import BaseMiddleware, Bot
@@ -23,10 +24,14 @@ _BLOCK_TEXT = (
 )
 
 
-async def _send_subscribe_prompt(event: Update, channel_name: str, channel_link: str) -> None:
+async def _send_subscribe_prompt(
+    event: Update, channel_name: str, channel_link: str
+) -> None:
     builder = InlineKeyboardBuilder()
-    builder.row(InlineKeyboardButton(text=f"📢 Подписаться", url=channel_link))
-    builder.row(InlineKeyboardButton(text="✅ Я подписался", callback_data="channel:check"))
+    builder.row(InlineKeyboardButton(text="📢 Подписаться", url=channel_link))
+    builder.row(
+        InlineKeyboardButton(text="✅ Я подписался", callback_data="channel:check")
+    )
     kb = builder.as_markup()
     text = _BLOCK_TEXT.format(channel_name=channel_name)
     try:
@@ -34,14 +39,18 @@ async def _send_subscribe_prompt(event: Update, channel_name: str, channel_link:
             await event.message.answer(text, reply_markup=kb, parse_mode="HTML")
         elif event.callback_query:
             if event.callback_query.data == "channel:check":
-                await event.callback_query.answer("❌ Вы ещё не подписались на канал.", show_alert=True)
+                await event.callback_query.answer(
+                    "❌ Вы ещё не подписались на канал.", show_alert=True
+                )
             else:
                 try:
                     await event.callback_query.message.edit_text(
                         text, reply_markup=kb, parse_mode="HTML"
                     )
                 except Exception:
-                    await event.callback_query.answer("📢 Сначала подпишитесь на канал.", show_alert=True)
+                    await event.callback_query.answer(
+                        "📢 Сначала подпишитесь на канал.", show_alert=True
+                    )
     except Exception as e:
         log.warning(f"[channel_check] Failed to send prompt: {e}")
 
@@ -74,7 +83,9 @@ class ChannelCheckMiddleware(BaseMiddleware):
         async with AsyncSessionFactory() as session:
             svc = BotSettingsService(session)
             channel_id_raw = await svc.get("required_channel_id")
-            channel_name = (await svc.get("required_channel_name") or "").strip() or "наш канал"
+            channel_name = (
+                await svc.get("required_channel_name") or ""
+            ).strip() or "наш канал"
 
         # No channel configured — pass through
         if not channel_id_raw or not channel_id_raw.strip():
@@ -90,7 +101,9 @@ class ChannelCheckMiddleware(BaseMiddleware):
             try:
                 channel_id = int(channel_id_str)
             except ValueError:
-                log.warning(f"[channel_check] Invalid channel_id value: {channel_id_str!r}")
+                log.warning(
+                    f"[channel_check] Invalid channel_id value: {channel_id_str!r}"
+                )
                 return await handler(event, data)
             clean_id = str(channel_id).lstrip("-").removeprefix("100")
             channel_link = f"https://t.me/c/{clean_id}"
@@ -98,7 +111,9 @@ class ChannelCheckMiddleware(BaseMiddleware):
         # Get bot instance from aiogram data
         bot: Bot | None = data.get("bot")
         if bot is None:
-            log.error("[channel_check] Bot instance not found in middleware data — check registration")
+            log.error(
+                "[channel_check] Bot instance not found in middleware data — check registration"
+            )
             # Fail closed
             await _send_subscribe_prompt(event, channel_name, channel_link)
             return
@@ -108,7 +123,9 @@ class ChannelCheckMiddleware(BaseMiddleware):
         try:
             member = await bot.get_chat_member(chat_id=channel_id, user_id=user_id)
             is_subscribed = member.status in _SUBSCRIBED_STATUSES
-            log.debug(f"[channel_check] user={user_id} channel={channel_id} status={member.status}")
+            log.debug(
+                f"[channel_check] user={user_id} channel={channel_id} status={member.status}"
+            )
         except TelegramForbiddenError:
             log.error(
                 f"[channel_check] Bot is not an admin/member of channel {channel_id}. "
@@ -120,7 +137,9 @@ class ChannelCheckMiddleware(BaseMiddleware):
             log.warning(f"[channel_check] BadRequest for channel {channel_id}: {e}")
             is_subscribed = False
         except Exception as e:
-            log.warning(f"[channel_check] Unexpected error checking channel {channel_id}: {e}")
+            log.warning(
+                f"[channel_check] Unexpected error checking channel {channel_id}: {e}"
+            )
             is_subscribed = False
 
         if is_subscribed:

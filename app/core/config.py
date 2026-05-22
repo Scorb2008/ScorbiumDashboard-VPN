@@ -4,6 +4,7 @@ from functools import lru_cache
 
 from app.utils.log import log
 
+
 class _Config:
     initialized: bool = False
     web_config: Optional[Any] = None
@@ -12,16 +13,17 @@ class _Config:
     database_config: Optional[Any] = None
     yookassa_config: Optional[Any] = None
     utils_config: Optional[Any] = None
-    
+
     model_config = {
         "arbitrary_types_allowed": True,
         "validate_assignment": True,
     }
-    
+
     @property
     def web(self) -> Any:
         if self.web_config is None:
             from .configs import web_config
+
             self.web_config = web_config
         return self.web_config
 
@@ -29,6 +31,7 @@ class _Config:
     def telegram(self) -> Any:
         if self.telegram_config is None:
             from .configs import telegram
+
             self.telegram_config = telegram
         return self.telegram_config
 
@@ -36,6 +39,7 @@ class _Config:
     def pasarguard(self) -> Any:
         if self.pasarguard_config is None:
             from .configs import pasarguard
+
             self.pasarguard_config = pasarguard
         return self.pasarguard_config
 
@@ -43,6 +47,7 @@ class _Config:
     def database(self) -> Any:
         if self.database_config is None:
             from .configs import database
+
             self.database_config = database
         return self.database_config
 
@@ -50,20 +55,22 @@ class _Config:
     def yookassa(self) -> Any:
         if self.yookassa_config is None:
             from .configs import yookassa
+
             self.yookassa_config = yookassa
         return self.yookassa_config
 
-    @property 
+    @property
     def utils(self) -> Any:
         if self.utils_config is None:
             from .configs import utils
+
             self.utils_config = utils
         return self.utils_config
-    
+
     def initialize(self, force: bool = False) -> Optional["_Config"]:
         if self.initialized and not force:
             return self
-        
+
         log.info("Initializing all configs...")
 
         _ = self.telegram
@@ -75,9 +82,10 @@ class _Config:
 
         self.initialized = True
         return self
+
     def reload(self) -> Optional["_Config"]:
         log.info("Reloading all configs...")
-        
+
         self.database_config = None
         self.pasarguard_config = None
         self.telegram_config = None
@@ -87,7 +95,7 @@ class _Config:
 
         self.initialized = False
         return self.initialize(force=True)
-        
+
     def validate_all(self) -> Dict[str, bool]:
         results = {}
 
@@ -97,14 +105,14 @@ class _Config:
         except Exception as e:
             results["web"] = False
             log.error(f"Error validating Web settings: {e}")
-   
+
         try:
             _ = self.database
             results["database"] = True
         except Exception as e:
             results["database"] = False
             log.error(f"Error validating database settings: {e}")
-        
+
         try:
             _ = self.pasarguard
             results["pasarguard"] = True
@@ -118,21 +126,21 @@ class _Config:
         except Exception as e:
             results["yookassa"] = False
             log.error(f"Error validating Yookassa settings: {e}")
-        
+
         try:
             _ = self.telegram
             results["telegram"] = True
         except Exception as e:
             results["telegram"] = False
             log.error(f"Error validating Telegram settings: {e}")
-        
+
         try:
             _ = self.utils
             results["utils"] = True
         except Exception as e:
             results["utils"] = False
             log.error(f"Error validating utils settings: {e}")
-        
+
         return results
 
     def __repr__(self):
@@ -141,11 +149,12 @@ class _Config:
             f"database: {self.database}, yookassa: {self.yookassa}, web: {self.web})>"
         )
 
+
 @lru_cache()
 def get_config() -> _Config:
     return _Config()
 
-      
+
 try:
     config = get_config()
     config.initialize()

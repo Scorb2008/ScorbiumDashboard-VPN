@@ -1,4 +1,5 @@
 """System monitoring & health check routes."""
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
@@ -67,4 +68,3 @@ async def monitoring_page(request: Request, db: AsyncSession = Depends(get_db)):
     ctx["slow_queries"] = get_slow_queries()[-50:]
     ctx["uptime"] = _get_uptime()
     return templates.TemplateResponse("monitoring.html", ctx)
-

@@ -20,6 +20,7 @@ async def _get_yookassa_credentials() -> Optional[dict]:
     try:
         from app.core.database import AsyncSessionFactory
         from app.services.bot_settings import BotSettingsService
+
         async with AsyncSessionFactory() as session:
             svc = BotSettingsService(session)
             shop_id_str = await svc.get("yookassa_shop_id_override") or ""
@@ -41,7 +42,9 @@ def _configure_yookassa_sync(shop_id: int, secret_key: str) -> None:
 
 
 class YookassaService:
-    def __init__(self, shop_id: Optional[int] = None, secret_key: Optional[str] = None) -> None:
+    def __init__(
+        self, shop_id: Optional[int] = None, secret_key: Optional[str] = None
+    ) -> None:
         if shop_id and secret_key:
             _configure_yookassa_sync(shop_id, secret_key)
             self._ready = True
@@ -78,7 +81,9 @@ class YookassaService:
             if payment_method:
                 data["payment_method_data"] = {"type": payment_method}
             payment = await asyncio.wait_for(
-                asyncio.to_thread(YKPayment.create, data, idempotency_key=str(uuid.uuid4())),
+                asyncio.to_thread(
+                    YKPayment.create, data, idempotency_key=str(uuid.uuid4())
+                ),
                 timeout=30,
             )
             log.info("Yookassa payment created: %s", payment.id)

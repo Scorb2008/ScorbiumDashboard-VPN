@@ -15,7 +15,12 @@ from app.api.cabinet.auth import (
 )
 
 
-def _make_request(*, scheme: str = "http", forwarded_proto: str | None = None, query_string: bytes = b"") -> Request:
+def _make_request(
+    *,
+    scheme: str = "http",
+    forwarded_proto: str | None = None,
+    query_string: bytes = b"",
+) -> Request:
     headers = []
     if forwarded_proto is not None:
         headers.append((b"x-forwarded-proto", forwarded_proto.encode()))
@@ -84,7 +89,9 @@ def test_parse_telegram_user_id_rejects_zero_and_out_of_range():
             _parse_telegram_user_id(raw_user_id)
         except ValueError:
             continue
-        raise AssertionError(f"Expected ValueError for invalid Telegram user id: {raw_user_id}")
+        raise AssertionError(
+            f"Expected ValueError for invalid Telegram user id: {raw_user_id}"
+        )
 
 
 def test_build_telegram_full_name_prefers_split_names():

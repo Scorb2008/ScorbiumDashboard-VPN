@@ -5,6 +5,7 @@ All payment services (YooKassa, CryptoBot, FreeKassa, Platega, PayPalych, etc.)
 must implement this interface to ensure consistent behavior and enable
 future provider additions without changing calling code.
 """
+
 from abc import ABC, abstractmethod
 from decimal import Decimal
 from typing import Optional, Dict, Any

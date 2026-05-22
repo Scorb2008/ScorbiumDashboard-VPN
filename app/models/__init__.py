@@ -39,6 +39,7 @@ __all__ = [
     "BroadcastStatus",
     "PromoCode",
     "PromoType",
+    "PromoUsage",
     "Referral",
     "BotSettings",
     "BrandingAsset",

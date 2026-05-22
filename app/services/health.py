@@ -1,4 +1,5 @@
 """Health check service — monitors all external dependencies."""
+
 import asyncio
 import time
 from datetime import datetime, timezone, timedelta
@@ -128,13 +129,17 @@ class HealthService:
                 "telegram_bot": (await settings.get("notify_svc_telegram_bot")) == "1",
                 "vpn_panel": (await settings.get("notify_svc_vpn_panel")) == "1",
                 "payment_yookassa": (await settings.get("notify_svc_yookassa")) == "1",
-                "payment_cryptobot": (await settings.get("notify_svc_cryptobot")) == "1",
-                "payment_freekassa": (await settings.get("notify_svc_freekassa")) == "1",
+                "payment_cryptobot": (await settings.get("notify_svc_cryptobot"))
+                == "1",
+                "payment_freekassa": (await settings.get("notify_svc_freekassa"))
+                == "1",
             }
 
         if chat_ids_raw and chat_ids_raw.strip():
             try:
-                target_ids = [int(x.strip()) for x in chat_ids_raw.split(",") if x.strip()]
+                target_ids = [
+                    int(x.strip()) for x in chat_ids_raw.split(",") if x.strip()
+                ]
             except ValueError:
                 target_ids = config.telegram.telegram_admin_ids
         else:
@@ -147,7 +152,9 @@ class HealthService:
         tz = timezone(timedelta(hours=tz_offsets.get(lang, 3)))
 
         for name, entry in self._entries.items():
-            if entry.status == ServiceStatus.DOWN or (notify_on_degraded and entry.status == ServiceStatus.DEGRADED):
+            if entry.status == ServiceStatus.DOWN or (
+                notify_on_degraded and entry.status == ServiceStatus.DEGRADED
+            ):
                 if not notify_svc.get(name, True):
                     continue
                 cooldown = self._alert_cooldowns.get(name, 0)
@@ -156,7 +163,11 @@ class HealthService:
                 self._alert_cooldowns[name] = now
 
                 emoji = "🚨" if entry.status == ServiceStatus.DOWN else "⚠️"
-                label = "недоступен" if entry.status == ServiceStatus.DOWN else "работает с перебоями"
+                label = (
+                    "недоступен"
+                    if entry.status == ServiceStatus.DOWN
+                    else "работает с перебоями"
+                )
                 msg = (
                     f"{emoji} <b>Сервис {label}: {name}</b>\n\n"
                     f"Ошибка: {entry.message}\n"
@@ -172,6 +183,7 @@ class HealthService:
 
     async def _check_db(self, entry: HealthEntry):
         from sqlalchemy import text
+
         start = time.time()
         async with AsyncSessionFactory() as session:
             result = await session.execute(text("SELECT 1"))

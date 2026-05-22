@@ -88,9 +88,15 @@ class ReferralService:
         value = Decimal(str(bonus_value or 0))
 
         if normalized_type == ReferralBonusType.BALANCE.value:
-            return f"{value.normalize()} ₽" if value == value.to_integral() else f"{value} ₽"
+            return (
+                f"{value.normalize()} ₽"
+                if value == value.to_integral()
+                else f"{value} ₽"
+            )
         if normalized_type == ReferralBonusType.PERCENT.value:
-            return f"{value.normalize()}%" if value == value.to_integral() else f"{value}%"
+            return (
+                f"{value.normalize()}%" if value == value.to_integral() else f"{value}%"
+            )
 
         days_word = {
             "ru": "дн.",
@@ -116,7 +122,9 @@ class ReferralService:
 
         # Validate bonus
         if bonus_value <= 0:
-            log.warning(f"Referral: non-positive bonus {bonus_value} for referrer {referrer_id}")
+            log.warning(
+                f"Referral: non-positive bonus {bonus_value} for referrer {referrer_id}"
+            )
             return None
         if bonus_value > self.MAX_BONUS_VALUE:
             bonus_value = self.MAX_BONUS_VALUE

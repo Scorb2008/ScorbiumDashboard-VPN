@@ -1,4 +1,5 @@
 """Broadcast messages routes."""
+
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
@@ -59,7 +60,9 @@ async def send_broadcast_view(
 
 
 @router.get("/estimate")
-async def broadcast_estimate(request: Request, target: str = "all", db: AsyncSession = Depends(get_db)):
+async def broadcast_estimate(
+    request: Request, target: str = "all", db: AsyncSession = Depends(get_db)
+):
     _require_permission(request, "broadcasts")
     count = await BroadcastService(db).estimate_count(target)
     return JSONResponse({"count": count})

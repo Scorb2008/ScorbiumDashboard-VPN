@@ -5,6 +5,7 @@ from app.models.base import Base
 
 class BotSettings(Base):
     """Key-value store for bot customization settings."""
+
     __tablename__ = "bot_settings"
 
     id = Column(Integer, primary_key=True, autoincrement=True)

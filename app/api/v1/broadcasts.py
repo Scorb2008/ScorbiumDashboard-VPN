@@ -26,11 +26,18 @@ async def get_broadcast(
 ) -> BroadcastRead:
     bc = await BroadcastService(db).get_by_id(broadcast_id)
     if not bc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Broadcast not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Broadcast not found"
+        )
     return bc
 
 
-@router.post("/", response_model=BroadcastRead, status_code=status.HTTP_201_CREATED, summary="Create broadcast draft")
+@router.post(
+    "/",
+    response_model=BroadcastRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create broadcast draft",
+)
 async def create_broadcast(
     data: BroadcastCreate,
     db: AsyncSession = Depends(get_db),
@@ -39,7 +46,9 @@ async def create_broadcast(
     return await BroadcastService(db).create(**data.model_dump())
 
 
-@router.post("/{broadcast_id}/send", response_model=BroadcastRead, summary="Send broadcast")
+@router.post(
+    "/{broadcast_id}/send", response_model=BroadcastRead, summary="Send broadcast"
+)
 async def send_broadcast(
     broadcast_id: int,
     db: AsyncSession = Depends(get_db),

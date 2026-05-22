@@ -1,4 +1,5 @@
 """Payments management routes."""
+
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 import html
@@ -10,7 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db
-from app.models.payment import Payment,PaymentStatus
+from app.models.payment import Payment, PaymentStatus
 
 from app.services.payment import PaymentService
 
@@ -51,7 +52,9 @@ def _build_daily_series(
     cursor = start
     daily: list[dict[str, float | str]] = []
     while cursor <= end:
-        daily.append({"date": cursor.isoformat(), "amount": normalized.get(cursor, 0.0)})
+        daily.append(
+            {"date": cursor.isoformat(), "amount": normalized.get(cursor, 0.0)}
+        )
         cursor += timedelta(days=1)
     return daily
 
@@ -83,6 +86,7 @@ async def payments_page(
     _require_permission(request, "payments")
     ctx = await _base_ctx(request, db, "payments")
     from app.models.payment import PaymentType as PT
+
     ps = _parse_payment_status(status)
     try:
         pt = PT(payment_type) if payment_type else None
@@ -108,12 +112,12 @@ async def payments_stats_page(request: Request, db: AsyncSession = Depends(get_d
 
     result = await db.execute(
         select(
-            func.coalesce(func.sum(Payment.amount), 0).label('total'),
-            func.count(Payment.id).label('count'),
-            func.avg(Payment.amount).label('avg'),
+            func.coalesce(func.sum(Payment.amount), 0).label("total"),
+            func.count(Payment.id).label("count"),
+            func.avg(Payment.amount).label("avg"),
         ).where(
             Payment.status == PaymentStatus.SUCCEEDED.value,
-            Payment.created_at >= cutoff
+            Payment.created_at >= cutoff,
         )
     )
     row = result.first()
@@ -129,7 +133,7 @@ async def payments_stats_page(request: Request, db: AsyncSession = Depends(get_d
     result = await db.execute(
         select(func.count(Payment.id)).where(
             Payment.status == PaymentStatus.SUCCEEDED.value,
-            Payment.created_at >= cutoff
+            Payment.created_at >= cutoff,
         )
     )
     success_count = result.scalar() or 0
@@ -142,30 +146,46 @@ async def payments_stats_page(request: Request, db: AsyncSession = Depends(get_d
     }
 
     provider_names = {
-        'yookassa': 'YooKassa', 'yookassa_sbp': 'YooKassa СБП', 'cryptobot': 'CryptoBot',
-        'telegram_stars': 'Telegram Stars', 'freekassa': 'FreeKassa', 'aikassa': 'AiKassa',
-        'platega': 'Platega', 'paypalych': 'PayPalych', 'balance': 'Баланс', 'topup': 'Пополнение'
+        "yookassa": "YooKassa",
+        "yookassa_sbp": "YooKassa СБП",
+        "cryptobot": "CryptoBot",
+        "telegram_stars": "Telegram Stars",
+        "freekassa": "FreeKassa",
+        "aikassa": "AiKassa",
+        "platega": "Platega",
+        "paypalych": "PayPalych",
+        "balance": "Баланс",
+        "topup": "Пополнение",
     }
     result = await db.execute(
         select(
             Payment.provider,
-            func.count(Payment.id).label('cnt'),
-            func.coalesce(func.sum(Payment.amount).filter(Payment.status == PaymentStatus.SUCCEEDED.value), 0).label('rev'),
-            func.count(Payment.id).filter(Payment.status == PaymentStatus.SUCCEEDED.value).label('scnt'),
-        ).where(
-            Payment.created_at >= cutoff
-        ).group_by(Payment.provider)
+            func.count(Payment.id).label("cnt"),
+            func.coalesce(
+                func.sum(Payment.amount).filter(
+                    Payment.status == PaymentStatus.SUCCEEDED.value
+                ),
+                0,
+            ).label("rev"),
+            func.count(Payment.id)
+            .filter(Payment.status == PaymentStatus.SUCCEEDED.value)
+            .label("scnt"),
+        )
+        .where(Payment.created_at >= cutoff)
+        .group_by(Payment.provider)
     )
     providers = []
     for r in result.all():
-        providers.append({
-            "provider": r.provider,
-            "label": provider_names.get(r.provider, r.provider),
-            "count": r.cnt,
-            "revenue": float(r.rev),
-            "success_count": r.scnt,
-            "avg_amount": float(r.rev) / r.scnt if r.scnt else 0,
-        })
+        providers.append(
+            {
+                "provider": r.provider,
+                "label": provider_names.get(r.provider, r.provider),
+                "count": r.cnt,
+                "revenue": float(r.rev),
+                "success_count": r.scnt,
+                "avg_amount": float(r.rev) / r.scnt if r.scnt else 0,
+            }
+        )
     total_prov = sum(p["count"] for p in providers) or 1
     for p in providers:
         p["share"] = round(p["count"] / total_prov * 100)
@@ -175,18 +195,20 @@ async def payments_stats_page(request: Request, db: AsyncSession = Depends(get_d
 
 
 @router.get("/stats/json")
-async def payments_stats_json(request: Request, days: int = 30, db: AsyncSession = Depends(get_db)):
+async def payments_stats_json(
+    request: Request, days: int = 30, db: AsyncSession = Depends(get_db)
+):
     _require_permission(request, "payments")
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
     result = await db.execute(
         select(
-            func.coalesce(func.sum(Payment.amount), 0).label('total'),
-            func.count(Payment.id).label('count'),
-            func.avg(Payment.amount).label('avg'),
+            func.coalesce(func.sum(Payment.amount), 0).label("total"),
+            func.count(Payment.id).label("count"),
+            func.avg(Payment.amount).label("avg"),
         ).where(
             Payment.status == PaymentStatus.SUCCEEDED.value,
-            Payment.created_at >= cutoff
+            Payment.created_at >= cutoff,
         )
     )
     row = result.first()
@@ -194,41 +216,72 @@ async def payments_stats_json(request: Request, days: int = 30, db: AsyncSession
     total_pay = row.count if row else 0
     avg_pay = float(row.avg) if row and row.avg else 0
 
-    result = await db.execute(select(func.count(Payment.id)).where(Payment.created_at >= cutoff))
+    result = await db.execute(
+        select(func.count(Payment.id)).where(Payment.created_at >= cutoff)
+    )
     all_count = result.scalar() or 1
-    result = await db.execute(select(func.count(Payment.id)).where(
-        Payment.status == PaymentStatus.SUCCEEDED.value, Payment.created_at >= cutoff))
+    result = await db.execute(
+        select(func.count(Payment.id)).where(
+            Payment.status == PaymentStatus.SUCCEEDED.value,
+            Payment.created_at >= cutoff,
+        )
+    )
     success_count = result.scalar() or 0
 
     provider_names = {
-        'yookassa': 'YooKassa', 'yookassa_sbp': 'YooKassa СБП', 'cryptobot': 'CryptoBot',
-        'telegram_stars': 'Telegram Stars', 'freekassa': 'FreeKassa', 'aikassa': 'AiKassa',
-        'platega': 'Platega', 'paypalych': 'PayPalych', 'balance': 'Баланс', 'topup': 'Пополнение'
+        "yookassa": "YooKassa",
+        "yookassa_sbp": "YooKassa СБП",
+        "cryptobot": "CryptoBot",
+        "telegram_stars": "Telegram Stars",
+        "freekassa": "FreeKassa",
+        "aikassa": "AiKassa",
+        "platega": "Platega",
+        "paypalych": "PayPalych",
+        "balance": "Баланс",
+        "topup": "Пополнение",
     }
     provider_icons = {
-        'yookassa': 'credit-card', 'yookassa_sbp': 'bank', 'cryptobot': 'currency-bitcoin',
-        'telegram_stars': 'star', 'freekassa': 'lightning', 'aikassa': 'wallet',
-        'platega': 'qr-code', 'paypalych': 'cash-stack', 'balance': 'wallet2', 'topup': 'plus-circle'
+        "yookassa": "credit-card",
+        "yookassa_sbp": "bank",
+        "cryptobot": "currency-bitcoin",
+        "telegram_stars": "star",
+        "freekassa": "lightning",
+        "aikassa": "wallet",
+        "platega": "qr-code",
+        "paypalych": "cash-stack",
+        "balance": "wallet2",
+        "topup": "plus-circle",
     }
     result = await db.execute(
         select(
             Payment.provider,
-            func.count(Payment.id).label('cnt'),
-            func.coalesce(func.sum(Payment.amount).filter(Payment.status == PaymentStatus.SUCCEEDED.value), 0).label('rev'),
-            func.count(Payment.id).filter(Payment.status == PaymentStatus.SUCCEEDED.value).label('scnt'),
-        ).where(Payment.created_at >= cutoff).group_by(Payment.provider)
+            func.count(Payment.id).label("cnt"),
+            func.coalesce(
+                func.sum(Payment.amount).filter(
+                    Payment.status == PaymentStatus.SUCCEEDED.value
+                ),
+                0,
+            ).label("rev"),
+            func.count(Payment.id)
+            .filter(Payment.status == PaymentStatus.SUCCEEDED.value)
+            .label("scnt"),
+        )
+        .where(Payment.created_at >= cutoff)
+        .group_by(Payment.provider)
     )
     providers = []
     for r in result.all():
-        providers.append({
-            "provider": r.provider,
-            "label": provider_names.get(r.provider, r.provider),
-            "icon": provider_icons.get(r.provider, 'question-circle'),
-            "count": r.cnt,
-            "revenue": float(r.rev),
-            "success_count": r.scnt,
-            "avg_amount": float(r.rev) / r.scnt if r.scnt else 0,
-        })
+        providers.append(
+            {
+                "provider": r.provider,
+                "label": provider_names.get(r.provider, r.provider),
+                "icon": provider_icons.get(r.provider, "question-circle"),
+                "count": r.cnt,
+                "revenue": float(r.rev),
+                "success_count": r.scnt,
+                "avg_amount": float(r.rev) / r.scnt if r.scnt else 0,
+            }
+        )
     total_prov = sum(p["count"] for p in providers) or 1
     for p in providers:
         p["share"] = round(p["count"] / total_prov * 100)
@@ -241,25 +294,30 @@ async def payments_stats_json(request: Request, days: int = 30, db: AsyncSession
     result = await db.execute(
         select(
             day_bucket,
-            func.coalesce(func.sum(Payment.amount), 0).label('amount'),
-        ).where(
+            func.coalesce(func.sum(Payment.amount), 0).label("amount"),
+        )
+        .where(
             Payment.status == PaymentStatus.SUCCEEDED.value,
-            Payment.created_at >= cutoff
-        ).group_by(day_bucket).order_by(day_bucket)
+            Payment.created_at >= cutoff,
+        )
+        .group_by(day_bucket)
+        .order_by(day_bucket)
     )
     daily = _build_daily_series(
         [(r.day, float(r.amount)) for r in result.all()],
         days=days,
     )
 
-    return JSONResponse({
-        "total_revenue": f"{total_rev:.2f}",
-        "total_payments": total_pay,
-        "avg_payment": f"{avg_pay:.2f}",
-        "success_rate": round(success_count / all_count * 100) if all_count else 0,
-        "providers": sorted(providers, key=lambda x: x["revenue"], reverse=True),
-        "daily": daily,
-    })
+    return JSONResponse(
+        {
+            "total_revenue": f"{total_rev:.2f}",
+            "total_payments": total_pay,
+            "avg_payment": f"{avg_pay:.2f}",
+            "success_rate": round(success_count / all_count * 100) if all_count else 0,
+            "providers": sorted(providers, key=lambda x: x["revenue"], reverse=True),
+            "daily": daily,
+        }
+    )
 
 
 @router.post("/{payment_id}/refund", response_class=HTMLResponse)
@@ -270,7 +328,7 @@ async def refund_payment_view(
     payment = await PaymentService(db).refund(payment_id)
     if not payment:
         resp = Response(status_code=404)
-        _toast(resp, 'Платёж не найден', 'error')
+        _toast(resp, "Платёж не найден", "error")
         return resp
     h = html.escape
     resp = HTMLResponse(f"""<tr>

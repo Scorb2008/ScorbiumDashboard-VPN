@@ -1,6 +1,5 @@
 import time
 from datetime import datetime, timezone
-from typing import Optional
 
 from sqlalchemy import Column, Integer, String, DateTime, select, func
 from sqlalchemy.ext.asyncio import AsyncSession

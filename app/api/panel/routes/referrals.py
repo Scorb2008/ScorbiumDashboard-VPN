@@ -1,4 +1,5 @@
 """Referral system routes."""
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 

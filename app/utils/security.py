@@ -5,17 +5,18 @@ from typing import Any, Optional
 import bcrypt
 from jose import JWTError, jwt
 
-from app.core.config import config
 from app.utils.log import log
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
 _TEMP_SECRET_KEY: str | None = None
 
+
 def _secret_key() -> str:
     """Return a dedicated JWT signing secret."""
     import os
     import secrets as _secrets
+
     global _TEMP_SECRET_KEY
     secret = os.environ.get("JWT_SECRET_KEY", "").strip()
     if not secret:
@@ -28,11 +29,13 @@ def _secret_key() -> str:
         secret = _TEMP_SECRET_KEY
     return secret
 
+
 def hash_password(password: str) -> str:
     """Hash password with bcrypt (auto-generates salt, handles encoding)."""
     # bcrypt has 72-byte limit; passlib does this internally, we do it explicitly
     pw_bytes = password.encode("utf-8")[:72]
     return bcrypt.hashpw(pw_bytes, bcrypt.gensalt(rounds=12)).decode("ascii")
+
 
 def verify_password(plain: str, hashed: str) -> bool:
     """Verify plain password against bcrypt hash."""
@@ -43,6 +46,7 @@ def verify_password(plain: str, hashed: str) -> bool:
     except Exception:
         return False
 
+
 def create_access_token(
     subject: Any,
     role: str = "superadmin",
@@ -52,10 +56,16 @@ def create_access_token(
     expire = datetime.now(timezone.utc) + (
         expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
-    payload = {"sub": str(subject), "role": role, "exp": expire, "jti": str(uuid.uuid4())}
+    payload = {
+        "sub": str(subject),
+        "role": role,
+        "exp": expire,
+        "jti": str(uuid.uuid4()),
+    }
     if extra:
         payload.update(extra)
     return jwt.encode(payload, _secret_key(), algorithm=ALGORITHM)
+
 
 def decode_access_token(token: str) -> Optional[str]:
     """Returns subject (str) or None if token is invalid/expired."""
@@ -64,6 +74,7 @@ def decode_access_token(token: str) -> Optional[str]:
         return payload.get("sub")
     except JWTError:
         return None
+
 
 def decode_access_token_full(token: str) -> Optional[dict]:
     """Returns full payload or None if token is invalid/expired."""

@@ -45,7 +45,6 @@ async def handle_trial(callback: CallbackQuery) -> None:
         trial_days = int(settings.get("trial_days", "3"))
 
         # Проверяем что юзер ещё не использовал пробный период
-        user = await UserService(session).get_by_id(callback.from_user.id)
         all_keys = await VpnKeyService(session).get_all_for_user(callback.from_user.id)
 
         if all_keys:

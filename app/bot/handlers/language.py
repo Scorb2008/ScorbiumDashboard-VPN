@@ -1,4 +1,5 @@
 """Handler for language selection."""
+
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -21,11 +22,15 @@ def language_kb(current_lang: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for code, label in _LANG_LABELS.items():
         check = "✅ " if code == current_lang else ""
-        builder.row(InlineKeyboardButton(
-            text=f"{check}{label}",
-            callback_data=f"set_lang:{code}",
-        ))
-    builder.row(InlineKeyboardButton(text="◀️ Назад / Back / بازگشت", callback_data="back_main"))
+        builder.row(
+            InlineKeyboardButton(
+                text=f"{check}{label}",
+                callback_data=f"set_lang:{code}",
+            )
+        )
+    builder.row(
+        InlineKeyboardButton(text="◀️ Назад / Back / بازگشت", callback_data="back_main")
+    )
     return builder.as_markup()
 
 
@@ -40,7 +45,13 @@ async def show_language(callback: CallbackQuery) -> None:
     photo = settings.get("photo_language") or None
 
     from app.bot.utils.media import edit_with_photo
-    await edit_with_photo(callback, t("choose_language", lang), reply_markup=language_kb(lang), photo=photo)
+
+    await edit_with_photo(
+        callback,
+        t("choose_language", lang),
+        reply_markup=language_kb(lang),
+        photo=photo,
+    )
     await callback.answer()
 
 
@@ -59,5 +70,8 @@ async def set_language(callback: CallbackQuery) -> None:
             await session.commit()
 
     from app.bot.utils.media import edit_with_photo
-    await edit_with_photo(callback, t("language_set", new_lang), reply_markup=language_kb(new_lang))
+
+    await edit_with_photo(
+        callback, t("language_set", new_lang), reply_markup=language_kb(new_lang)
+    )
     await callback.answer(t("language_set", new_lang))

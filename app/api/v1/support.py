@@ -4,7 +4,13 @@ from typing import Optional
 
 from app.api.dependencies import get_db, get_current_admin
 from app.models.support import TicketStatus
-from app.schemas.support import TicketCreate, TicketRead, TicketReply, TicketStatusUpdate, TicketPriorityUpdate
+from app.schemas.support import (
+    TicketCreate,
+    TicketRead,
+    TicketReply,
+    TicketStatusUpdate,
+    TicketPriorityUpdate,
+)
 from app.services.support import SupportService
 from app.services.telegram_notify import TelegramNotifyService
 
@@ -30,11 +36,18 @@ async def get_ticket(
 ) -> TicketRead:
     ticket = await SupportService(db).get_by_id(ticket_id)
     if not ticket:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found"
+        )
     return ticket
 
 
-@router.post("/", response_model=TicketRead, status_code=status.HTTP_201_CREATED, summary="Create ticket")
+@router.post(
+    "/",
+    response_model=TicketRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create ticket",
+)
 async def create_ticket(
     data: TicketCreate,
     db: AsyncSession = Depends(get_db),
@@ -50,7 +63,9 @@ async def create_ticket(
     return await svc.get_by_id(ticket.id)
 
 
-@router.post("/{ticket_id}/reply", response_model=TicketRead, summary="Reply to ticket (admin)")
+@router.post(
+    "/{ticket_id}/reply", response_model=TicketRead, summary="Reply to ticket (admin)"
+)
 async def reply_ticket(
     ticket_id: int,
     body: TicketReply,
@@ -60,9 +75,13 @@ async def reply_ticket(
     svc = SupportService(db)
     ticket = await svc.get_by_id(ticket_id)
     if not ticket:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found"
+        )
 
-    await svc.add_message(ticket_id=ticket_id, sender_id=0, text=body.text, is_admin=True)
+    await svc.add_message(
+        ticket_id=ticket_id, sender_id=0, text=body.text, is_admin=True
+    )
 
     if body.notify_user:
         notify = TelegramNotifyService()
@@ -74,7 +93,9 @@ async def reply_ticket(
     return await svc.get_by_id(ticket_id)
 
 
-@router.patch("/{ticket_id}/status", response_model=TicketRead, summary="Update ticket status")
+@router.patch(
+    "/{ticket_id}/status", response_model=TicketRead, summary="Update ticket status"
+)
 async def update_ticket_status(
     ticket_id: int,
     body: TicketStatusUpdate,
@@ -84,11 +105,15 @@ async def update_ticket_status(
     svc = SupportService(db)
     ticket = await svc.set_status(ticket_id, body.status)
     if not ticket:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found"
+        )
     return await svc.get_by_id(ticket_id)
 
 
-@router.patch("/{ticket_id}/priority", response_model=TicketRead, summary="Update ticket priority")
+@router.patch(
+    "/{ticket_id}/priority", response_model=TicketRead, summary="Update ticket priority"
+)
 async def update_ticket_priority(
     ticket_id: int,
     body: TicketPriorityUpdate,
@@ -98,5 +123,7 @@ async def update_ticket_priority(
     svc = SupportService(db)
     ticket = await svc.set_priority(ticket_id, body.priority)
     if not ticket:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found"
+        )
     return await svc.get_by_id(ticket_id)

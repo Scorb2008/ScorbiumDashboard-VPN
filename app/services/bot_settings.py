@@ -68,7 +68,7 @@ DEFAULTS = {
     "cabinet_url": "",
     "admin_panel_url": "",
     "keyboard_layout": "",
-    "bot_language": "ru", 
+    "bot_language": "ru",
     "cryptobot_token": "",
     "stars_rate": "1.5",
     # ── Платёжные системы — включение/отключение ──────────────────────────
@@ -90,7 +90,7 @@ DEFAULTS = {
     "aikassa_token": "",
     # ── Пробный период ────────────────────────────────────────────────────────
     "trial_enabled": "0",
-    "trial_days": "3", 
+    "trial_days": "3",
     "trial_label": "🎁 Пробный период ({days} дн.)",
     # ── Уведомления об истечении подписки ─────────────────────────────────────
     "notify_expiry_enabled": "1",
@@ -111,10 +111,10 @@ DEFAULTS = {
     "btn_style_status": "",
     "btn_style_language": "",
     # ── Maintenance Mode ───────────────────────────────────────────────────────
-    "maintenance_mode": "0", 
+    "maintenance_mode": "0",
     "maintenance_message": "⛔️ Ведутся технические работы. Напишите через час.",
     # ── Traffic Abuse Analysis ─────────────────────────────────────────
-    "traffic_abuse_threshold_gb": "100", 
+    "traffic_abuse_threshold_gb": "100",
     "traffic_abuse_speed_limit_mbps": "10",
     # ── Custom emoji ID для кнопок (Premium) ─────────────────────────────────
     "btn_emoji_buy": "",
@@ -131,12 +131,12 @@ DEFAULTS = {
     "btn_emoji_language": "",
     # ── Уведомления о мониторинге ─────────────────────────────────────────────
     "notify_monitoring_enabled": "1",
-    "notify_svc_database": "1", 
+    "notify_svc_database": "1",
     "notify_svc_telegram_bot": "1",
     "notify_svc_vpn_panel": "1",
-    "notify_svc_yookassa": "0", 
+    "notify_svc_yookassa": "0",
     "notify_svc_cryptobot": "0",
-    "notify_cooldown_seconds": "300", 
+    "notify_cooldown_seconds": "300",
     "notify_on_degraded": "0",
     # ── Telegram Chat ID для уведомлений ──────────────────────────────────────
     "notify_chat_ids": "",
@@ -152,6 +152,7 @@ class BotSettingsService:
         value = all_settings.get(key)
         if value and key in _SENSITIVE_KEYS:
             from app.services.encryption import decrypt_value, is_encrypted
+
             if is_encrypted(value):
                 return decrypt_value(value)
         return value
@@ -176,6 +177,7 @@ class BotSettingsService:
         global _cache, _cache_ts, _cache_lock
         if key in _SENSITIVE_KEYS and value:
             from app.services.encryption import encrypt_value, is_encrypted
+
             if not is_encrypted(value):
                 value = encrypt_value(value)
 
@@ -217,6 +219,7 @@ class BotSettingsService:
         if not row or not row.value:
             return False
         from app.services.encryption import is_encrypted
+
         return is_encrypted(row.value)
 
     async def set_many(self, data: dict) -> None:

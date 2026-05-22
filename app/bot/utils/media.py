@@ -2,6 +2,7 @@
 Утилиты для отправки и редактирования сообщений.
 Корректно обрабатывает сообщения с фото (caption) и без (text).
 """
+
 from typing import Optional
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup
 from aiogram.exceptions import TelegramBadRequest
@@ -61,7 +62,9 @@ async def edit_with_photo(
                 parse_mode=parse_mode,
             )
         except Exception:
-            await msg.answer(text=text, reply_markup=reply_markup, parse_mode=parse_mode)
+            await msg.answer(
+                text=text, reply_markup=reply_markup, parse_mode=parse_mode
+            )
         return
 
     # Без фото — пробуем редактировать
@@ -73,7 +76,9 @@ async def edit_with_photo(
         if "there is no text in the message" in str(e):
             # Сообщение с фото — редактируем caption
             try:
-                await msg.edit_caption(caption=text, reply_markup=reply_markup, parse_mode=parse_mode)
+                await msg.edit_caption(
+                    caption=text, reply_markup=reply_markup, parse_mode=parse_mode
+                )
                 return
             except Exception:
                 pass
@@ -100,4 +105,6 @@ async def safe_edit(
     parse_mode: str = "HTML",
 ) -> None:
     """Безопасное редактирование без фото — обрабатывает caption и text."""
-    await edit_with_photo(callback, text, reply_markup=reply_markup, parse_mode=parse_mode)
+    await edit_with_photo(
+        callback, text, reply_markup=reply_markup, parse_mode=parse_mode
+    )

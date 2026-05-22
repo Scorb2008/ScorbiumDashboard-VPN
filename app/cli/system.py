@@ -2,8 +2,6 @@ import click
 import subprocess
 from rich.console import Console
 from rich.table import Table
-from datetime import datetime
-from pathlib import Path
 import shutil
 
 from app.cli import get_repo_root, run_cli_async
@@ -19,16 +17,16 @@ def _telegram_token_value():
     secret = getattr(telegram, "telegram_bot_token", None)
     return secret.get_secret_value() if secret else ""
 
+
 async def _health_check():
     from app.core.database import AsyncSessionFactory
-    from app.core.config import config
     from sqlalchemy import text
-    
+
     click.echo("")
     click.secho("ПРОВЕРКА ЗДОРОВЬЯ СИСТЕМЫ", bold=True, fg="cyan")
     click.echo("=" * 50)
     click.echo("")
-    
+
     # Check database connection
     click.echo("Проверка подключения к БД...")
     try:
@@ -37,7 +35,7 @@ async def _health_check():
             click.secho("  ✓ База данных: подключение успешно", fg="green")
     except Exception as e:
         click.secho(f"  ✗ База данных: ошибка подключения - {e}", fg="red")
-    
+
     # Check bot token
     click.echo("")
     click.echo("Проверка токена бота...")
@@ -49,113 +47,115 @@ async def _health_check():
             click.secho("  ✗ Токен бота: НЕ настроен", fg="red")
     except Exception as e:
         click.secho(f"  ✗ Токен бота: ошибка - {e}", fg="red")
-    
+
     # Check admin IDs
     click.echo("")
     click.echo("Проверка администраторов...")
     try:
         from app.models.admin import Admin
         from sqlalchemy import select, func
-        
+
         async with AsyncSessionFactory() as session:
             stmt = select(func.count(Admin.id))
             result = await session.execute(stmt)
             admin_count = result.scalar()
-            
+
             if admin_count > 0:
                 click.secho(f"  ✓ Администраторов: {admin_count}", fg="green")
             else:
                 click.secho("  ⚠ Администраторов: нет", fg="yellow")
     except Exception as e:
         click.secho(f"  ✗ Администраторы: ошибка - {e}", fg="red")
-    
+
     click.echo("")
+
 
 async def _list_admins():
     from app.core.database import AsyncSessionFactory
     from app.models.admin import Admin
     from sqlalchemy import select
-    
+
     async with AsyncSessionFactory() as session:
         stmt = select(Admin).order_by(Admin.id)
         result = await session.execute(stmt)
         admins = result.scalars().all()
-        
+
         if not admins:
             click.secho("Нет администраторов", fg="yellow")
             return
-        
+
         table = Table(title="Администраторы", border_style="cyan")
         table.add_column("ID", style="dim")
         table.add_column("TG ID")
         table.add_column("Имя")
         table.add_column("Роль")
         table.add_column("Создан")
-        
+
         for admin in admins:
             table.add_row(
                 str(admin.id),
                 str(admin.tg_id),
                 admin.name or "-",
                 admin.role or "admin",
-                admin.created_at.strftime('%Y-%m-%d') if admin.created_at else "-"
+                admin.created_at.strftime("%Y-%m-%d") if admin.created_at else "-",
             )
-        
+
         console.print(table)
+
 
 async def _add_admin(tg_id: int, role: str, name: str):
     from app.core.database import AsyncSessionFactory
     from app.models.admin import Admin
     from sqlalchemy import select
-    
+
     async with AsyncSessionFactory() as session:
         # Check if already exists
         stmt = select(Admin).where(Admin.tg_id == tg_id)
         result = await session.execute(stmt)
         existing = result.scalar_one_or_none()
-        
+
         if existing:
             click.secho(f"Администратор с TG ID {tg_id} уже существует", fg="yellow")
             return
-        
-        admin = Admin(
-            tg_id=tg_id,
-            role=role,
-            name=name
-        )
-        
+
+        admin = Admin(tg_id=tg_id, role=role, name=name)
+
         session.add(admin)
         await session.commit()
-        
+
         click.secho(f"✓ Администратор добавлен (ID: {admin.id})", fg="green", bold=True)
         click.echo(f"  TG ID: {tg_id}")
         click.echo(f"  Имя: {name}")
         click.echo(f"  Роль: {role}")
 
+
 async def _remove_admin(admin_id: int):
     from app.core.database import AsyncSessionFactory
     from app.models.admin import Admin
     from sqlalchemy import select
-    
+
     async with AsyncSessionFactory() as session:
         stmt = select(Admin).where(Admin.id == admin_id)
         result = await session.execute(stmt)
         admin = result.scalar_one_or_none()
-        
+
         if not admin:
             click.secho(f"Администратор с ID {admin_id} не найден", fg="red")
             return
-        
+
         click.echo(f"Администратор: {admin.name} (TG ID: {admin.tg_id})")
-        
-        if not click.confirm("Вы уверены, что хотите удалить этого администратора?", default=False):
+
+        if not click.confirm(
+            "Вы уверены, что хотите удалить этого администратора?", default=False
+        ):
             click.secho("Отменено", fg="yellow")
             return
-        
+
         await session.delete(admin)
         await session.commit()
-        
+
         click.secho(f"✓ Администратор {admin_id} удален", fg="green", bold=True)
+
 
 async def _show_logs(lines: int):
     click.echo(f"Последние {lines} строк логов:")
@@ -206,7 +206,7 @@ async def _show_logs(lines: int):
                 ["docker", "compose", "logs", "--tail", str(lines), "app"],
                 cwd=REPO_ROOT,
                 capture_output=True,
-                text=True
+                text=True,
             )
 
             if result.returncode == 0:
@@ -216,15 +216,21 @@ async def _show_logs(lines: int):
         if _print_log_files():
             return
         else:
-            click.secho("Логи недоступны (docker недоступен и файлов логов не найдено)", fg="yellow")
+            click.secho(
+                "Логи недоступны (docker недоступен и файлов логов не найдено)",
+                fg="yellow",
+            )
     except Exception as e:
         click.secho(f"Ошибка при чтении логов: {e}", fg="red")
+
 
 def health():
     run_cli_async(_health_check())
 
+
 def admins():
     run_cli_async(_list_admins())
+
 
 def add_admin(tg_id=None, role="admin", name=None):
     if tg_id is None:
@@ -235,10 +241,12 @@ def add_admin(tg_id=None, role="admin", name=None):
         name = click.prompt("Имя")
     run_cli_async(_add_admin(tg_id, role, name))
 
+
 def remove_admin(admin_id=None):
     if admin_id is None:
         admin_id = click.prompt("ID администратора", type=int)
     run_cli_async(_remove_admin(admin_id))
+
 
 def logs(lines=50):
     if lines is None:

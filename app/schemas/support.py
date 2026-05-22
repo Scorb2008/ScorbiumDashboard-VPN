@@ -1,4 +1,3 @@
-from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 from app.models.support import TicketStatus, TicketPriority
 
@@ -21,7 +20,7 @@ class TicketCreate(BaseModel):
 
 class TicketReply(BaseModel):
     text: str = Field(..., min_length=1)
-    notify_user: bool = True   # отправить сообщение юзеру в Telegram
+    notify_user: bool = True  # отправить сообщение юзеру в Telegram
 
 
 class TicketStatusUpdate(BaseModel):

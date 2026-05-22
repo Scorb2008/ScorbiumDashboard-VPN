@@ -1,4 +1,5 @@
 """Prometheus middleware for FastAPI — tracks HTTP request metrics."""
+
 import time
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -33,9 +34,9 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
             http_requests_total.labels(
                 method=method, endpoint=path, status=status
             ).inc()
-            http_request_duration_seconds.labels(
-                method=method, endpoint=path
-            ).observe(duration)
+            http_request_duration_seconds.labels(method=method, endpoint=path).observe(
+                duration
+            )
             http_requests_in_progress.labels(method=method).dec()
 
         return response
@@ -44,4 +45,5 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
     def _normalize_path(path: str) -> str:
         """Replace numeric path segments with {id} to reduce cardinality."""
         import re
+
         return re.sub(r"/\d+", "/{id}", path)

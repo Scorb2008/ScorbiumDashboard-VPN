@@ -18,7 +18,9 @@ class PromoCode(Base):
     code = Column(String(64), nullable=False, unique=True, index=True)
     promo_type = Column(String(32), nullable=False)
     value = Column(Numeric(10, 2), nullable=False)
-    plan_id = Column(Integer, ForeignKey("plans.id", ondelete="SET NULL"), nullable=True)
+    plan_id = Column(
+        Integer, ForeignKey("plans.id", ondelete="SET NULL"), nullable=True
+    )
     max_uses = Column(Integer, default=0, nullable=False)
     current_uses = Column(Integer, default=0, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)

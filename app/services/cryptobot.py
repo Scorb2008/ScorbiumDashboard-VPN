@@ -14,7 +14,9 @@ class CryptoBotService:
         url = f"{self.BASE_URL}/{endpoint}"
         try:
             async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.request(method, url, headers=self._headers, **kwargs)
+                resp = await client.request(
+                    method, url, headers=self._headers, **kwargs
+                )
                 data = resp.json()
                 if data.get("ok"):
                     return data.get("result")
@@ -50,7 +52,9 @@ class CryptoBotService:
 
     async def get_invoice(self, invoice_id: int) -> Optional[dict]:
         """Получить статус счёта."""
-        result = await self._request("GET", "getInvoices", params={"invoice_ids": str(invoice_id)})
+        result = await self._request(
+            "GET", "getInvoices", params={"invoice_ids": str(invoice_id)}
+        )
         if result and result.get("items"):
             return result["items"][0]
         return None

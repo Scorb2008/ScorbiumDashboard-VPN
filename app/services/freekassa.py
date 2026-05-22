@@ -88,14 +88,14 @@ class FreeKassaService:
         MD5 от "shop_id:amount:secret_word_1:currency:order_id"
         """
         raw = f"{self._shop_id}:{amount}:{self._secret_word_1}:{currency}:{order_id}"
-        return hashlib.md5(raw.encode()).hexdigest()
+        return hashlib.md5(raw.encode(), usedforsecurity=False).hexdigest()
 
     def sign_notification(self, merchant_id: str, amount: str, order_id: str) -> str:
         """
         MD5 от "merchant_id:amount:secret_word_2:order_id" — для проверки webhook.
         """
         raw = f"{merchant_id}:{amount}:{self._secret_word_2}:{order_id}"
-        return hashlib.md5(raw.encode()).hexdigest()
+        return hashlib.md5(raw.encode(), usedforsecurity=False).hexdigest()
 
     def verify_notification(
         self, merchant_id: str, amount: str, order_id: str, sign: str
@@ -150,7 +150,12 @@ class FreeKassaService:
         if not data:
             return {"ok": False, "error": "FreeKassa API не ответила"}
         if data.get("type") == "error":
-            return {"ok": False, "error": data.get("msg") or data.get("message") or "Ошибка FreeKassa API"}
+            return {
+                "ok": False,
+                "error": data.get("msg")
+                or data.get("message")
+                or "Ошибка FreeKassa API",
+            }
         return {"ok": True, "data": data}
 
     async def create_order(

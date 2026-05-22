@@ -1,4 +1,5 @@
 """Backup & restore routes."""
+
 import asyncio
 import gzip
 import io
@@ -27,7 +28,7 @@ from .shared import _require_permission, _toast, _base_ctx, templates
 
 router = APIRouter()
 
-_MAX_BACKUP = 100 * 1024 * 1024 
+_MAX_BACKUP = 100 * 1024 * 1024
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _RESTORE_TIMEOUT = 180
 _PUBLIC_SCHEMA_RESET_SQL = """DROP SCHEMA IF EXISTS public CASCADE;
@@ -72,9 +73,8 @@ def _format_subprocess_error(result: subprocess.CompletedProcess[bytes]) -> str:
             upper = line.upper()
             if "NOTICE:" in upper:
                 continue
-            if (
-                line.startswith("psql:")
-                or any(marker in upper for marker in ("ERROR:", "DETAIL:", "HINT:", "CONTEXT:"))
+            if line.startswith("psql:") or any(
+                marker in upper for marker in ("ERROR:", "DETAIL:", "HINT:", "CONTEXT:")
             ):
                 focused.append(line)
         if focused:
@@ -194,10 +194,18 @@ async def backup_page(request: Request, db: AsyncSession = Depends(get_db)):
     ctx = await _base_ctx(request, db, "backup")
 
     ctx["db_stats"] = {
-        "users": (await db.execute(select(func.count()).select_from(User))).scalar_one(),
-        "vpn_keys": (await db.execute(select(func.count()).select_from(VpnKey))).scalar_one(),
-        "payments": (await db.execute(select(func.count()).select_from(Payment))).scalar_one(),
-        "tickets": (await db.execute(select(func.count()).select_from(SupportTicket))).scalar_one(),
+        "users": (
+            await db.execute(select(func.count()).select_from(User))
+        ).scalar_one(),
+        "vpn_keys": (
+            await db.execute(select(func.count()).select_from(VpnKey))
+        ).scalar_one(),
+        "payments": (
+            await db.execute(select(func.count()).select_from(Payment))
+        ).scalar_one(),
+        "tickets": (
+            await db.execute(select(func.count()).select_from(SupportTicket))
+        ).scalar_one(),
     }
 
     return templates.TemplateResponse("backup.html", ctx)
@@ -216,7 +224,9 @@ async def backup_export(request: Request, format: str = "sql"):
             return Response(content=f"pg_dump error: {err}", status_code=500)
         sql_bytes = result.stdout
     except FileNotFoundError:
-        return Response(content="pg_dump not found. Install postgresql-client.", status_code=500)
+        return Response(
+            content="pg_dump not found. Install postgresql-client.", status_code=500
+        )
     except subprocess.TimeoutExpired:
         return Response(content="pg_dump timed out", status_code=500)
 
@@ -230,7 +240,9 @@ async def backup_export(request: Request, format: str = "sql"):
         return StreamingResponse(
             buf,
             media_type="application/gzip",
-            headers={"Content-Disposition": f'attachment; filename="backup_{ts}.sql.gz"'},
+            headers={
+                "Content-Disposition": f'attachment; filename="backup_{ts}.sql.gz"'
+            },
         )
 
     return StreamingResponse(
@@ -274,7 +286,17 @@ async def backup_import(
             return resp
         pg_uri = config.database.sync_dsn
         restore_sql = _prepare_restore_sql(content)
-        cmd = ["psql", "--no-password", "-X", "-v", "ON_ERROR_STOP=1", "-1", "-f", "-", pg_uri]
+        cmd = [
+            "psql",
+            "--no-password",
+            "-X",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-1",
+            "-f",
+            "-",
+            pg_uri,
+        ]
 
         result = await _run_subprocess(
             cmd,
@@ -291,7 +313,11 @@ async def backup_import(
         migrations_ok, migrations_error = await _run_post_restore_migrations()
         if not migrations_ok:
             resp = Response(status_code=500)
-            _toast(resp, f"Импорт выполнен, но миграции не применились: {migrations_error}", "error")
+            _toast(
+                resp,
+                f"Импорт выполнен, но миграции не применились: {migrations_error}",
+                "error",
+            )
             return resp
 
         await _sync_deployment_settings_after_restore()
@@ -328,4 +354,6 @@ async def clear_database(request: Request, db: AsyncSession = Depends(get_db)):
         return JSONResponse({"ok": True, "message": "База данных успешно очищена"})
     except Exception as e:
         await db.rollback()
-        return JSONResponse({"ok": False, "message": f"Ошибка: {str(e)}"}, status_code=500)
+        return JSONResponse(
+            {"ok": False, "message": f"Ошибка: {str(e)}"}, status_code=500
+        )

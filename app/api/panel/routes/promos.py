@@ -1,4 +1,5 @@
 """Promo code management routes."""
+
 from decimal import Decimal
 from typing import Optional
 
@@ -78,7 +79,7 @@ async def toggle_promo(
     promo = await PromoService(db).toggle_active(promo_id)
     if not promo:
         resp = Response(status_code=404)
-        _toast(resp, 'Промокод не найден', 'error')
+        _toast(resp, "Промокод не найден", "error")
         return resp
     await db.commit()
     status_text = "активен" if promo.is_active else "отключён"

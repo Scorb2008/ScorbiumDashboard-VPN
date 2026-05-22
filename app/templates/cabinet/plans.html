@@ -52,6 +52,112 @@
   .cab-payment-method .btn {
     flex-shrink: 0;
   }
+
+  .cab-payment-flow[hidden] {
+    display: none;
+  }
+
+  .cab-payment-flow-body {
+    display: grid;
+    gap: 14px;
+  }
+
+  .cab-payment-flow-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    max-width: 100%;
+    padding: 10px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(159, 193, 255, 0.14);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text);
+    font-size: .84rem;
+    font-weight: 700;
+    letter-spacing: .01em;
+  }
+
+  .cab-payment-flow-status[data-state="succeeded"] {
+    color: var(--good);
+    border-color: rgba(102, 240, 174, 0.24);
+    background: rgba(102, 240, 174, 0.12);
+  }
+
+  .cab-payment-flow-status[data-state="processing"] {
+    color: var(--warn);
+    border-color: rgba(255, 209, 102, 0.24);
+    background: rgba(255, 209, 102, 0.12);
+  }
+
+  .cab-payment-flow-status[data-state="failed"],
+  .cab-payment-flow-status[data-state="cancelled"] {
+    color: var(--bad);
+    border-color: rgba(255, 111, 145, 0.24);
+    background: rgba(255, 111, 145, 0.12);
+  }
+
+  .cab-payment-flow-copy {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .cab-payment-flow-copy div {
+    padding: 14px 16px;
+    border-radius: 18px;
+    border: 1px solid rgba(159, 193, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .cab-payment-flow-copy span {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text-muted);
+    font-size: .78rem;
+  }
+
+  .cab-payment-flow-copy strong {
+    display: block;
+    color: var(--text);
+    font-size: .95rem;
+  }
+
+  .cab-payment-flow-message {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: .92rem;
+    line-height: 1.55;
+  }
+
+  .cab-payment-flow-link {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .cab-payment-flow-link[hidden] {
+    display: none;
+  }
+
+  .cab-payment-flow-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  @media (max-width: 720px) {
+    .cab-payment-flow-copy,
+    .cab-payment-flow-link {
+      grid-template-columns: 1fr;
+    }
+
+    .cab-payment-flow-actions .btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
 </style>
 {% endblock %}
 
@@ -114,9 +220,50 @@
       </div>
     </section>
 
+    <section class="cab-premium-panel cab-payment-flow" id="payment-flow-box" hidden>
+      <div class="cab-premium-panel-head">
+        <div>
+          <h2>Текущая оплата</h2>
+          <p>Здесь всегда доступна ссылка на оплату, ручная проверка и понятный статус оформления подписки.</p>
+        </div>
+      </div>
+
+      <div class="cab-payment-flow-body">
+        <div class="cab-payment-flow-status" id="payment-flow-status" data-state="pending">Ожидаем оплату</div>
+        <div class="cab-payment-flow-copy">
+          <div>
+            <span>Тариф</span>
+            <strong id="payment-flow-plan">—</strong>
+          </div>
+          <div>
+            <span>Способ оплаты</span>
+            <strong id="payment-flow-provider">—</strong>
+          </div>
+        </div>
+        <p class="cab-payment-flow-message" id="payment-flow-message">Откройте ссылку на оплату и затем нажмите проверку статуса.</p>
+        <div class="cab-payment-flow-link" id="payment-flow-link-wrap">
+          <input type="text" class="inp" id="payment-flow-url" value="" readonly>
+          <button class="btn btn-o" type="button" onclick="copyPaymentLink()">
+            <i class="bi bi-copy"></i> Копировать
+          </button>
+        </div>
+        <div class="cab-payment-flow-actions">
+          <button class="btn btn-p" type="button" id="payment-flow-open" onclick="openActivePayment()">
+            <i class="bi bi-box-arrow-up-right"></i> Перейти к оплате
+          </button>
+          <button class="btn btn-o" type="button" id="payment-flow-check" onclick="checkActivePayment(false)">
+            <i class="bi bi-arrow-repeat"></i> Проверить оплату
+          </button>
+          <button class="btn btn-o" type="button" onclick="dismissPaymentFlow()">
+            <i class="bi bi-x-lg"></i> Скрыть
+          </button>
+        </div>
+      </div>
+    </section>
+
     <div class="cab-premium-grid-2" style="margin-top:18px">
       {% for plan in plans %}
-      <article class="cab-premium-plan">
+      <article class="cab-premium-plan" data-plan-card="{{ plan.id }}" data-plan-name="{{ plan.name|e }}">
         <div class="cab-premium-plan-tag"><i class="bi bi-lightning-charge"></i>{{ plan.duration_days }} дн.</div>
         <h3>{{ plan.name }}</h3>
         <div class="cab-premium-price">{{ "%.0f"|format(plan.price) }} ₽</div>
@@ -202,6 +349,9 @@
 {% endblock %}
 
 {% block scripts %}
+var PAYMENT_FLOW_STORAGE_KEY = 'cabinetPlanPaymentFlow';
+var paymentFlowPollTimer = 0;
+
 function getPlansPromoCode() {
   var input = document.getElementById('plans-promo-code');
   return input ? input.value.trim() : '';
@@ -239,8 +389,187 @@ function getSelectedPlanFromQuery() {
   }
 }
 
-async function handlePaymentResult(payload) {
+function getPlanMeta(planId) {
+  var selector = '[data-plan-card="' + String(planId).replace(/"/g, '\\"') + '"]';
+  var card = document.querySelector(selector);
+  if (!card) return { planName: '' };
+  return {
+    planName: card.getAttribute('data-plan-name') || ''
+  };
+}
+
+function readStoredPaymentFlow() {
+  try {
+    var raw = sessionStorage.getItem(PAYMENT_FLOW_STORAGE_KEY) || '';
+    if (!raw) return null;
+    var parsed = JSON.parse(raw);
+    return parsed && parsed.paymentId ? parsed : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function writeStoredPaymentFlow(state) {
+  try {
+    if (!state || !state.paymentId) sessionStorage.removeItem(PAYMENT_FLOW_STORAGE_KEY);
+    else sessionStorage.setItem(PAYMENT_FLOW_STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {}
+}
+
+function getActivePaymentFlow() {
+  return window.__activePaymentFlow || readStoredPaymentFlow();
+}
+
+function getPaymentStatusLabel(status) {
+  if (status === 'succeeded') return 'Оплата подтверждена';
+  if (status === 'processing') return 'Подписка готовится';
+  if (status === 'failed') return 'Оплата не прошла';
+  if (status === 'cancelled') return 'Оплата отменена';
+  return 'Ожидаем оплату';
+}
+
+function stopPaymentFlowPolling() {
+  if (!paymentFlowPollTimer) return;
+  window.clearInterval(paymentFlowPollTimer);
+  paymentFlowPollTimer = 0;
+}
+
+function renderPaymentFlow() {
+  var state = getActivePaymentFlow();
+  var box = document.getElementById('payment-flow-box');
+  if (!box) return;
+
+  if (!state || !state.paymentId) {
+    box.hidden = true;
+    stopPaymentFlowPolling();
+    return;
+  }
+
+  box.hidden = false;
+
+  var status = state.status || 'pending';
+  var statusEl = document.getElementById('payment-flow-status');
+  var planEl = document.getElementById('payment-flow-plan');
+  var providerEl = document.getElementById('payment-flow-provider');
+  var messageEl = document.getElementById('payment-flow-message');
+  var urlWrap = document.getElementById('payment-flow-link-wrap');
+  var urlInput = document.getElementById('payment-flow-url');
+  var openBtn = document.getElementById('payment-flow-open');
+  var checkBtn = document.getElementById('payment-flow-check');
+  var hasUrl = !!state.paymentUrl;
+
+  if (statusEl) {
+    statusEl.dataset.state = status;
+    statusEl.textContent = getPaymentStatusLabel(status);
+  }
+  if (planEl) planEl.textContent = state.planName || 'Подписка';
+  if (providerEl) providerEl.textContent = state.providerLabel || 'Оплата';
+  if (messageEl)
+    messageEl.textContent =
+      state.message || 'Откройте ссылку на оплату и затем нажмите проверку статуса.';
+  if (urlWrap) urlWrap.hidden = !hasUrl;
+  if (urlInput) urlInput.value = state.paymentUrl || '';
+  if (openBtn) openBtn.disabled = !hasUrl;
+  if (checkBtn)
+    checkBtn.disabled = status === 'succeeded' || status === 'failed' || status === 'cancelled';
+}
+
+function syncPaymentFlowPolling() {
+  stopPaymentFlowPolling();
+  var state = getActivePaymentFlow();
+  if (!state || !state.paymentId) return;
+  if (state.status && state.status !== 'pending') return;
+  paymentFlowPollTimer = window.setInterval(function() {
+    checkActivePayment(true);
+  }, 5000);
+}
+
+function setActivePaymentFlow(state) {
+  window.__activePaymentFlow = state && state.paymentId ? state : null;
+  writeStoredPaymentFlow(window.__activePaymentFlow);
+  renderPaymentFlow();
+  syncPaymentFlowPolling();
+}
+
+function ensurePaymentFlowState(paymentId) {
+  var current = getActivePaymentFlow() || {};
+  if (String(current.paymentId || '') === String(paymentId)) return;
+  setActivePaymentFlow({
+    paymentId: Number(paymentId),
+    paymentUrl: current.paymentUrl || '',
+    planId: current.planId || '',
+    planName: current.planName || 'Подписка',
+    providerLabel: current.providerLabel || 'Оплата',
+    status: 'pending',
+    message: 'Проверяем статус платежа...'
+  });
+}
+
+function dismissPaymentFlow() {
+  setActivePaymentFlow(null);
+}
+
+function openActivePayment() {
+  var state = getActivePaymentFlow();
+  if (!state || !state.paymentUrl) {
+    showToast('Ссылка на оплату недоступна', 'error');
+    return;
+  }
+  openExternal(state.paymentUrl);
+}
+
+async function copyPaymentLink() {
+  var input = document.getElementById('payment-flow-url');
+  var value = input ? String(input.value || '') : '';
+  if (!value) {
+    showToast('Ссылка на оплату недоступна', 'error');
+    return;
+  }
+  await copyText(value, 'Ссылка на оплату скопирована');
+}
+
+function storePendingPayment(paymentData, planId, providerLabel) {
+  var planMeta = getPlanMeta(planId);
+  setActivePaymentFlow({
+    paymentId: Number(paymentData.payment_id),
+    paymentUrl: paymentData.payment_url || '',
+    planId: Number(planId),
+    planName: planMeta.planName || ('Тариф #' + planId),
+    providerLabel: providerLabel,
+    status: paymentData.status || 'pending',
+    message:
+      paymentData.message ||
+      'Откройте ссылку на оплату и затем нажмите проверку статуса.'
+  });
+}
+
+async function beginPlanPayment(paymentData, planId, providerLabel, openMessage) {
+  storePendingPayment(paymentData, planId, providerLabel);
+  openActivePayment();
+  showToast(
+    openMessage || 'Ссылка на оплату готова. Если окно не открылось, используйте кнопку в блоке оплаты.',
+    'info'
+  );
+}
+
+function updatePaymentFlowFromResult(payload) {
+  var current = getActivePaymentFlow() || {};
+  if (!current.paymentId && !payload.payment_id) return;
+  setActivePaymentFlow({
+    paymentId: Number(payload.payment_id || current.paymentId),
+    paymentUrl: payload.payment_url || current.paymentUrl || '',
+    planId: Number(current.planId || 0),
+    planName: current.planName || 'Подписка',
+    providerLabel: current.providerLabel || 'Оплата',
+    status: payload.status || current.status || 'pending',
+    message: payload.message || current.message || ''
+  });
+}
+
+async function handlePaymentResult(payload, options) {
+  options = options || {};
   if (!payload) return;
+  if (payload.status) updatePaymentFlowFromResult(payload);
 
   if (payload.status === 'succeeded') {
     clearPlansPromoCode();
@@ -260,11 +589,13 @@ async function handlePaymentResult(payload) {
   }
 
   if (payload.status === 'pending') {
-    showToast(payload.message || 'Платёж ещё обрабатывается', 'info');
+    if (!options.silentPending)
+      showToast(payload.message || 'Платёж ещё обрабатывается', 'info');
     return;
   }
 
-  showToast(payload.message || 'Не удалось завершить оплату', 'error');
+  if (payload.message || !payload.ok)
+    showToast(payload.message || 'Не удалось завершить оплату', 'error');
 }
 
 async function payBalance(id) {
@@ -298,8 +629,12 @@ async function payYooKassa(id) {
       return;
     }
     if (promoCode) rememberPlansPromoCode(promoCode);
-    openExternal(r.data.payment_url);
-    showToast('Открыли оплату. После завершения вернитесь в кабинет.', 'info');
+    await beginPlanPayment(
+      r.data,
+      id,
+      'Банковская карта',
+      'Ссылка на оплату готова. Если окно не открылось, используйте блок текущей оплаты.'
+    );
   } catch (e) {
     showToast('Ошибка сети', 'error');
   }
@@ -321,8 +656,12 @@ async function paySbp(id) {
       return;
     }
     if (promoCode) rememberPlansPromoCode(promoCode);
-    openExternal(r.data.payment_url);
-    showToast('Открыли оплату через СБП. После завершения вернитесь в кабинет.', 'info');
+    await beginPlanPayment(
+      r.data,
+      id,
+      'СБП',
+      'Ссылка на оплату через СБП готова. Если окно не открылось, используйте блок текущей оплаты.'
+    );
   } catch (e) {
     showToast('Ошибка сети', 'error');
   }
@@ -344,10 +683,36 @@ async function payPlatega(id) {
       return;
     }
     if (promoCode) rememberPlansPromoCode(promoCode);
-    openExternal(r.data.payment_url);
-    showToast('Открыли оплату через Platega. После завершения вернитесь в кабинет.', 'info');
+    await beginPlanPayment(
+      r.data,
+      id,
+      'Platega',
+      'Ссылка на оплату через Platega готова. Если окно не открылось, используйте блок текущей оплаты.'
+    );
   } catch (e) {
     showToast('Ошибка сети', 'error');
+  }
+}
+
+async function checkActivePayment(silentPending, explicitPaymentId) {
+  var state = getActivePaymentFlow();
+  var paymentId = explicitPaymentId || (state ? state.paymentId : '');
+  if (!paymentId) {
+    if (!silentPending) showToast('Нет активной оплаты для проверки', 'error');
+    return;
+  }
+
+  try {
+    var result = await cabinetJson('/cabinet/pay/status/' + paymentId, {method:'GET'});
+    if (!result.data.ok && !result.data.status) {
+      if (!silentPending)
+        showToast(result.data.message || 'Не удалось проверить оплату', 'error');
+      return;
+    }
+    result.data.payment_id = Number(result.data.payment_id || paymentId);
+    await handlePaymentResult(result.data, { silentPending: !!silentPending });
+  } catch (e) {
+    if (!silentPending) showToast('Не удалось проверить оплату', 'error');
   }
 }
 
@@ -377,23 +742,23 @@ function revealSelectedPlanMethods() {
 }
 
 async function checkReturnedPayment() {
-  hydratePlansPromoCode();
-
   var paymentId = '';
   try { paymentId = new URL(window.location.href).searchParams.get('payment_id') || ''; }
   catch (e) { paymentId = ''; }
   if (!paymentId) return;
+  ensurePaymentFlowState(paymentId);
 
   try {
-    var result = await cabinetJson('/cabinet/pay/status/' + paymentId, {method:'GET'});
     clearPaymentQueryParam();
-    await handlePaymentResult(result.data);
+    await checkActivePayment(false, paymentId);
   } catch (e) {
     clearPaymentQueryParam();
     showToast('Не удалось проверить оплату', 'error');
   }
 }
 
+hydratePlansPromoCode();
+setActivePaymentFlow(readStoredPaymentFlow());
 checkReturnedPayment();
 initPaymentMethodToggles();
 revealSelectedPlanMethods();

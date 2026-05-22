@@ -1,4 +1,5 @@
 """Pasarguard / Marzban panel routes."""
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
@@ -41,10 +42,14 @@ async def pg_users(request: Request):
         data = await svc.get_users(limit=50)
         users = data.get("users", []) if isinstance(data, dict) else data
     except Exception as e:
-        return HTMLResponse(f'<div style="color:#ef4444">Ошибка: {html.escape(str(e))}</div>')
+        return HTMLResponse(
+            f'<div style="color:#ef4444">Ошибка: {html.escape(str(e))}</div>'
+        )
 
     if not users:
-        return HTMLResponse('<div class="text-center py-4" style="color:#8892a4">Пользователей нет</div>')
+        return HTMLResponse(
+            '<div class="text-center py-4" style="color:#8892a4">Пользователей нет</div>'
+        )
 
     from datetime import datetime as _dt
 
@@ -64,8 +69,16 @@ async def pg_users(request: Request):
     rows = ""
     for u in users:
         status = u.get("status", "")
-        dot_class = {"active": "online", "expired": "offline", "disabled": "warning"}.get(status, "")
-        status_label = {"active": "Активен", "expired": "Истёк", "disabled": "Отключён"}.get(status, status)
+        dot_class = {
+            "active": "online",
+            "expired": "offline",
+            "disabled": "warning",
+        }.get(status, "")
+        status_label = {
+            "active": "Активен",
+            "expired": "Истёк",
+            "disabled": "Отключён",
+        }.get(status, status)
         download = u.get("download", 0) or 0
         upload = u.get("upload", 0) or 0
         used = round((download + upload) / 1073741824, 2)
@@ -75,7 +88,11 @@ async def pg_users(request: Request):
         username = html.escape(str(u.get("username", "")))
         expire = _fmt_date(u.get("expire"))
         created = _fmt_date(u.get("created_at"))
-        traffic_color = "#22c55e" if limit_gb == 0 or used < limit_gb * 0.8 else ("#eab308" if used < limit_gb else "#ef4444")
+        traffic_color = (
+            "#22c55e"
+            if limit_gb == 0 or used < limit_gb * 0.8
+            else ("#eab308" if used < limit_gb else "#ef4444")
+        )
         rows += f"""<div class="user-row" style="gap:.5rem;padding:.5rem .75rem">
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
@@ -106,10 +123,14 @@ async def pg_groups(request: Request):
         svc = PasarguardService()
         groups = await svc.get_groups()
     except Exception as e:
-        return HTMLResponse(f'<div style="color:#ef4444">Ошибка: {html.escape(str(e))}</div>')
+        return HTMLResponse(
+            f'<div style="color:#ef4444">Ошибка: {html.escape(str(e))}</div>'
+        )
 
     if not groups:
-        return HTMLResponse('<div class="text-center py-4" style="color:#8892a4">Групп нет</div>')
+        return HTMLResponse(
+            '<div class="text-center py-4" style="color:#8892a4">Групп нет</div>'
+        )
 
     rows = ""
     for g in groups:
@@ -142,16 +163,28 @@ async def pg_nodes(request: Request):
         data = await svc.get_nodes()
         nodes = data.get("nodes", []) if isinstance(data, dict) else data
     except Exception as e:
-        return HTMLResponse(f'<div style="color:#ef4444">Ошибка: {html.escape(str(e))}</div>')
+        return HTMLResponse(
+            f'<div style="color:#ef4444">Ошибка: {html.escape(str(e))}</div>'
+        )
 
     if not nodes:
-        return HTMLResponse('<div class="text-center py-4" style="color:#8892a4">Нод нет</div>')
+        return HTMLResponse(
+            '<div class="text-center py-4" style="color:#8892a4">Нод нет</div>'
+        )
 
     rows = ""
     for n in nodes:
         status = n.get("status", "")
-        dot_class = {"connected": "online", "connecting": "warning", "error": "offline"}.get(status, "")
-        status_label = {"connected": "Подключена", "connecting": "Подключение", "error": "Ошибка"}.get(status, status)
+        dot_class = {
+            "connected": "online",
+            "connecting": "warning",
+            "error": "offline",
+        }.get(status, "")
+        status_label = {
+            "connected": "Подключена",
+            "connecting": "Подключение",
+            "error": "Ошибка",
+        }.get(status, status)
         node_name = html.escape(str(n.get("name", "")))
         node_addr = html.escape(str(n.get("address", "")))
         rows += f"""<div class="node-row">

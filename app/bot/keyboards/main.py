@@ -62,9 +62,7 @@ def main_menu_kb(
                     btn(label, web_app=web_app_url, style=style, emoji_id=emoji_id)
                 )
             elif url:
-                row_btns.append(
-                    btn(label, url=url, style=style, emoji_id=emoji_id)
-                )
+                row_btns.append(btn(label, url=url, style=style, emoji_id=emoji_id))
             elif bid == "support" and support_url:
                 row_btns.append(
                     btn(label, url=support_url, style=style, emoji_id=emoji_id)

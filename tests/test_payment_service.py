@@ -1,4 +1,5 @@
 """Tests for PaymentService: idempotency, race conditions, edge cases."""
+
 from decimal import Decimal
 
 from app.models.payment import PaymentStatus, PaymentProvider, PaymentType, Payment
@@ -49,7 +50,9 @@ class TestPaymentService:
         assert second.just_confirmed is False
         assert second.payment.external_id == "ext_topup_001"
 
-    async def test_confirm_once_does_not_reopen_failed_payment(self, session, sample_payment):
+    async def test_confirm_once_does_not_reopen_failed_payment(
+        self, session, sample_payment
+    ):
         svc = PaymentService(session)
         await svc.fail(sample_payment.id)
 

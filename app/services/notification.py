@@ -43,4 +43,5 @@ class NotificationManager:
             async with self._lock:
                 self._connections -= dead
 
+
 notification_manager = NotificationManager()

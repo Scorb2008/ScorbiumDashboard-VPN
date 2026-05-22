@@ -1,4 +1,3 @@
-from typing import Optional
 from aiogram import Bot
 from aiogram.types import LabeledPrice
 
@@ -40,6 +39,7 @@ class TelegramStarsService:
     @staticmethod
     async def get_rate(session) -> float:
         from app.services.bot_settings import BotSettingsService
+
         val = await BotSettingsService(session).get("stars_rate")
         try:
             return float(val) if val else 1.5

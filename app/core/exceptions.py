@@ -6,6 +6,7 @@ class AppException(Exception):
 class WebException(AppException):
     pass
 
+
 class DatabaseException(AppException):
     pass
 
@@ -25,8 +26,11 @@ class YookassaException(AppException):
 class ConfigException(AppException):
     pass
 
+
 class EnvException(AppException):
     pass
+
+
 # ====== DatabaseException ======
 class DatabaseValueError(DatabaseException):
     pass
@@ -35,24 +39,32 @@ class DatabaseValueError(DatabaseException):
 class DatabaseConnectionError(DatabaseException):
     pass
 
+
 class DatabaseInvalidError(DatabaseException):
     pass
 
+
 class DatabaseNotFoundError(DatabaseException):
     pass
+
 
 # ====== PasarguardException ======
 class PasarguardAuthError(PasarguardException):
     pass
 
+
 class PasarguardRequestError(PasarguardException):
     pass
 
+
 class PasarguardValueError(PasarguardException):
     pass
+
+
 # ====== TelegramException ======
 class TelegramSendMessageError(TelegramException):
     pass
+
 
 class TelegramAuthError(TelegramException):
     pass
@@ -62,8 +74,10 @@ class TelegramAuthError(TelegramException):
 class YookassaPaymentError(YookassaException):
     pass
 
+
 class YookassaValueError(YookassaException):
     pass
+
 
 class YookassaWebhookError(YookassaException):
     pass
@@ -80,4 +94,3 @@ class ConfigValueError(ConfigException):
 
 class ConfigNotFoundError(ConfigException):
     pass
-

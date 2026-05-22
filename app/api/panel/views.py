@@ -27,6 +27,7 @@ All route logic has been moved to app/api/panel/routes/:
 
 To add new endpoints, create a new file in routes/ and add it to routes/__init__.py.
 """
+
 from .routes import router
 
 __all__ = ["router"]

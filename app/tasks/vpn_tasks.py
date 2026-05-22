@@ -4,8 +4,8 @@ from app.core.database import AsyncSessionFactory
 from app.services.vpn_key import VpnKeyService
 from app.utils.log import log
 
-EXPIRE_CHECK_INTERVAL = 300 
-SYNC_INTERVAL = 3600 
+EXPIRE_CHECK_INTERVAL = 300
+SYNC_INTERVAL = 3600
 _AUTO_RENEW_LOW_BALANCE_NOTIFIED: dict[int, object] = {}
 
 
@@ -18,10 +18,13 @@ async def expire_outdated_keys() -> None:
             if count:
                 log.info(f"[vpn_tasks] Expired {count} outdated VPN keys")
                 from app.services.notification import notification_manager
-                await notification_manager.broadcast({
-                    "type": "expired_sub",
-                    "data": {"count": count},
-                })
+
+                await notification_manager.broadcast(
+                    {
+                        "type": "expired_sub",
+                        "data": {"count": count},
+                    }
+                )
     except Exception as e:
         log.error(f"[vpn_tasks] expire_outdated_keys error: {e}")
 
@@ -112,11 +115,18 @@ async def notify_expiring_soon() -> None:
                     )
                 )
                 for k in result.scalars().all():
-                    all_keys.append((k.user_id, k.name or f"Подписка #{k.id}", k.expires_at, days_before))
+                    all_keys.append(
+                        (
+                            k.user_id,
+                            k.name or f"Подписка #{k.id}",
+                            k.expires_at,
+                            days_before,
+                        )
+                    )
 
         if not all_keys:
             return
-        
+
         user_ids = list({k[0] for k in all_keys})
         async with AsyncSessionFactory() as session:
             user_result = await session.execute(
@@ -148,7 +158,9 @@ async def notify_expiring_soon() -> None:
                 )
             else:
                 try:
-                    msg = notify_msg_tpl.format(days=days_before, name=name, date=exp_str)
+                    msg = notify_msg_tpl.format(
+                        days=days_before, name=name, date=exp_str
+                    )
                 except Exception:
                     msg = f"⚠️ Подписка «{name}» истекает через {days_before} дн. ({exp_str})"
 
@@ -169,7 +181,7 @@ async def auto_renew_keys() -> None:
     """Auto-renew expired keys for users with autorenew enabled and sufficient balance."""
     from datetime import datetime, timezone, timedelta
     from sqlalchemy import select
-    from app.models.vpn_key import VpnKey, VpnKeyStatus
+    from app.models.vpn_key import VpnKey
     from app.services.user import UserService
     from app.services.vpn_key import VpnKeyService
     from app.services.telegram_notify import TelegramNotifyService
@@ -180,7 +192,6 @@ async def auto_renew_keys() -> None:
     expired_since = now - timedelta(hours=1)
 
     try:
-
         async with AsyncSessionFactory() as session:
             result = await session.execute(
                 select(VpnKey).where(
@@ -204,63 +215,80 @@ async def auto_renew_keys() -> None:
             photo = await BotSettingsService(session).get("photo_status") or None
 
         notify = TelegramNotifyService()
-        
+
         for item in data:
             key_id = item["key_id"]
             user_id = item["user_id"]
             plan_id = item["plan_id"]
             price = item["price"]
             name = item["name"]
-            
+
             if price <= 0:
                 continue
-                
+
             try:
                 async with AsyncSessionFactory() as session:
                     from sqlalchemy import select as _select
                     from app.models.vpn_key import VpnKey as _VpnKey
 
                     key_result = await session.execute(
-                        _select(_VpnKey)
-                        .where(_VpnKey.id == key_id)
-                        .with_for_update()
+                        _select(_VpnKey).where(_VpnKey.id == key_id).with_for_update()
                     )
                     current_key = key_result.scalar_one_or_none()
                     if not current_key or current_key.expires_at > now:
-                        continue 
+                        continue
 
                     user_check = await UserService(session).get_by_id(user_id)
                     if not user_check or not bool(user_check.autorenew):
                         continue
 
-                    user = await UserService(session).deduct_balance(user_id, Decimal(str(price)))
+                    user = await UserService(session).deduct_balance(
+                        user_id, Decimal(str(price))
+                    )
                     if not user:
-                        last_notified_expiry = _AUTO_RENEW_LOW_BALANCE_NOTIFIED.get(key_id)
+                        last_notified_expiry = _AUTO_RENEW_LOW_BALANCE_NOTIFIED.get(
+                            key_id
+                        )
                         if last_notified_expiry != current_key.expires_at:
                             await notify.send_message(
                                 user_id,
                                 "⚠️ <b>Автопродление не выполнено</b>\n\n"
                                 "Недостаточно средств на балансе. Пополните баланс для продления подписки.",
                             )
-                            _AUTO_RENEW_LOW_BALANCE_NOTIFIED[key_id] = current_key.expires_at
+                            _AUTO_RENEW_LOW_BALANCE_NOTIFIED[key_id] = (
+                                current_key.expires_at
+                            )
                         continue
 
                     from app.services.plan import PlanService
+
                     plan = await PlanService(session).get_by_id(plan_id)
                     if not plan:
-                        await UserService(session).add_balance(user_id, Decimal(str(price)))
+                        await UserService(session).add_balance(
+                            user_id, Decimal(str(price))
+                        )
                         await session.commit()
-                        log.warning(f"[auto_renew] Plan {plan_id} not found, refunded {price} to user {user_id}")
+                        log.warning(
+                            f"[auto_renew] Plan {plan_id} not found, refunded {price} to user {user_id}"
+                        )
                         continue
 
-                    key = await VpnKeyService(session).extend(key_id, plan.duration_days)
-                    
+                    key = await VpnKeyService(session).extend(
+                        key_id, plan.duration_days
+                    )
+
                     if key:
                         _AUTO_RENEW_LOW_BALANCE_NOTIFIED.pop(key_id, None)
-                        exp_str = key.expires_at.strftime("%d.%m.%Y") if key.expires_at else "—"
+                        exp_str = (
+                            key.expires_at.strftime("%d.%m.%Y")
+                            if key.expires_at
+                            else "—"
+                        )
                         key_id_for_log = key.id
                         await session.commit()
-                        log.info(f"[auto_renew] key={key_id_for_log} user={user_id} renewed")
+                        log.info(
+                            f"[auto_renew] key={key_id_for_log} user={user_id} renewed"
+                        )
                         renew_msg = (
                             f"✅ <b>Подписка автоматически продлена!</b>\n\n"
                             f"📦 {name}\n"
@@ -271,14 +299,20 @@ async def auto_renew_keys() -> None:
                             await notify.send_photo(user_id, photo, renew_msg)
                         else:
                             await notify.send_message(user_id, renew_msg)
-                        log.info(f"[auto_renew] key={key_id} user={user_id} renewed for {plan.duration_days} days")
+                        log.info(
+                            f"[auto_renew] key={key_id} user={user_id} renewed for {plan.duration_days} days"
+                        )
                     else:
-                        await UserService(session).add_balance(user_id, Decimal(str(price)))
+                        await UserService(session).add_balance(
+                            user_id, Decimal(str(price))
+                        )
                         await session.commit()
-                        log.error(f"[auto_renew] Extension failed for key={key_id}, refunded")
-                        
+                        log.error(
+                            f"[auto_renew] Extension failed for key={key_id}, refunded"
+                        )
+
             except Exception as e:
                 log.error(f"[auto_renew] key={key_id} user={user_id} error: {e}")
-                
+
     except Exception as e:
         log.error(f"[auto_renew] error: {e}")

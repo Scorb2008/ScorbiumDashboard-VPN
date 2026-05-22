@@ -37,6 +37,7 @@ async def get_current_admin(token: str = Depends(oauth2_scheme)) -> dict:
     if jti:
         from app.core.database import get_session
         from app.services.token_blacklist import TokenBlacklistService
+
         async with get_session() as session:
             blacklisted = await TokenBlacklistService(session).is_blacklisted(jti, sub)
             if blacklisted:

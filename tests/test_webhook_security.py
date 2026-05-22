@@ -12,13 +12,20 @@ from app.api.v1.payments import (
     platega_webhook,
     yookassa_webhook,
 )
-from app.api.v1.payments import _compute_paypalych_signature, _verify_paypalych_signature, paypalych_webhook
+from app.api.v1.payments import (
+    _compute_paypalych_signature,
+    _verify_paypalych_signature,
+    paypalych_webhook,
+)
 from app.models.bot_settings import BotSettings
 from app.models.payment import Payment, PaymentProvider, PaymentStatus, PaymentType
 from app.models.plan import Plan
 from app.models.user import User
 from app.services.bot_settings import reset_bot_settings_cache
-from app.services.webhook_security import compute_cryptobot_hmac, verify_cryptobot_signature
+from app.services.webhook_security import (
+    compute_cryptobot_hmac,
+    verify_cryptobot_signature,
+)
 
 
 def test_compute_cryptobot_hmac_uses_raw_json_body():
@@ -56,7 +63,9 @@ async def test_get_yookassa_webhook_secret_falls_back_to_env(session, monkeypatc
         "app.api.v1.payments.config",
         SimpleNamespace(
             yookassa=SimpleNamespace(
-                yookassa_secret_key=SimpleNamespace(get_secret_value=lambda: "env_secret_12345")
+                yookassa_secret_key=SimpleNamespace(
+                    get_secret_value=lambda: "env_secret_12345"
+                )
             )
         ),
     )
@@ -65,7 +74,9 @@ async def test_get_yookassa_webhook_secret_falls_back_to_env(session, monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_yookassa_webhook_accepts_whitelisted_ip_without_signature_header(session, monkeypatch):
+async def test_yookassa_webhook_accepts_whitelisted_ip_without_signature_header(
+    session, monkeypatch
+):
     user = User(id=111222333, username="yk-user", full_name="Yk User")
     plan = Plan(
         id=42,
@@ -93,14 +104,23 @@ async def test_yookassa_webhook_accepts_whitelisted_ip_without_signature_header(
         assert payment_id == 42
         assert external_id == "yk_payment_42"
         assert plan_id == 42
-        return payment, SimpleNamespace(access_url="https://vpn.test/key", expires_at=None), True, True
+        return (
+            payment,
+            SimpleNamespace(access_url="https://vpn.test/key", expires_at=None),
+            True,
+            True,
+        )
 
     class _Notify:
         async def send_message(self, chat_id, message):
             return True
 
-    monkeypatch.setattr("app.api.v1.payments._finalize_subscription_payment", fake_finalize)
-    monkeypatch.setattr("app.services.telegram_notify.TelegramNotifyService", lambda: _Notify())
+    monkeypatch.setattr(
+        "app.api.v1.payments._finalize_subscription_payment", fake_finalize
+    )
+    monkeypatch.setattr(
+        "app.services.telegram_notify.TelegramNotifyService", lambda: _Notify()
+    )
 
     request = _make_json_request(
         "/api/v1/payments/webhook/yookassa",
@@ -166,7 +186,9 @@ async def test_yookassa_webhook_does_not_treat_subscription_without_plan_id_as_t
     async def fake_finalize_topup(*args, **kwargs):
         finalize_topup("subscription webhook must not be finalized as topup")
 
-    monkeypatch.setattr("app.api.v1.payments._finalize_topup_payment", fake_finalize_topup)
+    monkeypatch.setattr(
+        "app.api.v1.payments._finalize_topup_payment", fake_finalize_topup
+    )
 
     request = _make_json_request(
         "/api/v1/payments/webhook/yookassa",
@@ -219,25 +241,39 @@ def test_platega_headers_match_expected_credentials():
         {"X-MerchantId": "merchant", "X-Secret": "secret"},
     )
 
-    assert _platega_headers_match(
-        request,
-        {"platega_merchant_id": "merchant", "platega_secret": "secret"},
-    ) is True
-    assert _platega_headers_match(
-        request,
-        {"platega_merchant_id": "merchant", "platega_secret": "other"},
-    ) is False
+    assert (
+        _platega_headers_match(
+            request,
+            {"platega_merchant_id": "merchant", "platega_secret": "secret"},
+        )
+        is True
+    )
+    assert (
+        _platega_headers_match(
+            request,
+            {"platega_merchant_id": "merchant", "platega_secret": "other"},
+        )
+        is False
+    )
 
 
 def test_paypalych_signature_matches_docs():
     signature = _compute_paypalych_signature("380.55", "order-123", "token-abc")
 
     assert signature == hashlib.md5(b"380.55:order-123:token-abc").hexdigest().upper()
-    assert _verify_paypalych_signature("380.55", "order-123", signature, "token-abc") is True
-    assert _verify_paypalych_signature("380.56", "order-123", signature, "token-abc") is False
+    assert (
+        _verify_paypalych_signature("380.55", "order-123", signature, "token-abc")
+        is True
+    )
+    assert (
+        _verify_paypalych_signature("380.56", "order-123", signature, "token-abc")
+        is False
+    )
 
 
-async def test_platega_webhook_uses_confirmed_status_and_documented_id_field(session, monkeypatch):
+async def test_platega_webhook_uses_confirmed_status_and_documented_id_field(
+    session, monkeypatch
+):
     await reset_bot_settings_cache()
     user = User(id=987654321, username="platega-user", full_name="Platega User")
     plan = Plan(
@@ -285,9 +321,15 @@ async def test_platega_webhook_uses_confirmed_status_and_documented_id_field(ses
         fake_key = SimpleNamespace(access_url="https://vpn-key", expires_at=None)
         return fake_payment, fake_key, True, True
 
-    monkeypatch.setattr("app.api.v1.payments._verify_remote_provider_payment", fake_verify_remote)
-    monkeypatch.setattr("app.api.v1.payments._finalize_subscription_payment", fake_finalize)
-    monkeypatch.setattr("app.services.telegram_notify.TelegramNotifyService", lambda: _Notify())
+    monkeypatch.setattr(
+        "app.api.v1.payments._verify_remote_provider_payment", fake_verify_remote
+    )
+    monkeypatch.setattr(
+        "app.api.v1.payments._finalize_subscription_payment", fake_finalize
+    )
+    monkeypatch.setattr(
+        "app.services.telegram_notify.TelegramNotifyService", lambda: _Notify()
+    )
 
     request = _make_json_request(
         "/api/v1/payments/webhook/platega",
@@ -355,9 +397,15 @@ async def test_paypalych_webhook_uses_form_post_and_signature(session, monkeypat
         fake_key = SimpleNamespace(access_url="https://vpn-key", expires_at=None)
         return fake_payment, fake_key, True, True
 
-    monkeypatch.setattr("app.api.v1.payments._verify_remote_provider_payment", fake_verify_remote)
-    monkeypatch.setattr("app.api.v1.payments._finalize_subscription_payment", fake_finalize)
-    monkeypatch.setattr("app.services.telegram_notify.TelegramNotifyService", lambda: _Notify())
+    monkeypatch.setattr(
+        "app.api.v1.payments._verify_remote_provider_payment", fake_verify_remote
+    )
+    monkeypatch.setattr(
+        "app.api.v1.payments._finalize_subscription_payment", fake_finalize
+    )
+    monkeypatch.setattr(
+        "app.services.telegram_notify.TelegramNotifyService", lambda: _Notify()
+    )
 
     signature = _compute_paypalych_signature("100", "order-778", "token-abc")
 

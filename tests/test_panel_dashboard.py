@@ -28,7 +28,11 @@ async def test_dashboard_renders_actual_admin_role(session, monkeypatch):
     )
     monkeypatch.setattr(
         "app.services.pasarguard.pasarguard.get_vpn_panel",
-        lambda: type("FakePanel", (), {"get_system_stats": staticmethod(lambda: {"status": "ok"})})(),
+        lambda: type(
+            "FakePanel",
+            (),
+            {"get_system_stats": staticmethod(lambda: {"status": "ok"})},
+        )(),
     )
     monkeypatch.setattr(
         "app.services.system_metrics.SystemMetrics.collect",

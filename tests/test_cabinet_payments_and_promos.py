@@ -1,7 +1,8 @@
 import json
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import FastAPI
@@ -13,6 +14,8 @@ from app.api.dependencies import get_db
 from app.models.payment import Payment, PaymentProvider, PaymentStatus, PaymentType
 from app.models.promo import PromoCode, PromoType
 from app.models.promo_usage import PromoUsage
+from app.models.vpn_key import VpnKey, VpnKeyStatus
+from app.services.payment import PaymentService
 
 
 @pytest.fixture
@@ -30,7 +33,9 @@ async def cabinet_client(session, sample_user, monkeypatch):
     monkeypatch.setattr(cabinet_views, "_require_active_user", fake_require_active_user)
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="https://testserver") as client:
+    async with AsyncClient(
+        transport=transport, base_url="https://testserver"
+    ) as client:
         yield client
 
 
@@ -47,7 +52,9 @@ async def test_cabinet_promo_balance_credits_user(cabinet_client, session, sampl
     session.add(promo)
     await session.commit()
 
-    response = await cabinet_client.post("/cabinet/promo/apply", data={"code": "GIFT100"})
+    response = await cabinet_client.post(
+        "/cabinet/promo/apply", data={"code": "GIFT100"}
+    )
 
     assert response.status_code == 200
     assert response.json()["ok"] is True
@@ -66,8 +73,13 @@ async def test_cabinet_promo_balance_credits_user(cabinet_client, session, sampl
 
 @pytest.mark.asyncio
 async def test_cabinet_promo_days_extends_subscription(
-    cabinet_client, session, sample_user, sample_vpn_key
+    cabinet_client, session, sample_user, sample_vpn_key, monkeypatch
 ):
+    panel = SimpleNamespace(
+        extend_user=AsyncMock(return_value={"username": "vpn_123456789_1"})
+    )
+    monkeypatch.setattr(cabinet_views.VpnKeyService, "_get_panel", lambda self: panel)
+
     before = sample_vpn_key.expires_at
     promo = PromoCode(
         code="WEEK7",
@@ -90,6 +102,46 @@ async def test_cabinet_promo_days_extends_subscription(
     if after.tzinfo is None:
         after = after.replace(tzinfo=timezone.utc)
     assert after == before + timedelta(days=7)
+    panel.extend_user.assert_awaited_once_with(sample_vpn_key.pasarguard_key_id, 7)
+
+
+@pytest.mark.asyncio
+async def test_cabinet_balance_purchase_confirms_subscription_once(
+    cabinet_client, session, sample_user, sample_plan, monkeypatch
+):
+    confirm_calls: list[tuple[int, str]] = []
+    original_confirm_once = PaymentService.confirm_once
+
+    async def spy_confirm_once(self, payment_id: int, external_id: str):
+        confirm_calls.append((payment_id, external_id))
+        return await original_confirm_once(self, payment_id, external_id)
+
+    async def fake_provision(self, user_id: int, plan):
+        key = VpnKey(
+            user_id=user_id,
+            plan_id=plan.id,
+            pasarguard_key_id="vpn_balance_once",
+            access_url="https://vpn.example/sub/balance-once",
+            name="Balance Key",
+            price=plan.price,
+            expires_at=datetime.now(timezone.utc) + timedelta(days=plan.duration_days),
+            status=VpnKeyStatus.ACTIVE.value,
+        )
+        self.session.add(key)
+        await self.session.flush()
+        return key
+
+    monkeypatch.setattr(PaymentService, "confirm_once", spy_confirm_once)
+    monkeypatch.setattr(cabinet_views.VpnKeyService, "provision", fake_provision)
+
+    response = await cabinet_client.post(
+        "/cabinet/pay/balance",
+        data={"plan_id": sample_plan.id},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+    assert len(confirm_calls) == 1
 
 
 @pytest.mark.asyncio
@@ -110,14 +162,24 @@ async def test_cabinet_pay_yookassa_creates_discounted_payment(
     calls = {}
 
     class FakeYookassa:
-        async def create_payment(self, amount, description, return_url, currency="RUB", metadata=None, payment_method=None):
+        async def create_payment(
+            self,
+            amount,
+            description,
+            return_url,
+            currency="RUB",
+            metadata=None,
+            payment_method=None,
+        ):
             calls["amount"] = amount
             calls["description"] = description
             calls["return_url"] = return_url
             calls["metadata"] = metadata
             return SimpleNamespace(
                 id="yk_test_123",
-                confirmation=SimpleNamespace(confirmation_url="https://pay.test/yk_test_123"),
+                confirmation=SimpleNamespace(
+                    confirmation_url="https://pay.test/yk_test_123"
+                ),
             )
 
     async def fake_create():
@@ -137,9 +199,7 @@ async def test_cabinet_pay_yookassa_creates_discounted_payment(
     assert data["payment_url"] == "https://pay.test/yk_test_123"
     assert calls["amount"] == Decimal("8.00")
 
-    payment_result = await session.execute(
-        select(Payment).order_by(Payment.id.desc())
-    )
+    payment_result = await session.execute(select(Payment).order_by(Payment.id.desc()))
     payment = payment_result.scalars().first()
     assert payment is not None
     assert payment.provider == PaymentProvider.YOOKASSA.value

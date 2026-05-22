@@ -19,14 +19,21 @@ from app.bot.middlewares import user_notify as user_notify_middleware
 from app.models.payment import Payment, PaymentProvider, PaymentStatus, PaymentType
 from app.models.promo import PromoCode, PromoType
 from app.models.promo_usage import PromoUsage
-from app.models.support import SupportTicket, TicketMessage, TicketPriority, TicketStatus
+from app.models.support import (
+    SupportTicket,
+    TicketMessage,
+    TicketPriority,
+    TicketStatus,
+)
 from app.models.vpn_key import VpnKey, VpnKeyStatus
 from app.services import encryption as encryption_service
 from app.services.plan import PlanService
 from app.services.platega import PlategaService
 
 
-def _make_request(path: str, *, headers: list[tuple[bytes, bytes]] | None = None) -> Request:
+def _make_request(
+    path: str, *, headers: list[tuple[bytes, bytes]] | None = None
+) -> Request:
     scope = {
         "type": "http",
         "http_version": "1.1",
@@ -57,7 +64,9 @@ async def cabinet_client(session, sample_user, monkeypatch):
     monkeypatch.setattr(cabinet_views, "_require_active_user", fake_require_active_user)
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="https://testserver") as client:
+    async with AsyncClient(
+        transport=transport, base_url="https://testserver"
+    ) as client:
         yield client
 
 
@@ -78,15 +87,23 @@ async def test_cabinet_promo_days_creates_subscription_without_existing_key(
 
     expires_at = datetime.now(timezone.utc) + timedelta(days=5)
 
-    async def fake_provision_days(self, user_id: int, days: int, name: str | None = None):
+    async def fake_provision_days(
+        self, user_id: int, days: int, name: str | None = None
+    ):
         assert user_id == sample_user.id
         assert days == 5
         assert name == "Промокод — DAYSWELCOME"
-        return SimpleNamespace(access_url="https://vpn.example/new-key", expires_at=expires_at)
+        return SimpleNamespace(
+            access_url="https://vpn.example/new-key", expires_at=expires_at
+        )
 
-    monkeypatch.setattr(cabinet_views.VpnKeyService, "provision_days", fake_provision_days)
+    monkeypatch.setattr(
+        cabinet_views.VpnKeyService, "provision_days", fake_provision_days
+    )
 
-    response = await cabinet_client.post("/cabinet/promo/apply", data={"code": "DAYSWELCOME"})
+    response = await cabinet_client.post(
+        "/cabinet/promo/apply", data={"code": "DAYSWELCOME"}
+    )
 
     assert response.status_code == 200
     payload = response.json()
@@ -107,7 +124,11 @@ async def test_cabinet_promo_days_creates_subscription_without_existing_key(
 async def test_payments_page_htmx_returns_rows_and_ignores_invalid_status(
     session, sample_payment, monkeypatch
 ):
-    monkeypatch.setattr(payments_routes, "_require_permission", lambda request, permission: {"sub": "admin", "role": "superadmin"})
+    monkeypatch.setattr(
+        payments_routes,
+        "_require_permission",
+        lambda request, permission: {"sub": "admin", "role": "superadmin"},
+    )
 
     async def fake_base_ctx(request, db, active):
         return {"request": request, "active": active}
@@ -141,7 +162,11 @@ async def test_payments_stats_json_returns_daily_buckets_without_grouping_errors
     sample_payment.amount = Decimal("199.99")
     await session.commit()
 
-    monkeypatch.setattr(payments_routes, "_require_permission", lambda request, permission: {"sub": "admin", "role": "superadmin"})
+    monkeypatch.setattr(
+        payments_routes,
+        "_require_permission",
+        lambda request, permission: {"sub": "admin", "role": "superadmin"},
+    )
 
     response = await payments_routes.payments_stats_json(
         request=_make_request("/panel/payments/stats/json"),
@@ -161,7 +186,11 @@ async def test_payments_stats_json_returns_daily_buckets_without_grouping_errors
 async def test_payments_stats_json_returns_zero_filled_daily_series_without_sales(
     session, monkeypatch
 ):
-    monkeypatch.setattr(payments_routes, "_require_permission", lambda request, permission: {"sub": "admin", "role": "superadmin"})
+    monkeypatch.setattr(
+        payments_routes,
+        "_require_permission",
+        lambda request, permission: {"sub": "admin", "role": "superadmin"},
+    )
 
     response = await payments_routes.payments_stats_json(
         request=_make_request("/panel/payments/stats/json"),
@@ -177,7 +206,9 @@ async def test_payments_stats_json_returns_zero_filled_daily_series_without_sale
 
 
 @pytest.mark.asyncio
-async def test_support_reply_deduplicates_double_submit(session, sample_user, monkeypatch):
+async def test_support_reply_deduplicates_double_submit(
+    session, sample_user, monkeypatch
+):
     ticket = SupportTicket(
         user_id=sample_user.id,
         subject="Duplicate check",
@@ -193,7 +224,11 @@ async def test_support_reply_deduplicates_double_submit(session, sample_user, mo
         async def send_message(self, chat_id, text):
             sent.append((chat_id, text))
 
-    monkeypatch.setattr(support_routes, "_require_permission", lambda request, permission: {"sub": "admin", "role": "superadmin"})
+    monkeypatch.setattr(
+        support_routes,
+        "_require_permission",
+        lambda request, permission: {"sub": "admin", "role": "superadmin"},
+    )
     monkeypatch.setattr(support_routes, "TelegramNotifyService", lambda: FakeNotify())
 
     request = _make_request(f"/panel/support/{ticket.id}/reply")
@@ -302,7 +337,11 @@ async def test_subscriptions_page_includes_expired_and_revoked_keys(
     session.add_all([expired_key, revoked_key])
     await session.commit()
 
-    monkeypatch.setattr(subscriptions_routes, "_require_permission", lambda request, permission: {"sub": "admin", "role": "superadmin"})
+    monkeypatch.setattr(
+        subscriptions_routes,
+        "_require_permission",
+        lambda request, permission: {"sub": "admin", "role": "superadmin"},
+    )
 
     async def fake_base_ctx(request, db, active, admin_info=None):
         return {"request": request, "active": active, "admin_role": "superadmin"}
@@ -312,8 +351,12 @@ async def test_subscriptions_page_includes_expired_and_revoked_keys(
             setattr(key, "panel_status_raw", key.status)
 
     monkeypatch.setattr(subscriptions_routes, "_base_ctx", fake_base_ctx)
-    monkeypatch.setattr(subscriptions_routes.VpnKeyService, "refresh_traffic_for_keys", fake_refresh)
-    monkeypatch.setitem(subscriptions_routes.templates.env.globals, "has_perm", lambda role, perm: True)
+    monkeypatch.setattr(
+        subscriptions_routes.VpnKeyService, "refresh_traffic_for_keys", fake_refresh
+    )
+    monkeypatch.setitem(
+        subscriptions_routes.templates.env.globals, "has_perm", lambda role, perm: True
+    )
 
     response = await subscriptions_routes.subscriptions_page(
         request=_make_request("/panel/subscriptions"),
@@ -368,7 +411,9 @@ async def test_bot_provision_and_notify_sends_fallback_message_when_key_not_read
     async def fake_provision(self, user_id: int, plan):
         return None
 
-    monkeypatch.setattr(bot_payments, "AsyncSessionFactory", lambda: _SessionCtx(session))
+    monkeypatch.setattr(
+        bot_payments, "AsyncSessionFactory", lambda: _SessionCtx(session)
+    )
     monkeypatch.setattr(bot_payments.BotSettingsService, "get_all", fake_get_all)
     monkeypatch.setattr(bot_payments.VpnKeyService, "provision", fake_provision)
 
@@ -409,8 +454,14 @@ async def test_cancel_subscription_notifies_user(session, sample_vpn_key, monkey
             sent.append((chat_id, text))
             return True
 
-    monkeypatch.setattr(subscriptions_routes, "_require_permission", lambda request, permission: {"sub": "admin", "role": "superadmin"})
-    monkeypatch.setattr(subscriptions_routes, "TelegramNotifyService", lambda: _Notify())
+    monkeypatch.setattr(
+        subscriptions_routes,
+        "_require_permission",
+        lambda request, permission: {"sub": "admin", "role": "superadmin"},
+    )
+    monkeypatch.setattr(
+        subscriptions_routes, "TelegramNotifyService", lambda: _Notify()
+    )
 
     response = await subscriptions_routes.cancel_subscription(
         key_id=sample_vpn_key.id,

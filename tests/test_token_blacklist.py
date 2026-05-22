@@ -7,7 +7,7 @@ from app.services.token_blacklist import TokenBlacklistService
 
 def _missing_table_error() -> ProgrammingError:
     return ProgrammingError(
-        'SELECT * FROM blacklisted_tokens',
+        "SELECT * FROM blacklisted_tokens",
         {},
         Exception('relation "blacklisted_tokens" does not exist'),
     )

@@ -1,4 +1,5 @@
 """Dashboard routes."""
+
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, select, cast, Numeric
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -72,6 +73,7 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
         rev_week.append(float(val) if val else 0.0)
 
     from app.services.support import SupportService
+
     ctx["stats"] = {
         "total_users": await UserService(db).count_all(),
         "active_subscriptions": await VpnKeyService(db).count_active(),
@@ -99,6 +101,7 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
 
     try:
         from app.services.system_metrics import SystemMetrics
+
         ctx["system_metrics"] = await SystemMetrics.collect()
     except Exception:
         ctx["system_metrics"] = None

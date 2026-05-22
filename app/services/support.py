@@ -3,7 +3,12 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.support import SupportTicket, TicketMessage, TicketStatus, TicketPriority
+from app.models.support import (
+    SupportTicket,
+    TicketMessage,
+    TicketStatus,
+    TicketPriority,
+)
 
 
 class SupportService:
@@ -52,11 +57,15 @@ class SupportService:
         first_message: str,
         priority: TicketPriority = TicketPriority.MEDIUM,
     ) -> SupportTicket:
-        ticket = SupportTicket(user_id=user_id, subject=subject, priority=priority.value)
+        ticket = SupportTicket(
+            user_id=user_id, subject=subject, priority=priority.value
+        )
         self.session.add(ticket)
         await self.session.flush()
 
-        msg = TicketMessage(ticket_id=ticket.id, sender_id=user_id, is_admin=False, text=first_message)
+        msg = TicketMessage(
+            ticket_id=ticket.id, sender_id=user_id, is_admin=False, text=first_message
+        )
         self.session.add(msg)
         await self.session.flush()
         return ticket
@@ -83,14 +92,18 @@ class SupportService:
         await self.session.flush()
         return msg
 
-    async def set_status(self, ticket_id: int, status: TicketStatus) -> Optional[SupportTicket]:
+    async def set_status(
+        self, ticket_id: int, status: TicketStatus
+    ) -> Optional[SupportTicket]:
         ticket = await self.get_by_id(ticket_id)
         if ticket:
             ticket.status = status.value
             await self.session.flush()
         return ticket
 
-    async def set_priority(self, ticket_id: int, priority: TicketPriority) -> Optional[SupportTicket]:
+    async def set_priority(
+        self, ticket_id: int, priority: TicketPriority
+    ) -> Optional[SupportTicket]:
         ticket = await self.get_by_id(ticket_id)
         if ticket:
             ticket.priority = priority.value

@@ -48,7 +48,11 @@ def _should_skip(request: Request) -> bool:
         return True
     if path in _CABINET_PUBLIC_PATHS:
         return True
-    if path.startswith("/docs") or path.startswith("/redoc") or path.startswith("/openapi"):
+    if (
+        path.startswith("/docs")
+        or path.startswith("/redoc")
+        or path.startswith("/openapi")
+    ):
         return True
     return False
 
@@ -67,13 +71,15 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             is_htmx = request.headers.get("HX-Request") == "true"
             if is_htmx:
                 import json
+
                 resp = Response(status_code=403)
-                resp.headers["HX-Trigger"] = json.dumps({
-                    "showToast": {"msg": "Error CSRF. Update Page.", "type": "error"}
-                })
+                resp.headers["HX-Trigger"] = json.dumps(
+                    {"showToast": {"msg": "Error CSRF. Update Page.", "type": "error"}}
+                )
                 return resp
             if request.headers.get("accept", "").startswith("application/json"):
                 from starlette.responses import JSONResponse
+
                 return JSONResponse(
                     {"detail": "CSRF token missing or invalid"},
                     status_code=403,

@@ -379,16 +379,76 @@
       margin-top: 1rem; font-size: .85rem;
       color: var(--text-muted); font-weight: 500;
     }
-    .sidebar-logo-img {
-      width: 40px; height: 40px; border-radius: 12px;
-      object-fit: cover; flex-shrink: 0;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    .brand-surface {
+      --brand-surface-size: 40px;
+      --brand-surface-radius: 12px;
+      --brand-surface-padding: 7px;
+      width: var(--brand-surface-size);
+      height: var(--brand-surface-size);
+      border-radius: var(--brand-surface-radius);
+      position: relative;
+      overflow: hidden;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+        var(--surface);
+      border: 1px solid var(--border-strong);
+      box-shadow:
+        0 10px 26px rgba(2, 6, 23, 0.24),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
       animation: logoFade 0.4s ease;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
-    .sidebar-logo-img:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,212,170,0.15); }
+    .brand-surface::after {
+      content: "";
+      position: absolute;
+      inset: 1px;
+      border-radius: calc(var(--brand-surface-radius) - 1px);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      pointer-events: none;
+    }
+    .brand-surface:hover {
+      transform: translateY(-1px) scale(1.03);
+      border-color: var(--border-glow);
+      box-shadow:
+        0 14px 32px rgba(0, 212, 170, 0.12),
+        0 12px 24px rgba(2, 6, 23, 0.24),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+    .brand-surface-md {
+      --brand-surface-size: 56px;
+      --brand-surface-radius: 18px;
+      --brand-surface-padding: 9px;
+    }
+    .brand-surface-lg {
+      --brand-surface-size: 72px;
+      --brand-surface-radius: 20px;
+      --brand-surface-padding: 10px;
+    }
+    .brand-surface-img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+      object-position: center;
+      padding: var(--brand-surface-padding);
+      border-radius: inherit;
+    }
+    .brand-surface-fallback {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: inherit;
+      background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+      color: #fff;
+      font-size: calc(var(--brand-surface-size) * 0.42);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    }
     @keyframes logoFade {
       from { opacity: 0; transform: scale(0.85); }
       to { opacity: 1; transform: scale(1); }
@@ -410,12 +470,19 @@
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-brand">
-    {% if custom_logo %}
-    <img src="{{ custom_logo }}" alt="Logo" class="sidebar-logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-    <span class="logo-icon" style="display:none"><i class="bi bi-shield-lock-fill"></i></span>
-    {% else %}
-    <span class="logo-icon"><i class="bi bi-shield-lock-fill"></i></span>
-    {% endif %}
+    <span class="brand-surface" aria-hidden="true">
+      {% if custom_logo %}
+      <img
+        src="{{ custom_logo }}"
+        alt="Logo"
+        class="brand-surface-img"
+        onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+      >
+      <span class="brand-surface-fallback" style="display:none"><i class="bi bi-shield-lock-fill"></i></span>
+      {% else %}
+      <span class="brand-surface-fallback"><i class="bi bi-shield-lock-fill"></i></span>
+      {% endif %}
+    </span>
     <span>{{ app_name | default('VPN') | truncate(16, true, '') }}</span>
     <button class="hamburger ms-auto d-md-none" onclick="closeSidebar()" style="display:flex"><i class="bi bi-x-lg"></i></button>
   </div>

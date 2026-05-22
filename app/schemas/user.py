@@ -29,6 +29,7 @@ class UserUpdate(BaseModel):
 
 class UserDetail(UserRead):
     """Extended user info with subscriptions and payments count."""
+
     subscriptions_count: int = 0
     payments_count: int = 0
     vpn_keys_count: int = 0

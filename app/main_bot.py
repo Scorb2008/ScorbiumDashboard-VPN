@@ -44,30 +44,37 @@ async def start_bot() -> None:
     try:
         await bot.delete_webhook(drop_pending_updates=True)
 
-        from aiogram.types import BotCommand, BotCommandScopeAllPrivateChats, BotCommandScopeChat
+        from aiogram.types import (
+            BotCommand,
+            BotCommandScopeAllPrivateChats,
+            BotCommandScopeChat,
+        )
+
         user_commands = [
-            BotCommand(command="start",      description="🏠 Главное меню"),
-            BotCommand(command="profile",    description="👤 Мой профиль"),
-            BotCommand(command="keys",       description="🔑 Мои подписки"),
-            BotCommand(command="status",     description="📊 Статус подписок"),
-            BotCommand(command="extend",     description="🔄 Продлить подписку"),
-            BotCommand(command="top",        description="🏆 Топ рефереров"),
-            BotCommand(command="gift",       description="🎁 Подарить подписку"),
-            BotCommand(command="autorenew",  description="🔄 Автопродление"),
-            BotCommand(command="id",         description="🆔 Мой Telegram ID"),
+            BotCommand(command="start", description="🏠 Главное меню"),
+            BotCommand(command="profile", description="👤 Мой профиль"),
+            BotCommand(command="keys", description="🔑 Мои подписки"),
+            BotCommand(command="status", description="📊 Статус подписок"),
+            BotCommand(command="extend", description="🔄 Продлить подписку"),
+            BotCommand(command="top", description="🏆 Топ рефереров"),
+            BotCommand(command="gift", description="🎁 Подарить подписку"),
+            BotCommand(command="autorenew", description="🔄 Автопродление"),
+            BotCommand(command="id", description="🆔 Мой Telegram ID"),
         ]
         admin_commands = user_commands + [
-            BotCommand(command="admin",      description="👑 Панель администратора"),
-            BotCommand(command="ban",        description="🚫 Забанить пользователя"),
-            BotCommand(command="unban",      description="✅ Разбанить пользователя"),
-            BotCommand(command="promo",      description="🎁 Создать промокод"),
+            BotCommand(command="admin", description="👑 Панель администратора"),
+            BotCommand(command="ban", description="🚫 Забанить пользователя"),
+            BotCommand(command="unban", description="✅ Разбанить пользователя"),
+            BotCommand(command="promo", description="🎁 Создать промокод"),
             BotCommand(command="addbalance", description="💰 Пополнить баланс"),
-            BotCommand(command="givekey",    description="🔑 Выдать ключ"),
+            BotCommand(command="givekey", description="🔑 Выдать ключ"),
         ]
         await bot.set_my_commands(user_commands, scope=BotCommandScopeAllPrivateChats())
         for admin_id in config.telegram.telegram_admin_ids:
             try:
-                await bot.set_my_commands(admin_commands, scope=BotCommandScopeChat(chat_id=admin_id))
+                await bot.set_my_commands(
+                    admin_commands, scope=BotCommandScopeChat(chat_id=admin_id)
+                )
             except Exception:
                 pass
 

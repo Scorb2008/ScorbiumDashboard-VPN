@@ -38,7 +38,9 @@ async def user_keys(
     return await VpnKeyService(db).get_all_for_user(user_id)
 
 
-@router.get("/{user_id}/payments", response_model=list[PaymentRead], summary="User payments")
+@router.get(
+    "/{user_id}/payments", response_model=list[PaymentRead], summary="User payments"
+)
 async def user_payments(
     user_id: int,
     db: AsyncSession = Depends(get_db),
@@ -56,7 +58,10 @@ async def send_message(
     notify = TelegramNotifyService()
     ok = await notify.send_message(user_id, body.text, body.parse_mode)
     if not ok:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to send Telegram message")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to send Telegram message",
+        )
     return {"detail": "Message sent"}
 
 
@@ -68,7 +73,9 @@ async def get_user(
 ) -> UserDetail:
     user = await UserService(db).get_by_id(user_id)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
     return UserDetail(
         **UserRead.model_validate(user).model_dump(),
         subscriptions_count=len(user.vpn_keys),
@@ -86,7 +93,9 @@ async def update_user(
 ) -> UserRead:
     user = await UserService(db).update(user_id, data)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
     return user
 
 
@@ -98,7 +107,9 @@ async def ban_user(
 ) -> UserRead:
     user = await UserService(db).ban(user_id)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
     return user
 
 
@@ -110,5 +121,7 @@ async def unban_user(
 ) -> UserRead:
     user = await UserService(db).unban(user_id)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
     return user

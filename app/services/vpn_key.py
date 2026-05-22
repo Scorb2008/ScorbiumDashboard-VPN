@@ -38,7 +38,9 @@ class VpnKeyService:
         conn = await self.session.connection()
 
         def _inspect_columns(sync_conn) -> bool:
-            columns = {col["name"] for col in inspect(sync_conn).get_columns("vpn_keys")}
+            columns = {
+                col["name"] for col in inspect(sync_conn).get_columns("vpn_keys")
+            }
             return {"download", "upload"}.issubset(columns)
 
         self._traffic_columns_supported = await conn.run_sync(_inspect_columns)
@@ -95,11 +97,14 @@ class VpnKeyService:
                 continue
             try:
                 marz_user = await self._get_panel().get_user(key.pasarguard_key_id)
-                raw_status = (
-                    (marz_user or {}).get("_normalized_status")
-                    or (marz_user or {}).get("status", "")
+                raw_status = (marz_user or {}).get("_normalized_status") or (
+                    marz_user or {}
+                ).get("status", "")
+                setattr(
+                    key,
+                    "panel_status_raw",
+                    str(raw_status).lower() if raw_status else None,
                 )
-                setattr(key, "panel_status_raw", str(raw_status).lower() if raw_status else None)
                 self._sync_key_status_from_panel(key, marz_user)
                 if not marz_user or not traffic_columns_supported:
                     continue
@@ -116,8 +121,7 @@ class VpnKeyService:
             return
 
         raw_status = (
-            marz_user.get("_normalized_status")
-            or marz_user.get("status", "")
+            marz_user.get("_normalized_status") or marz_user.get("status", "")
         ).lower()
 
         if raw_status == "active":
@@ -157,7 +161,9 @@ class VpnKeyService:
 
         username = _marzban_username(user_id, key.id)
 
-        marz_user = await self._create_in_marzban(username, expire_days=plan.duration_days)
+        marz_user = await self._create_in_marzban(
+            username, expire_days=plan.duration_days
+        )
         if marz_user is None:
             await self.session.delete(key)
             await self.session.flush()
@@ -179,7 +185,9 @@ class VpnKeyService:
         try:
             raw_groups = await BotSettingsService(self.session).get("vpn_group_ids")
             if raw_groups:
-                group_ids = [int(x) for x in _json.loads(raw_groups) if str(x).strip().isdigit()]
+                group_ids = [
+                    int(x) for x in _json.loads(raw_groups) if str(x).strip().isdigit()
+                ]
         except Exception as e:
             log.warning(f"Failed to load vpn_group_ids setting: {e}")
 
@@ -192,11 +200,13 @@ class VpnKeyService:
                     data_limit_gb=data_limit_gb,
                     group_ids=group_ids or None,
                 )
-                log.info(f"Marzban provisioned {username} (attempt {attempt+1})")
+                log.info(f"Marzban provisioned {username} (attempt {attempt + 1})")
                 return marz_user
             except Exception as e:
                 last_error = e
-                log.warning(f"Marzban attempt {attempt+1}/3 failed for {username}: {e}")
+                log.warning(
+                    f"Marzban attempt {attempt + 1}/3 failed for {username}: {e}"
+                )
                 if attempt < 2:
                     await asyncio.sleep(0.5 * (attempt + 1))
         log.error(f"All 3 Marzban attempts failed for {username}: {last_error}")
@@ -278,16 +288,17 @@ class VpnKeyService:
         key = await self.get_by_id(key_id)
         if not key:
             return None
-        if key.expires_at:
-            key.expires_at = key.expires_at + timedelta(days=days)
-        else:
-            key.expires_at = datetime.now(timezone.utc) + timedelta(days=days)
-        key.status = VpnKeyStatus.ACTIVE.value
         if key.pasarguard_key_id:
             try:
                 await self._get_panel().extend_user(key.pasarguard_key_id, days)
             except Exception as e:
                 log.warning(f"Marzban extend failed: {e}")
+                return None
+        if key.expires_at:
+            key.expires_at = key.expires_at + timedelta(days=days)
+        else:
+            key.expires_at = datetime.now(timezone.utc) + timedelta(days=days)
+        key.status = VpnKeyStatus.ACTIVE.value
         await self.session.flush()
         return key
 
@@ -340,7 +351,9 @@ class VpnKeyService:
                     if traffic_columns_supported:
                         download = marz_user.get("download", 0) or 0
                         upload = marz_user.get("upload", 0) or 0
-                        key.download = download if isinstance(download, int) else int(download)
+                        key.download = (
+                            download if isinstance(download, int) else int(download)
+                        )
                         key.upload = upload if isinstance(upload, int) else int(upload)
                 synced += 1
             except Exception as e:

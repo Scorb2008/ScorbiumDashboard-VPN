@@ -27,16 +27,43 @@ class _WebConfig(BaseSettings):
     )
     app_name: str = Field(default="ScorbVPN Dashboard", validation_alias="APP_NAME")
     app_version: str = Field(default="0.1.0", validation_alias="APP_VERSION")
-    server_host: str = Field(default_factory=lambda: '127.0.0.1', validation_alias="SERVER_HOST")
-    server_port: int = Field(default=8000, validation_alias="SERVER_PORT", ge=1, le=65535)
-    allowed_origins: List[AnyHttpUrl] = Field(default_factory=list, validation_alias="ALLOWED_ORIGINS")
-    web_superadmin_username: str = Field(default="admin", validation_alias="WEB_SUPERADMIN_USERNAME")
-    web_superadmin_password: SecretStr = Field(default_factory=lambda: SecretStr("SUPERADMIN"), validation_alias="WEB_SUPERADMIN_PASSWORD")
-    metrics_api_key: SecretStr = Field(default_factory=lambda: SecretStr(""), validation_alias="METRICS_API_KEY")
-    site_url: str = Field(default="", description="Public site URL, e.g. https://example.com:8443", validation_alias="SITE_URL")
-    domain: str = Field(default="", description="Domain name (without protocol)", validation_alias="DOMAIN")
-    https_port: int = Field(default=443, description="HTTPS port", validation_alias="HTTPS_PORT", ge=1, le=65535)
-    
+    server_host: str = Field(
+        default_factory=lambda: "127.0.0.1", validation_alias="SERVER_HOST"
+    )
+    server_port: int = Field(
+        default=8000, validation_alias="SERVER_PORT", ge=1, le=65535
+    )
+    allowed_origins: List[AnyHttpUrl] = Field(
+        default_factory=list, validation_alias="ALLOWED_ORIGINS"
+    )
+    web_superadmin_username: str = Field(
+        default="admin", validation_alias="WEB_SUPERADMIN_USERNAME"
+    )
+    web_superadmin_password: SecretStr = Field(
+        default_factory=lambda: SecretStr("SUPERADMIN"),
+        validation_alias="WEB_SUPERADMIN_PASSWORD",
+    )
+    metrics_api_key: SecretStr = Field(
+        default_factory=lambda: SecretStr(""), validation_alias="METRICS_API_KEY"
+    )
+    site_url: str = Field(
+        default="",
+        description="Public site URL, e.g. https://example.com:8443",
+        validation_alias="SITE_URL",
+    )
+    domain: str = Field(
+        default="",
+        description="Domain name (without protocol)",
+        validation_alias="DOMAIN",
+    )
+    https_port: int = Field(
+        default=443,
+        description="HTTPS port",
+        validation_alias="HTTPS_PORT",
+        ge=1,
+        le=65535,
+    )
+
     @field_validator("allowed_origins")
     @classmethod
     def validate_allowed_origins(cls, values: List[AnyHttpUrl]) -> List[AnyHttpUrl]:
@@ -44,14 +71,14 @@ class _WebConfig(BaseSettings):
             if value.host in ["localhost", "127.0.0.1"]:
                 log.warning(f"⚠️ Using localhost in allowed origins: {value}")
         return values
-    
+
     @field_validator("app_name")
     @classmethod
     def validate_app_name(cls, value: str) -> str:
         if not value.strip():
             raise WebException("App name cannot be empty")
         return value.strip()
-    
+
     @field_validator("app_version")
     @classmethod
     def validate_app_version(cls, value: str) -> str:
@@ -59,14 +86,14 @@ class _WebConfig(BaseSettings):
             raise WebException("App version cannot be empty")
         return value.strip()
 
-    
     @field_validator("server_host")
     @classmethod
     def validate_server_host(cls, value):
-        if not re.match(r'^[\w\.-]+$', value):
-            raise WebException(f"Invalid server host: {value}. Must be a valid hostname or IP address")
+        if not re.match(r"^[\w\.-]+$", value):
+            raise WebException(
+                f"Invalid server host: {value}. Must be a valid hostname or IP address"
+            )
         return value
-
 
     @field_validator("web_superadmin_password")
     @classmethod
@@ -90,10 +117,12 @@ class _WebConfig(BaseSettings):
             object.__setattr__(self, "site_url", derived)
             log.info(f"Auto-derived SITE_URL from DOMAIN+HTTPS_PORT: {derived}")
         return self
-    
+
+
 @lru_cache()
 def get_web_config() -> _WebConfig:
     return _WebConfig()
+
 
 try:
     web_config = get_web_config()

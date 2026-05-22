@@ -1,7 +1,13 @@
+from pathlib import Path
+
 from fastapi import Request
 from fastapi.responses import Response
 
-from app.api.cabinet.views import _absolute_cabinet_url, _cabinet_redirect_url, _persist_cabinet_session
+from app.api.cabinet.views import (
+    _absolute_cabinet_url,
+    _cabinet_redirect_url,
+    _persist_cabinet_session,
+)
 
 
 class _User:
@@ -9,7 +15,9 @@ class _User:
         self.id = user_id
 
 
-def _make_request(*, cookie: str | None = None, forwarded_proto: str = "https") -> Request:
+def _make_request(
+    *, cookie: str | None = None, forwarded_proto: str = "https"
+) -> Request:
     headers = [(b"x-forwarded-proto", forwarded_proto.encode())]
     if cookie is not None:
         headers.append((b"cookie", cookie.encode()))
@@ -95,3 +103,16 @@ def test_absolute_cabinet_url_keeps_forwarded_host_port():
     absolute_url = _absolute_cabinet_url(request, "/cabinet/balance", payment_id=123)
 
     assert absolute_url == "https://example.com:8443/cabinet/balance?payment_id=123"
+
+
+def test_cabinet_login_keeps_web_login_visible_for_incomplete_telegram_hashes():
+    project_root = Path(__file__).resolve().parents[1]
+    base_template = (project_root / "app/templates/cabinet/base.html").read_text()
+    login_template = (project_root / "app/templates/cabinet/login.html").read_text()
+    cabinet_css = (project_root / "app/static/css/cabinet.css").read_text()
+
+    assert "hashParams.has('tgWebAppPlatform')" not in base_template
+    assert "getTelegramHashParam('tgWebAppPlatform')" not in base_template
+    assert ".tg-miniapp-client #web-login" not in cabinet_css
+    assert "setLoginState(m || 'Ошибка')" not in login_template
+    assert "var initData = getMiniAppInitData();" in login_template

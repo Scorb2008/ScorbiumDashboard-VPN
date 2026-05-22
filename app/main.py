@@ -2,7 +2,6 @@ import uvicorn
 from app.core.config import config
 
 
-
 def main() -> None:
     uvicorn.run(
         "app.core.server:create_app",

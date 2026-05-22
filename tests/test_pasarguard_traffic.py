@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -25,7 +27,42 @@ def test_pasarguard_normalizes_used_traffic_into_download_upload():
 
 
 @pytest.mark.asyncio
-async def test_refresh_traffic_for_keys_uses_pasarguard_payload(session, sample_vpn_key):
+async def test_pasarguard_create_user_sends_unix_expire_timestamp():
+    service = PasarguardService.__new__(PasarguardService)
+    service._client = SimpleNamespace(
+        post=AsyncMock(return_value={"username": "vpn_1_1"})
+    )
+
+    before = datetime.now(timezone.utc)
+    await service.create_user("vpn_1_1", expire_days=30)
+    after = datetime.now(timezone.utc)
+
+    payload = service._client.post.await_args.args[1]
+    assert isinstance(payload["expire"], int)
+    assert int((before + timedelta(days=30)).timestamp()) <= payload["expire"]
+    assert payload["expire"] <= int((after + timedelta(days=30)).timestamp())
+
+
+@pytest.mark.asyncio
+async def test_pasarguard_extend_user_preserves_future_expiry_with_unix_timestamp():
+    service = PasarguardService.__new__(PasarguardService)
+    now = datetime.now(timezone.utc)
+    current_expire = int((now + timedelta(days=10)).timestamp())
+    service.get_user = AsyncMock(return_value={"expire": current_expire})
+    service.modify_user = AsyncMock(return_value={"username": "vpn_1_1"})
+
+    await service.extend_user("vpn_1_1", 7)
+
+    service.modify_user.assert_awaited_once_with(
+        "vpn_1_1",
+        expire=current_expire + 7 * 24 * 60 * 60,
+    )
+
+
+@pytest.mark.asyncio
+async def test_refresh_traffic_for_keys_uses_pasarguard_payload(
+    session, sample_vpn_key
+):
     service = VpnKeyService(session)
     service._traffic_columns_supported = True
     panel = AsyncMock()
@@ -41,6 +78,22 @@ async def test_refresh_traffic_for_keys_uses_pasarguard_payload(session, sample_
     assert sample_vpn_key.download == 222
     assert sample_vpn_key.upload == 333
     panel.get_user.assert_awaited_once_with(sample_vpn_key.pasarguard_key_id)
+
+
+@pytest.mark.asyncio
+async def test_extend_keeps_local_expiry_unchanged_when_pasarguard_fails(
+    session, sample_vpn_key
+):
+    service = VpnKeyService(session)
+    panel = AsyncMock()
+    panel.extend_user.side_effect = RuntimeError("panel unavailable")
+    service._marzban = panel
+    before = sample_vpn_key.expires_at
+
+    result = await service.extend(sample_vpn_key.id, 7)
+
+    assert result is None
+    assert sample_vpn_key.expires_at == before
 
 
 @pytest.mark.asyncio
@@ -66,7 +119,9 @@ async def test_refresh_traffic_for_keys_updates_stale_status_from_pasarguard(
 
 
 @pytest.mark.asyncio
-async def test_sync_from_marzban_maps_normalized_pasarguard_traffic(session, sample_vpn_key):
+async def test_sync_from_marzban_maps_normalized_pasarguard_traffic(
+    session, sample_vpn_key
+):
     service = VpnKeyService(session)
     service._traffic_columns_supported = True
     panel = AsyncMock()

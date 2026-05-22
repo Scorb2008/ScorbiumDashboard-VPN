@@ -1,7 +1,8 @@
 """Bot keyboard layout editor routes."""
+
 import json as _json
-from fastapi import APIRouter, Depends, Form, Request, Response
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import HTMLResponse
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,32 +11,14 @@ from app.services.bot_settings import BotSettingsService
 from app.services.telegram_notify import TelegramNotifyService
 
 from .shared import (
-    _require_permission, _toast, _base_ctx, templates,
-    _ALL_BUTTONS, _DEFAULT_LAYOUT,
+    _require_permission,
+    _base_ctx,
+    templates,
+    _ALL_BUTTONS,
+    _DEFAULT_LAYOUT,
 )
 
 router = APIRouter()
-
-_DEFAULT_LAYOUT = [
-    [{"id": "my_keys", "label": "🔑 Мои подписки", "callback": "my_keys"}],
-    [{"id": "buy", "label": "💳 Купить", "callback": "buy"}],
-    [
-        {"id": "balance", "label": "💰 Баланс", "callback": "balance"},
-        {"id": "promo", "label": "🎁 Промокод", "callback": "enter_promo"},
-    ],
-    [
-        {"id": "connect", "label": "📲 Как подключить", "callback": "connect:menu"},
-        {"id": "about", "label": "ℹ️ О проекте", "callback": "about"},
-    ],
-    [
-        {"id": "profile", "label": "👤 Профиль", "callback": "profile"},
-        {"id": "servers", "label": "🌐 Серверы", "callback": "servers"},
-    ],
-    [{"id": "top_referrers", "label": "🏆 Топ реферевов", "callback": "top_referrers"}],
-    [{"id": "support", "label": "💬 Поддержка", "callback": "support"}],
-    [{"id": "cabinet", "label": "📱 Кабинет", "web_app": ""}],
-    [{"id": "admin_panel", "label": "⚙️ Админ панель", "url": ""}],
-]
 
 
 @router.get("", response_class=HTMLResponse)

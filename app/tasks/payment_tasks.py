@@ -49,9 +49,11 @@ async def _provision_with_retry(session, user_id: int, plan, max_retries: int = 
             if key:
                 return key
         except Exception as e:
-            log.warning(f"[polling] VPN provision attempt {attempt+1}/{max_retries}: {e}")
+            log.warning(
+                f"[polling] VPN provision attempt {attempt + 1}/{max_retries}: {e}"
+            )
             if attempt < max_retries - 1:
-                await asyncio.sleep(2 ** attempt)
+                await asyncio.sleep(2**attempt)
     return None
 
 
@@ -73,6 +75,7 @@ async def check_pending_yookassa_payments() -> None:
 
     try:
         from app.services.yookassa import YookassaService
+
         yk = await YookassaService.create()
     except Exception as e:
         log.warning(f"[payment_tasks] YookassaService init failed: {e}")
@@ -81,12 +84,14 @@ async def check_pending_yookassa_payments() -> None:
     async with AsyncSessionFactory() as session:
         cutoff = datetime.now(timezone.utc) - MAX_PENDING_AGE
         result = await session.execute(
-            select(Payment).where(
+            select(Payment)
+            .where(
                 Payment.status == PaymentStatus.PENDING.value,
                 Payment.provider == PaymentProvider.YOOKASSA.value,
                 Payment.external_id.isnot(None),
                 Payment.created_at >= cutoff,
-            ).limit(100)
+            )
+            .limit(100)
         )
         payments = list(result.scalars().all())
 
@@ -121,14 +126,14 @@ async def check_pending_yookassa_payments() -> None:
                     if payment.payment_type == PaymentType.TOPUP.value:
                         topup_result = await PaymentFulfillmentService(
                             session
-                        ).confirm_topup_and_credit_once(
-                            pd["id"], str(yk_payment.id)
-                        )
+                        ).confirm_topup_and_credit_once(pd["id"], str(yk_payment.id))
                         await session.commit()
                         if not topup_result.payment:
                             continue
                         if not topup_result.just_processed:
-                            log.info(f"[polling] Duplicate topup ignored for payment {pd['id']}")
+                            log.info(
+                                f"[polling] Duplicate topup ignored for payment {pd['id']}"
+                            )
                             continue
                         balance = topup_result.balance
                         text = (
@@ -137,7 +142,9 @@ async def check_pending_yookassa_payments() -> None:
                             f"👛 Текущий баланс: <b>{balance} ₽</b>"
                         )
                         await TelegramNotifyService().send_message(pd["user_id"], text)
-                        log.info(f"[polling] Topup {pd['id']} confirmed + balance credited")
+                        log.info(
+                            f"[polling] Topup {pd['id']} confirmed + balance credited"
+                        )
                         continue
 
                     if not plan_id:
@@ -149,7 +156,9 @@ async def check_pending_yookassa_payments() -> None:
 
                     plan = await PlanService(session).get_by_id(plan_id)
                     if not plan:
-                        log.warning(f"[polling] Plan {plan_id} not found for payment {pd['id']}")
+                        log.warning(
+                            f"[polling] Plan {plan_id} not found for payment {pd['id']}"
+                        )
                         continue
 
                     payment_amount = str(payment.amount)
@@ -176,7 +185,9 @@ async def check_pending_yookassa_payments() -> None:
                     await session.commit()
 
                     if not confirmation.just_confirmed and not delivery.just_processed:
-                        log.info(f"[polling] Duplicate subscription webhook ignored for payment {pd['id']}")
+                        log.info(
+                            f"[polling] Duplicate subscription webhook ignored for payment {pd['id']}"
+                        )
                         continue
 
                     key_data = None
@@ -193,9 +204,16 @@ async def check_pending_yookassa_payments() -> None:
                     log.warning(f"[polling] Failed to load settings: {e}")
                     settings = {}
 
-                success_msg = settings.get("payment_success_message") or "✅ Оплата прошла успешно!"
+                success_msg = (
+                    settings.get("payment_success_message")
+                    or "✅ Оплата прошла успешно!"
+                )
                 if extend_key_id and key_data and delivery.key:
-                    exp = delivery.key.expires_at.strftime("%d.%m.%Y") if delivery.key.expires_at else "—"
+                    exp = (
+                        delivery.key.expires_at.strftime("%d.%m.%Y")
+                        if delivery.key.expires_at
+                        else "—"
+                    )
                     text = (
                         f"{success_msg}\n\n"
                         f"🔄 <b>Подписка продлена!</b>\n"
@@ -212,6 +230,7 @@ async def check_pending_yookassa_payments() -> None:
                     text = f"{success_msg}\n\n⚠️ Не удалось создать ключ. Обратитесь в поддержку."
 
                     from app.core.config import config
+
                     for admin_id in config.telegram.telegram_admin_ids[:3]:
                         await TelegramNotifyService().send_message(
                             admin_id,
@@ -219,7 +238,7 @@ async def check_pending_yookassa_payments() -> None:
                             f"Пользователь: {pd['user_id']}\n"
                             f"Платеж: #{pd['id']}\n"
                             f"План: {plan_name}\n\n"
-                            f"Платеж подтвержден, но ключ не создан. Проверьте Pasarguard."
+                            f"Платеж подтвержден, но ключ не создан. Проверьте Pasarguard.",
                         )
 
                 await TelegramNotifyService().send_message(pd["user_id"], text)
@@ -227,19 +246,24 @@ async def check_pending_yookassa_payments() -> None:
                 if key_data:
                     try:
                         from app.services.notification import notification_manager
-                        await notification_manager.broadcast({
-                            "type": "new_payment",
-                            "data": {
-                                "payment_id": pd["id"],
-                                "user_id": pd["user_id"],
-                                "amount": payment_amount or "0",
-                                "currency": payment_currency or "RUB",
-                            },
-                        })
+
+                        await notification_manager.broadcast(
+                            {
+                                "type": "new_payment",
+                                "data": {
+                                    "payment_id": pd["id"],
+                                    "user_id": pd["user_id"],
+                                    "amount": payment_amount or "0",
+                                    "currency": payment_currency or "RUB",
+                                },
+                            }
+                        )
                     except Exception as e:
                         log.warning(f"[polling] WebSocket broadcast failed: {e}")
 
-                log.info(f"[polling] Payment {pd['id']} confirmed, key={key_data['id'] if key_data else 'FAILED'}")
+                log.info(
+                    f"[polling] Payment {pd['id']} confirmed, key={key_data['id'] if key_data else 'FAILED'}"
+                )
 
             elif yk_payment.status in ("canceled", "expired"):
                 async with AsyncSessionFactory() as session:
@@ -259,7 +283,9 @@ async def payment_polling_loop() -> None:
             try:
                 await check_pending_yookassa_payments()
             except Exception as e:
-                log.error(f"[payment_tasks] check_pending_yookassa_payments failed: {e}")
+                log.error(
+                    f"[payment_tasks] check_pending_yookassa_payments failed: {e}"
+                )
             try:
                 await expire_old_pending_payments()
             except Exception as e:
@@ -273,6 +299,7 @@ async def expire_old_pending_payments() -> None:
     try:
         async with AsyncSessionFactory() as session:
             from app.services.payment import PaymentService
+
             svc = PaymentService(session)
             count = await svc.expire_old_pending(max_age_minutes=PAYMENT_EXPIRE_MINUTES)
             if count:

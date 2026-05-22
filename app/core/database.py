@@ -71,14 +71,22 @@ async def init_db() -> None:
 
     for attempt in range(1, DB_STARTUP_RETRIES + 1):
         if not _check_dns(db.db_host, db.db_port):
-            log.warning("DNS resolution failed for %s:%s (attempt %d/%d)",
-                        db.db_host, db.db_port, attempt, DB_STARTUP_RETRIES)
+            log.warning(
+                "DNS resolution failed for %s:%s (attempt %d/%d)",
+                db.db_host,
+                db.db_port,
+                attempt,
+                DB_STARTUP_RETRIES,
+            )
             if attempt == DB_STARTUP_RETRIES:
                 log.error(
                     "Cannot resolve DB host '%s'. Check DB_HOST in .env. "
                     "In Docker Compose it should be 'db' (service name), not 'localhost'.",
-                    db.db_host)
-                raise RuntimeError(f"DNS resolution failed for {db.db_host}:{db.db_port}")
+                    db.db_host,
+                )
+                raise RuntimeError(
+                    f"DNS resolution failed for {db.db_host}:{db.db_port}"
+                )
             delay = DB_STARTUP_DELAY * (2 ** (attempt - 1))
             log.info("Retrying in %ds...", delay)
             await asyncio.sleep(delay)
@@ -98,12 +106,17 @@ async def init_db() -> None:
                     "  Fix: Ensure DB_PASSWORD in .env matches POSTGRES_PASSWORD in docker-compose.\n"
                     "  If you changed .env after first start, run:\n"
                     "    docker compose down -v && docker compose up -d db app",
-                    db.db_user)
+                    db.db_user,
+                )
                 raise RuntimeError("DB password authentication failed") from e
 
             if "connection refused" in err_str or "could not connect" in err_str:
-                log.warning("DB not ready yet (attempt %d/%d): %s",
-                            attempt, DB_STARTUP_RETRIES, e)
+                log.warning(
+                    "DB not ready yet (attempt %d/%d): %s",
+                    attempt,
+                    DB_STARTUP_RETRIES,
+                    e,
+                )
                 if attempt == DB_STARTUP_RETRIES:
                     log.error("DB never became ready. Check: docker compose logs db")
                     raise RuntimeError("DB connection refused after retries") from e

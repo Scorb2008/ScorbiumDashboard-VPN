@@ -13,7 +13,9 @@ class BlacklistedToken(Base):
     sub = Column(String(64), nullable=False, index=True)
     blacklist_all = Column(Boolean, default=False, nullable=False)
     expires_at = Column(DateTime(timezone=True), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
     def __repr__(self) -> str:
         return f"<BlacklistedToken id={self.id} sub={self.sub} jti={self.jti}>"

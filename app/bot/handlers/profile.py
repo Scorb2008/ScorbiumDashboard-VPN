@@ -17,8 +17,6 @@ from app.services.payment import PaymentService
 from app.services.referral import ReferralService
 from app.services.bot_settings import BotSettingsService
 from app.services.i18n import t, get_lang
-from app.bot.utils.menu import get_main_menu_kb as _get_menu_kb
-from app.bot.handlers.admin import _is_admin
 
 router = Router()
 

@@ -2,6 +2,7 @@
 AiKassa payment service.
 Docs: https://aikassa.ru/wiki
 """
+
 import httpx
 from typing import Optional
 from app.utils.log import log
@@ -22,7 +23,9 @@ class AiKassaService:
         url = f"{self.BASE_URL}/{endpoint}"
         try:
             async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.request(method, url, headers=self._headers, **kwargs)
+                resp = await client.request(
+                    method, url, headers=self._headers, **kwargs
+                )
                 if resp.status_code == 401:
                     log.error("AiKassa: unauthorized (invalid token)")
                     return None

@@ -12,9 +12,7 @@ class AdminService:
         self.session = session
 
     async def get_by_id(self, admin_id: int) -> Optional[Admin]:
-        result = await self.session.execute(
-            select(Admin).where(Admin.id == admin_id)
-        )
+        result = await self.session.execute(select(Admin).where(Admin.id == admin_id))
         return result.scalar_one_or_none()
 
     async def get_by_username(self, username: str) -> Optional[Admin]:
@@ -24,9 +22,7 @@ class AdminService:
         return result.scalar_one_or_none()
 
     async def get_all(self) -> list[Admin]:
-        result = await self.session.execute(
-            select(Admin).order_by(Admin.id)
-        )
+        result = await self.session.execute(select(Admin).order_by(Admin.id))
         return list(result.scalars().all())
 
     async def create(
@@ -76,9 +72,7 @@ class AdminService:
         await self.session.flush()
         return True
 
-    async def authenticate(
-        self, username: str, password: str
-    ) -> Optional[Admin]:
+    async def authenticate(self, username: str, password: str) -> Optional[Admin]:
         admin = await self.get_by_username(username)
         if not admin or not admin.is_active:
             return None

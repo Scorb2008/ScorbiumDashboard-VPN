@@ -43,8 +43,7 @@ def get_telegram_init_data(request: Request) -> str:
 def is_telegram_miniapp_request(request: Request) -> bool:
     miniapp_flag = request.query_params.get(MINIAPP_MODE_PARAM, "").strip().lower()
     return bool(
-        get_telegram_init_data(request)
-        or miniapp_flag in {"1", "true", "yes", "on"}
+        get_telegram_init_data(request) or miniapp_flag in {"1", "true", "yes", "on"}
     )
 
 
@@ -53,7 +52,9 @@ def _build_telegram_full_name(
     last_name: str | None = None,
     fallback_name: str | None = None,
 ) -> str:
-    full_name = " ".join(filter(None, [(first_name or "").strip(), (last_name or "").strip()])).strip()
+    full_name = " ".join(
+        filter(None, [(first_name or "").strip(), (last_name or "").strip()])
+    ).strip()
     if full_name:
         return full_name
     return (fallback_name or "").strip() or "Telegram User"
@@ -62,7 +63,9 @@ def _build_telegram_full_name(
 def _verify_telegram_init_data(init_data: str) -> dict | None:
     try:
         bot_token = config.telegram.telegram_bot_token.get_secret_value()
-        secret_key = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
+        secret_key = hmac.new(
+            b"WebAppData", bot_token.encode(), hashlib.sha256
+        ).digest()
 
         params = {}
         for part in init_data.split("&"):
@@ -78,7 +81,9 @@ def _verify_telegram_init_data(init_data: str) -> dict | None:
         items = sorted(params.items(), key=lambda x: x[0])
         data_check_string = "\n".join(f"{k}={v}" for k, v in items)
 
-        computed = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+        computed = hmac.new(
+            secret_key, data_check_string.encode(), hashlib.sha256
+        ).hexdigest()
         if not hmac.compare_digest(computed, hash_val):
             return None
 
@@ -104,13 +109,17 @@ def _verify_telegram_login(data: dict, secret: str | None = None) -> dict | None
 
         if secret:
             secret_key = hashlib.sha256(secret.encode()).digest()
-            computed = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+            computed = hmac.new(
+                secret_key, data_check_string.encode(), hashlib.sha256
+            ).hexdigest()
             if not hmac.compare_digest(computed, hash_val):
                 return None
         else:
             bot_token = config.telegram.telegram_bot_token.get_secret_value()
             secret_key = hashlib.sha256(bot_token.encode()).digest()
-            computed = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+            computed = hmac.new(
+                secret_key, data_check_string.encode(), hashlib.sha256
+            ).hexdigest()
             if not hmac.compare_digest(computed, hash_val):
                 return None
 
@@ -131,6 +140,7 @@ async def get_cabinet_user(request: Request, db: AsyncSession):
         if payload:
             try:
                 from app.services.token_blacklist import TokenBlacklistService
+
                 jti = payload.get("jti", "")
                 sub = payload.get("sub", "")
                 if await TokenBlacklistService(db).is_blacklisted(jti, sub):
@@ -154,15 +164,17 @@ async def try_miniapp_auth(request: Request, db: AsyncSession):
         if not user_info.get("id"):
             return None
         user_id = _parse_telegram_user_id(user_info["id"])
-        user, _ = await UserService(db).sync_telegram_profile(UserCreate(
-            id=user_id,
-            username=user_info.get("username", ""),
-            full_name=_build_telegram_full_name(
-                user_info.get("first_name", ""),
-                user_info.get("last_name", ""),
-                user_info.get("name", ""),
-            ),
-        ))
+        user, _ = await UserService(db).sync_telegram_profile(
+            UserCreate(
+                id=user_id,
+                username=user_info.get("username", ""),
+                full_name=_build_telegram_full_name(
+                    user_info.get("first_name", ""),
+                    user_info.get("last_name", ""),
+                    user_info.get("name", ""),
+                ),
+            )
+        )
         return user
     except Exception as e:
         log.error("MiniApp auto-auth error: %s", e)
@@ -170,10 +182,17 @@ async def try_miniapp_auth(request: Request, db: AsyncSession):
 
 
 def set_session_cookie(resp, user_id: int, *, secure: bool):
-    token = create_access_token(subject=str(user_id), role="user", expires_delta=timedelta(days=30))
+    token = create_access_token(
+        subject=str(user_id), role="user", expires_delta=timedelta(days=30)
+    )
     resp.set_cookie(
-        COOKIE_NAME, token,
-        httponly=True, samesite="lax", secure=secure, max_age=CABINET_COOKIE_MAX_AGE, path="/",
+        COOKIE_NAME,
+        token,
+        httponly=True,
+        samesite="lax",
+        secure=secure,
+        max_age=CABINET_COOKIE_MAX_AGE,
+        path="/",
     )
 
 
@@ -206,27 +225,37 @@ async def cabinet_auth(request: Request, db: AsyncSession = Depends(get_db)):
     if id_token:
         payload = await verify_telegram_id_token(id_token)
         if not payload:
-            return JSONResponse({"ok": False, "message": "Auth verification failed"}, status_code=401)
+            return JSONResponse(
+                {"ok": False, "message": "Auth verification failed"}, status_code=401
+            )
         try:
             user_id = _extract_telegram_oidc_user_id(payload)
         except (TypeError, ValueError):
-            return JSONResponse({"ok": False, "message": "Invalid user ID"}, status_code=401)
+            return JSONResponse(
+                {"ok": False, "message": "Invalid user ID"}, status_code=401
+            )
         user_info = {
             "username": payload.get("preferred_username", ""),
             "first_name": (payload.get("name", "") or "").split(" ", 1)[0],
-            "last_name": (payload.get("name", "") or "").split(" ", 1)[1] if " " in (payload.get("name", "") or "") else "",
+            "last_name": (payload.get("name", "") or "").split(" ", 1)[1]
+            if " " in (payload.get("name", "") or "")
+            else "",
         }
-        user, _ = await UserService(db).sync_telegram_profile(UserCreate(
-            id=user_id,
-            username=user_info["username"],
-            full_name=_build_telegram_full_name(
-                user_info["first_name"],
-                user_info["last_name"],
-                payload.get("name", ""),
-            ),
-        ))
+        user, _ = await UserService(db).sync_telegram_profile(
+            UserCreate(
+                id=user_id,
+                username=user_info["username"],
+                full_name=_build_telegram_full_name(
+                    user_info["first_name"],
+                    user_info["last_name"],
+                    payload.get("name", ""),
+                ),
+            )
+        )
         if user.is_banned:
-            return JSONResponse({"ok": False, "message": "Account is banned"}, status_code=403)
+            return JSONResponse(
+                {"ok": False, "message": "Account is banned"}, status_code=403
+            )
         resp = JSONResponse({"ok": True, "redirect": "/cabinet/"})
         set_session_cookie(resp, user.id, secure=_is_secure_request(request))
         return resp
@@ -239,9 +268,13 @@ async def cabinet_auth(request: Request, db: AsyncSession = Depends(get_db)):
                 user_info = json.loads(tg_data["user"])
                 user_id = _parse_telegram_user_id(user_info.get("id", 0))
             except (ValueError, TypeError, json.JSONDecodeError):
-                return JSONResponse({"ok": False, "message": "Invalid user data"}, status_code=401)
+                return JSONResponse(
+                    {"ok": False, "message": "Invalid user data"}, status_code=401
+                )
         else:
-            return JSONResponse({"ok": False, "message": "Auth verification failed"}, status_code=401)
+            return JSONResponse(
+                {"ok": False, "message": "Auth verification failed"}, status_code=401
+            )
     else:
         tg_data = _verify_telegram_login(body)
         if not tg_data:
@@ -249,27 +282,37 @@ async def cabinet_auth(request: Request, db: AsyncSession = Depends(get_db)):
             if client_secret:
                 tg_data = _verify_telegram_login(body, secret=client_secret)
         if not tg_data:
-            return JSONResponse({"ok": False, "message": "Auth verification failed"}, status_code=401)
+            return JSONResponse(
+                {"ok": False, "message": "Auth verification failed"}, status_code=401
+            )
         try:
             user_id = _parse_telegram_user_id(tg_data.get("id", 0))
         except (TypeError, ValueError):
-            return JSONResponse({"ok": False, "message": "Invalid user ID"}, status_code=401)
+            return JSONResponse(
+                {"ok": False, "message": "Invalid user ID"}, status_code=401
+            )
         user_info = tg_data
 
     if not user_id:
-        return JSONResponse({"ok": False, "message": "Invalid user ID"}, status_code=401)
+        return JSONResponse(
+            {"ok": False, "message": "Invalid user ID"}, status_code=401
+        )
 
-    user, _ = await UserService(db).sync_telegram_profile(UserCreate(
-        id=user_id,
-        username=user_info.get("username", ""),
-        full_name=_build_telegram_full_name(
-            user_info.get("first_name", ""),
-            user_info.get("last_name", ""),
-            user_info.get("name", ""),
-        ),
-    ))
+    user, _ = await UserService(db).sync_telegram_profile(
+        UserCreate(
+            id=user_id,
+            username=user_info.get("username", ""),
+            full_name=_build_telegram_full_name(
+                user_info.get("first_name", ""),
+                user_info.get("last_name", ""),
+                user_info.get("name", ""),
+            ),
+        )
+    )
     if user.is_banned:
-        return JSONResponse({"ok": False, "message": "Account is banned"}, status_code=403)
+        return JSONResponse(
+            {"ok": False, "message": "Account is banned"}, status_code=403
+        )
 
     redirect_path = "/cabinet/?miniapp=1" if init_data else "/cabinet/"
     resp = JSONResponse({"ok": True, "redirect": redirect_path})

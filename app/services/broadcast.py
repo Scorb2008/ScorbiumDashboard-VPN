@@ -14,15 +14,22 @@ class BroadcastService:
 
     async def get_all(self, limit: int = 50, offset: int = 0) -> list[Broadcast]:
         result = await self.session.execute(
-            select(Broadcast).order_by(Broadcast.created_at.desc()).limit(limit).offset(offset)
+            select(Broadcast)
+            .order_by(Broadcast.created_at.desc())
+            .limit(limit)
+            .offset(offset)
         )
         return list(result.scalars().all())
 
     async def get_by_id(self, broadcast_id: int) -> Broadcast | None:
-        result = await self.session.execute(select(Broadcast).where(Broadcast.id == broadcast_id))
+        result = await self.session.execute(
+            select(Broadcast).where(Broadcast.id == broadcast_id)
+        )
         return result.scalar_one_or_none()
 
-    async def create(self, title: str, text: str, target: str = "all", parse_mode: str = "HTML") -> Broadcast:
+    async def create(
+        self, title: str, text: str, target: str = "all", parse_mode: str = "HTML"
+    ) -> Broadcast:
         bc = Broadcast(title=title, text=text, target=target, parse_mode=parse_mode)
         self.session.add(bc)
         await self.session.flush()
@@ -30,7 +37,10 @@ class BroadcastService:
 
     async def send(self, broadcast_id: int) -> Broadcast | None:
         bc = await self.get_by_id(broadcast_id)
-        if not bc or bc.status not in (BroadcastStatus.DRAFT.value, BroadcastStatus.FAILED.value):
+        if not bc or bc.status not in (
+            BroadcastStatus.DRAFT.value,
+            BroadcastStatus.FAILED.value,
+        ):
             return None
 
         bc.status = BroadcastStatus.SENDING.value
@@ -56,7 +66,9 @@ class BroadcastService:
     async def _resolve_targets(self, target: str) -> list[int]:
         if target == "all":
             result = await self.session.execute(
-                select(User.id).where(User.is_banned.is_(False), User.is_active.is_(True))
+                select(User.id).where(
+                    User.is_banned.is_(False), User.is_active.is_(True)
+                )
             )
         elif target == "active":
             result = await self.session.execute(
@@ -77,17 +89,21 @@ class BroadcastService:
     async def estimate_count(self, target: str) -> int:
         if target == "all":
             result = await self.session.execute(
-                select(func.count(User.id)).where(User.is_banned.is_(False), User.is_active.is_(True))
+                select(func.count(User.id)).where(
+                    User.is_banned.is_(False), User.is_active.is_(True)
+                )
             )
         elif target == "active":
             result = await self.session.execute(
-                select(func.count(func.distinct(VpnKey.user_id)))
-                .where(VpnKey.status == VpnKeyStatus.ACTIVE.value)
+                select(func.count(func.distinct(VpnKey.user_id))).where(
+                    VpnKey.status == VpnKeyStatus.ACTIVE.value
+                )
             )
         elif target == "expired":
             result = await self.session.execute(
-                select(func.count(func.distinct(VpnKey.user_id)))
-                .where(VpnKey.status == VpnKeyStatus.EXPIRED.value)
+                select(func.count(func.distinct(VpnKey.user_id))).where(
+                    VpnKey.status == VpnKeyStatus.EXPIRED.value
+                )
             )
         else:
             return 0

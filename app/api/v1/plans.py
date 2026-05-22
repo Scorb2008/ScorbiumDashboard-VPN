@@ -23,11 +23,18 @@ async def get_plan(plan_id: int, db: AsyncSession = Depends(get_db)) -> PlanRead
     svc = PlanService(db)
     plan = await svc.get_by_id(plan_id)
     if not plan:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found"
+        )
     return plan
 
 
-@router.post("/", response_model=PlanRead, status_code=status.HTTP_201_CREATED, summary="Create plan")
+@router.post(
+    "/",
+    response_model=PlanRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create plan",
+)
 async def create_plan(
     data: PlanCreate,
     db: AsyncSession = Depends(get_db),
@@ -36,7 +43,10 @@ async def create_plan(
     svc = PlanService(db)
     existing = await svc.get_by_slug(data.slug)
     if existing:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Plan with slug '{data.slug}' already exists")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Plan with slug '{data.slug}' already exists",
+        )
     return await svc.create(**data.model_dump())
 
 
@@ -50,11 +60,15 @@ async def update_plan(
     svc = PlanService(db)
     plan = await svc.update(plan_id, **data.model_dump(exclude_none=True))
     if not plan:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found"
+        )
     return plan
 
 
-@router.post("/{plan_id}/toggle", response_model=PlanRead, summary="Toggle plan active state")
+@router.post(
+    "/{plan_id}/toggle", response_model=PlanRead, summary="Toggle plan active state"
+)
 async def toggle_plan(
     plan_id: int,
     db: AsyncSession = Depends(get_db),
@@ -63,11 +77,15 @@ async def toggle_plan(
     svc = PlanService(db)
     plan = await svc.toggle_active(plan_id)
     if not plan:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found"
+        )
     return plan
 
 
-@router.delete("/{plan_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete plan")
+@router.delete(
+    "/{plan_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete plan"
+)
 async def delete_plan(
     plan_id: int,
     db: AsyncSession = Depends(get_db),
@@ -76,4 +94,6 @@ async def delete_plan(
     svc = PlanService(db)
     deleted = await svc.delete(plan_id)
     if not deleted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found"
+        )
