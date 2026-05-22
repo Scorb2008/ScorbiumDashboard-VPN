@@ -158,3 +158,15 @@ async def cancel_subscription(
     resp = Response(status_code=200)
     _toast(resp, "Подписка отменена")
     return resp
+
+
+@router.post("/expire-outdated", response_class=HTMLResponse)
+async def expire_outdated_subscriptions(
+    request: Request, db: AsyncSession = Depends(get_db),
+):
+    _require_permission(request, "subscriptions.write")
+    count = await VpnKeyService(db).expire_outdated()
+    await db.commit()
+    resp = Response(status_code=200)
+    _toast(resp, f"Истекших подписок обработано: {count}")
+    return resp
