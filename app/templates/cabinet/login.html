@@ -52,10 +52,10 @@
             </button>
           </div>
           {% if legacy_enabled %}
-          <div class="ib" style="margin-top:12px;justify-content:center;text-align:center">
+          <div id="telegram-login-legacy-fallback" class="ib" style="display:none;margin-top:12px;justify-content:center;text-align:center">
             <div>
-              <div><strong>Нужен запасной вход?</strong></div>
-              <div class="muted" style="margin-top:4px">Если новый Telegram Login не откроется, можно переключиться на классический виджет.</div>
+              <div><strong>Запасной вход</strong></div>
+              <div class="muted" style="margin-top:4px">Если новый Telegram Login не открылся, используйте классический Telegram Login Widget.</div>
               <button type="button" class="btn btn-o" style="margin-top:10px" onclick="showLegacyTelegramLogin()">
                 <i class="bi bi-arrow-left-right"></i> Открыть классический вход
               </button>
@@ -91,9 +91,9 @@ var telegramOidcScriptPromise = null;
 var hasLegacyTelegramLogin = {{ 'true' if legacy_enabled else 'false' }};
 
 function showLegacyTelegramLogin() {
-  var oidcRoot = document.getElementById('telegram-login-oidc');
+  var fallbackRoot = document.getElementById('telegram-login-legacy-fallback');
   var legacyRoot = document.getElementById('telegram-login-legacy');
-  if (oidcRoot) oidcRoot.style.display = 'none';
+  if (fallbackRoot) fallbackRoot.style.display = 'flex';
   if (legacyRoot) legacyRoot.style.display = 'flex';
 }
 
