@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="/static/img/logo.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
   <link rel="stylesheet" href="/static/css/bootstrap-icons.min.css" />
   <style>
@@ -15,12 +15,13 @@
       --accent: #00d4aa;
       --accent-secondary: #0ea5e9;
       --accent-warm: #f59e0b;
-      --bg: #070b14;
-      --bg-elevated: #0d1117;
-      --bg-card: #0f1419;
+      --bg: #060914;
+      --bg-card: rgba(10, 14, 24, 0.88);
       --surface: #131820;
       --surface-hover: #1a2332;
-      --border: rgba(148, 163, 184, 0.08);
+      --surface-soft: rgba(255, 255, 255, 0.04);
+      --border: rgba(148, 163, 184, 0.1);
+      --border-strong: rgba(148, 163, 184, 0.18);
       --border-glow: rgba(0, 212, 170, 0.2);
       --text: #f1f5f9;
       --text-secondary: #94a3b8;
@@ -30,115 +31,425 @@
     }
     * { box-sizing: border-box; }
     body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(1rem, 2vw, 2rem);
       background: var(--bg);
-      min-height: 100vh; display: flex; align-items: center; justify-content: center;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI', sans-serif;
       -webkit-font-smoothing: antialiased;
-      overflow: hidden; position: relative;
+      position: relative;
+      overflow-x: hidden;
     }
-    /* Animated gradient background */
     body::before {
-      content: ''; position: fixed; inset: 0;
+      content: '';
+      position: fixed;
+      inset: 0;
       background:
-        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0, 212, 170, .07) 0%, transparent 60%),
-        radial-gradient(ellipse 60% 50% at 80% 50%, rgba(14, 165, 233, .05) 0%, transparent 50%),
-        radial-gradient(ellipse 60% 50% at 20% 80%, rgba(245, 158, 11, .04) 0%, transparent 50%);
-      animation: bgShift 12s ease-in-out infinite alternate;
+        radial-gradient(circle at 10% 15%, rgba(0, 212, 170, 0.16), transparent 25%),
+        radial-gradient(circle at 85% 20%, rgba(14, 165, 233, 0.16), transparent 28%),
+        radial-gradient(circle at 50% 100%, rgba(245, 158, 11, 0.08), transparent 30%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
       z-index: 0;
     }
-    @keyframes bgShift {
-      0% { opacity: 1; transform: scale(1); }
-      50% { opacity: .8; transform: scale(1.05); }
-      100% { opacity: 1; transform: scale(1); }
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+      background-size: 72px 72px;
+      mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.7), transparent 88%);
+      z-index: 0;
+      opacity: 0.45;
     }
-    /* Floating orbs */
     .orb {
-      position: fixed; border-radius: 50%; filter: blur(80px); opacity: .12;
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(90px);
+      opacity: 0.16;
       animation: float 20s ease-in-out infinite;
+      z-index: 0;
     }
-    .orb-1 { width: 400px; height: 400px; background: var(--accent); top: -10%; left: -10%; animation-delay: 0s; }
-    .orb-2 { width: 300px; height: 300px; background: var(--accent-secondary); bottom: -5%; right: -5%; animation-delay: -7s; }
-    .orb-3 { width: 250px; height: 250px; background: var(--accent-warm); top: 50%; right: 20%; animation-delay: -14s; }
+    .orb-1 { width: 360px; height: 360px; background: var(--accent); top: -8%; left: -8%; animation-delay: 0s; }
+    .orb-2 { width: 280px; height: 280px; background: var(--accent-secondary); bottom: -4%; right: -5%; animation-delay: -7s; }
+    .orb-3 { width: 220px; height: 220px; background: var(--accent-warm); top: 48%; right: 18%; animation-delay: -13s; }
     @keyframes float {
       0%, 100% { transform: translate(0, 0) rotate(0deg); }
-      25% { transform: translate(30px, -40px) rotate(5deg); }
-      50% { transform: translate(-20px, 20px) rotate(-3deg); }
-      75% { transform: translate(40px, 30px) rotate(7deg); }
+      25% { transform: translate(22px, -34px) rotate(4deg); }
+      50% { transform: translate(-18px, 18px) rotate(-3deg); }
+      75% { transform: translate(30px, 20px) rotate(6deg); }
     }
-    .login-wrap { width: 100%; max-width: 440px; padding: 1rem; position: relative; z-index: 1; }
-    .login-card {
-      background: var(--bg-card); border: 1px solid var(--border); border-radius: 24px;
-      padding: 2.5rem 2rem 2rem;
-      box-shadow: 0 24px 80px rgba(0,0,0,.4), 0 0 0 1px var(--border-glow);
-      position: relative; overflow: hidden;
-      animation: cardIn .6s cubic-bezier(.4,0,.2,1) backwards;
+
+    .login-wrap {
+      width: min(1120px, 100%);
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1.18fr) minmax(360px, 430px);
+      gap: 1.5rem;
+      align-items: stretch;
     }
-    @keyframes cardIn {
-      from { opacity: 0; transform: translateY(20px) scale(.97); }
+    .login-showcase,
+    .login-card,
+    .security-badge {
+      border: 1px solid var(--border);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+        var(--bg-card);
+      box-shadow:
+        0 28px 80px rgba(0, 0, 0, 0.34),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(18px);
     }
-    .login-card::before {
-      content: ''; position: absolute; top: -50%; right: -30%;
-      width: 300px; height: 300px; border-radius: 50%;
-      background: radial-gradient(circle, rgba(0,212,170,.06), transparent 70%);
+
+    .login-showcase {
+      position: relative;
+      overflow: hidden;
+      border-radius: 32px;
+      padding: clamp(1.6rem, 3vw, 2.5rem);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 2rem;
+      min-height: 640px;
+    }
+    .login-showcase::before {
+      content: '';
+      position: absolute;
+      inset: auto -80px -140px auto;
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.16), transparent 68%);
+      filter: blur(10px);
       pointer-events: none;
     }
-    .logo-block { display: flex; flex-direction: column; align-items: center; margin-bottom: 1.5rem; position: relative; z-index: 1; }
-    .logo-avatar {
-        width: 80px; height: 80px; border-radius: 20px;
-        object-fit: cover; background: rgba(255,255,255,0.05);
-        border: 1px solid var(--border);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        animation: logoFadeIn 0.4s ease;
+    .showcase-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: .55rem;
+      align-self: flex-start;
+      padding: .48rem .9rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
     }
-    .logo-avatar:hover { transform: scale(1.05); box-shadow: 0 12px 40px rgba(0,212,170,0.2); }
-    @keyframes logoFadeIn {
-        from { opacity: 0; transform: scale(0.9); }
-        to { opacity: 1; transform: scale(1); }
+    .showcase-kicker i { color: var(--accent); }
+    .showcase-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      max-width: 640px;
     }
-    .app-name { font-size: 1.35rem; font-weight: 800; color: var(--text); letter-spacing: -0.02em; }
-    .app-sub { font-size: .82rem; color: var(--text-muted); margin-top: .25rem; }
+    .showcase-title {
+      margin: 0;
+      font-family: 'Space Grotesk', 'Inter', sans-serif;
+      font-size: clamp(2.2rem, 5vw, 4rem);
+      line-height: .95;
+      letter-spacing: -.06em;
+      color: #f8fbff;
+      text-transform: uppercase;
+    }
+    .showcase-subtitle {
+      margin: 0;
+      color: rgba(203, 213, 225, 0.88);
+      font-size: 1rem;
+      line-height: 1.7;
+      max-width: 52ch;
+    }
+    .showcase-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: .9rem;
+    }
+    .showcase-card {
+      display: flex;
+      flex-direction: column;
+      gap: .8rem;
+      padding: 1rem;
+      min-height: 100%;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+    .showcase-card-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      color: #fff;
+      background: linear-gradient(135deg, rgba(0, 212, 170, 0.92), rgba(14, 165, 233, 0.92));
+      box-shadow: 0 12px 28px rgba(0, 212, 170, 0.18);
+    }
+    .showcase-card strong {
+      color: var(--text);
+      font-size: .95rem;
+      letter-spacing: -.02em;
+    }
+    .showcase-card span {
+      color: var(--text-secondary);
+      font-size: .84rem;
+      line-height: 1.55;
+    }
+    .showcase-brand {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.1rem;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+    .showcase-brand-copy {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: .25rem;
+    }
+    .showcase-brand-copy strong {
+      color: var(--text);
+      font-size: 1rem;
+      letter-spacing: -.03em;
+    }
+    .showcase-brand-copy span {
+      color: var(--text-secondary);
+      font-size: .84rem;
+    }
+
+    .login-stack {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 1rem;
+    }
+    .login-card {
+      position: relative;
+      overflow: hidden;
+      border-radius: 28px;
+      padding: 2rem;
+      animation: cardIn .5s cubic-bezier(.4, 0, .2, 1) backwards;
+    }
+    .login-card::before {
+      content: '';
+      position: absolute;
+      top: -40%;
+      right: -30%;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0, 212, 170, 0.08), transparent 70%);
+      pointer-events: none;
+    }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(18px) scale(.98); }
+    }
+    .logo-block {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: .9rem;
+      margin-bottom: 1.6rem;
+    }
+    .logo-frame,
+    .showcase-brand-mark {
+      --logo-size: 92px;
+      --logo-radius: 24px;
+      --logo-padding: 10px;
+      width: var(--logo-size);
+      height: var(--logo-size);
+      border-radius: var(--logo-radius);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+        rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-strong);
+      box-shadow:
+        0 16px 38px rgba(2, 6, 23, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+    .showcase-brand-mark {
+      --logo-size: 64px;
+      --logo-radius: 18px;
+      --logo-padding: 8px;
+      flex-shrink: 0;
+    }
+    .logo-frame::after,
+    .showcase-brand-mark::after {
+      content: '';
+      position: absolute;
+      inset: 1px;
+      border-radius: calc(var(--logo-radius) - 1px);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      pointer-events: none;
+    }
+    .logo-avatar,
+    .showcase-logo {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+      object-position: center;
+      padding: var(--logo-padding);
+      border-radius: inherit;
+    }
+    .logo-fallback {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: inherit;
+      background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+      color: #fff;
+      font-size: calc(var(--logo-size) * 0.42);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    }
+    .logo-frame.logo-frame-warm .logo-fallback {
+      background: linear-gradient(135deg, var(--accent-warm), var(--accent-secondary));
+    }
+    .auth-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: .45rem;
+      padding: .42rem .8rem;
+      border-radius: 999px;
+      background: rgba(0, 212, 170, 0.08);
+      border: 1px solid rgba(0, 212, 170, 0.18);
+      color: var(--accent);
+      font-size: .74rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .auth-chip.auth-chip-warm {
+      background: rgba(245, 158, 11, 0.09);
+      border-color: rgba(245, 158, 11, 0.22);
+      color: #fbbf24;
+    }
+    .app-name {
+      margin: 0;
+      font-family: 'Space Grotesk', 'Inter', sans-serif;
+      font-size: 1.55rem;
+      font-weight: 700;
+      letter-spacing: -.05em;
+      color: var(--text);
+    }
+    .app-sub {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: .9rem;
+      line-height: 1.65;
+      max-width: 34ch;
+    }
     .version-badge {
-      display: inline-block; padding: .15rem .55rem; border-radius: 20px;
-      background: rgba(0,212,170,.12); color: var(--accent);
-      font-size: .65rem; font-weight: 700; letter-spacing: .5px;
-      border: 1px solid rgba(0,212,170,.2); margin-left: .5rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: .22rem .62rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.06);
+      color: var(--text-secondary);
+      font-size: .66rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      border: 1px solid rgba(255,255,255,.08);
     }
     .form-control {
-      background: var(--surface); border-color: var(--border); color: var(--text);
-      border-radius: 12px; padding: .7rem 1rem; font-size: .9rem; transition: all .2s;
+      background: var(--surface);
+      border-color: var(--border);
+      color: var(--text);
+      border-radius: 14px;
+      padding: .78rem 1rem;
+      font-size: .92rem;
+      transition: all .2s;
     }
     .form-control:focus {
-      background: var(--surface-hover); border-color: var(--accent);
-      color: var(--text); box-shadow: 0 0 0 3px rgba(0,212,170,.15);
+      background: var(--surface-hover);
+      border-color: var(--accent);
+      color: var(--text);
+      box-shadow: 0 0 0 3px rgba(0, 212, 170, .14);
     }
-    .form-control::placeholder { color: var(--text-muted); opacity: .5; }
+    .form-control::placeholder { color: rgba(148, 163, 184, 0.58); }
     .input-group-text {
-      background: var(--surface); border-color: var(--border); color: var(--text-muted);
-      border-radius: 12px 0 0 12px; padding: .7rem .85rem; transition: all .2s;
+      background: var(--surface);
+      border-color: var(--border);
+      color: var(--text-muted);
+      border-radius: 14px 0 0 14px;
+      padding: .78rem .9rem;
+      transition: all .2s;
     }
-    .input-group .form-control { border-radius: 0 12px 12px 0; }
-    .form-label { font-size: .8rem; color: var(--text-secondary); font-weight: 600; margin-bottom: .4rem; }
+    .input-group .form-control { border-radius: 0 14px 14px 0; }
+    .form-label {
+      font-size: .78rem;
+      color: var(--text-secondary);
+      font-weight: 700;
+      margin-bottom: .45rem;
+      letter-spacing: .01em;
+    }
     .btn-login {
-      background: linear-gradient(135deg, var(--accent), #0d9488); border: none; color: #fff;
-      font-weight: 700; border-radius: 12px; padding: .75rem; letter-spacing: .3px;
-      transition: all .25s; box-shadow: 0 4px 16px rgba(0,212,170,.3); font-size: .9rem;
-      margin-top: .5rem; position: relative; overflow: hidden;
+      background: linear-gradient(135deg, var(--accent), #0d9488);
+      border: none;
+      color: #fff;
+      font-weight: 700;
+      border-radius: 14px;
+      padding: .82rem;
+      letter-spacing: .02em;
+      transition: all .25s;
+      box-shadow: 0 14px 30px rgba(0, 212, 170, .24);
+      font-size: .92rem;
+      margin-top: .35rem;
+      position: relative;
+      overflow: hidden;
     }
-    .btn-login:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,212,170,.45); filter: brightness(1.1); color: #fff; }
+    .btn-login:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 18px 36px rgba(0, 212, 170, .34);
+      filter: brightness(1.06);
+      color: #fff;
+    }
     .btn-login:active { transform: translateY(0); }
-    .btn-login:disabled { opacity: .7; cursor: not-allowed; transform: none; }
+    .btn-login:disabled { opacity: .78; cursor: not-allowed; transform: none; }
     .btn-login .spinner {
-      display: none; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.3);
-      border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite;
+      display: none;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
       margin-right: .5rem;
     }
     .btn-login.loading .spinner { display: inline-block; }
     .btn-login.loading .btn-text { opacity: .7; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
     .alert-custom {
-      background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2);
-      border-radius: 12px; font-size: .85rem; color: #fca5a5; padding: .65rem 1rem;
+      background: rgba(239, 68, 68, .08);
+      border: 1px solid rgba(239, 68, 68, .2);
+      border-radius: 14px;
+      font-size: .85rem;
+      color: #fca5a5;
+      padding: .8rem 1rem;
       animation: shake .4s ease;
     }
     @keyframes shake {
@@ -146,73 +457,118 @@
       25% { transform: translateX(-5px); }
       75% { transform: translateX(5px); }
     }
-    .footer-text { text-align: center; margin-top: 1.5rem; font-size: .72rem; color: var(--text-muted); opacity: .6; }
+    .footer-text {
+      text-align: center;
+      margin-top: 1rem;
+      font-size: .76rem;
+      color: var(--text-muted);
+    }
+    .btn-back-2fa {
+      display: block;
+      width: 100%;
+      margin-top: 1rem;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      color: var(--text-secondary);
+      font-size: .84rem;
+      cursor: pointer;
+      padding: .7rem;
+      border-radius: 12px;
+      transition: all .15s;
+    }
+    .btn-back-2fa:hover {
+      color: var(--text);
+      background: var(--surface-hover);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+    .btn-2fa.loading .spinner { display: inline-block; }
+    .btn-2fa.loading .btn-text { opacity: .7; }
     .security-badge {
-      display: flex; align-items: center; justify-content: center; gap: .5rem;
-      margin-top: 1rem; font-size: .7rem; color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .65rem;
+      padding: .95rem 1rem;
+      border-radius: 20px;
+      color: var(--text-secondary);
+      font-size: .78rem;
       text-align: center;
     }
-    .security-badge i { color: var(--success); flex-shrink: 0; }
-    .security-badge span { white-space: nowrap; }
-    @media (max-width: 480px) {
-      .security-badge span { white-space: normal; text-align: center; }
+    .security-badge i {
+      color: var(--success);
+      font-size: .95rem;
+      flex-shrink: 0;
     }
 
-    /* Page loader */
     .login-loader {
-      position: fixed; inset: 0; z-index: 9999;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
       background: var(--bg);
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       transition: opacity .4s ease, visibility .4s ease;
     }
     .login-loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
     .login-loader-ring {
-      width: 48px; height: 48px;
-      border: 3px solid rgba(148,163,184,.15);
+      width: 48px;
+      height: 48px;
+      border: 3px solid rgba(148, 163, 184, .15);
       border-top-color: var(--accent);
       border-radius: 50%;
       animation: spin .8s linear infinite;
     }
     .login-loader-text {
-      margin-top: 1rem; font-size: .85rem;
-      color: var(--text-muted); font-weight: 500;
+      margin-top: 1rem;
+      font-size: .85rem;
+      color: var(--text-muted);
+      font-weight: 500;
     }
 
-    /* 2FA toggle */
-    .divider-2fa {
-      display: flex; align-items: center; gap: .75rem;
-      margin: 1.25rem 0 1rem;
-      color: var(--text-muted); font-size: .75rem; font-weight: 600;
+    @media (max-width: 960px) {
+      .login-wrap {
+        grid-template-columns: 1fr;
+      }
+      .login-stack {
+        order: 1;
+      }
+      .login-showcase {
+        order: 2;
+        min-height: auto;
+      }
+      .showcase-grid {
+        grid-template-columns: 1fr;
+      }
     }
-    .divider-2fa::before, .divider-2fa::after {
-      content: ''; flex: 1; height: 1px;
-      background: var(--border);
+    @media (max-width: 640px) {
+      body {
+        padding: .8rem;
+      }
+      .login-showcase,
+      .login-card {
+        border-radius: 24px;
+      }
+      .login-showcase,
+      .login-card {
+        padding: 1.35rem;
+      }
+      .showcase-title {
+        font-size: 2rem;
+      }
+      .logo-frame {
+        --logo-size: 82px;
+        --logo-radius: 22px;
+        --logo-padding: 9px;
+      }
+      .security-badge {
+        padding: .85rem .95rem;
+      }
     }
-    .btn-2fa-toggle {
-      width: 100%; background: rgba(245,158,11,.08);
-      border: 1px solid rgba(245,158,11,.2);
-      color: var(--accent-warm); font-size: .82rem; font-weight: 600;
-      border-radius: 12px; padding: .65rem; cursor: pointer;
-      transition: all .2s;
-    }
-    .btn-2fa-toggle:hover {
-      background: rgba(245,158,11,.15);
-      border-color: rgba(245,158,11,.4);
-    }
-    .btn-back-2fa {
-      display: block; width: 100%; margin-top: 1rem;
-      background: none; border: none; color: var(--text-muted);
-      font-size: .82rem; cursor: pointer; padding: .5rem;
-      border-radius: 8px; transition: all .15s;
-    }
-    .btn-back-2fa:hover { color: var(--text); background: var(--surface-hover); }
-    .btn-2fa.loading .spinner { display: inline-block; }
-    .btn-2fa.loading .btn-text { opacity: .7; }
   </style>
 </head>
 <body>
-  <!-- Page loader -->
   <div class="login-loader" id="loginLoader">
     <div class="login-loader-ring"></div>
     <div class="login-loader-text">Загрузка...</div>
@@ -221,104 +577,151 @@
   <div class="orb orb-1"></div>
   <div class="orb orb-2"></div>
   <div class="orb orb-3"></div>
+
   <div class="login-wrap">
-    <div class="login-card" id="form-password" style="{% if show_2fa %}display:none{% endif %}">
-      <div class="logo-block">
-        {% if custom_logo %}
-        <img src="{{ custom_logo }}" alt="Logo" class="logo-avatar" id="logo-pw-img" onerror="this.style.display='none';document.getElementById('fallback-icon').style.display='flex';">
-        {% endif %}
-        <div id="fallback-icon" style="display:{% if custom_logo %}none{% else %}flex{% endif %};width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-secondary));align-items:center;justify-content:center;margin-bottom:2rem;box-shadow:0 8px 32px rgba(0,212,170,.35);font-size:1.8rem;color:#fff;">
-          <i class="bi bi-shield-lock-fill"></i>
+    <section class="login-showcase">
+      <div class="showcase-copy">
+        <span class="showcase-kicker"><i class="bi bi-stars"></i> Secure Operations</span>
+        <h1 class="showcase-title">Управляйте VPN-платформой без лишнего шума</h1>
+        <p class="showcase-subtitle">
+          Пользователи, платежи, поддержка и мониторинг собраны в одном чистом интерфейсе,
+          чтобы команда быстрее принимала решения и меньше тратила время на рутину.
+        </p>
+      </div>
+
+      <div class="showcase-grid">
+        <article class="showcase-card">
+          <span class="showcase-card-icon"><i class="bi bi-lightning-charge-fill"></i></span>
+          <strong>Быстрый старт</strong>
+          <span>Сразу после входа видны дашборд, платежи, пользователи и состояние сервисов.</span>
+        </article>
+        <article class="showcase-card">
+          <span class="showcase-card-icon"><i class="bi bi-shield-lock-fill"></i></span>
+          <strong>Защищённый доступ</strong>
+          <span>Пароль, CSRF-защита, ограничение попыток входа и поддержка 2FA в одном потоке.</span>
+        </article>
+        <article class="showcase-card">
+          <span class="showcase-card-icon"><i class="bi bi-graph-up-arrow"></i></span>
+          <strong>Операционный обзор</strong>
+          <span>Платежные статусы, тикеты и VPN-ключи всегда под рукой без лишних переходов.</span>
+        </article>
+      </div>
+
+      <div class="showcase-brand">
+        <div class="showcase-brand-mark">
+          {% if custom_logo %}
+          <img src="{{ custom_logo }}" alt="Logo" class="showcase-logo" onerror="this.style.display='none';document.getElementById('showcase-logo-fallback').style.display='flex';">
+          {% endif %}
+          <span id="showcase-logo-fallback" class="logo-fallback" style="display:{% if custom_logo %}none{% else %}flex{% endif %};">
+            <i class="bi bi-shield-lock-fill"></i>
+          </span>
         </div>
-        <div class="app-name">{{ app_name | default('VPN Panel') }}</div>
-        <div class="app-sub">
-          Панель управления
+        <div class="showcase-brand-copy">
+          <strong>{{ app_name | default('VPN Panel') }}</strong>
+          <span>Операционный центр для VPN-сервиса, платежей и поддержки.</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="login-stack">
+      <div class="login-card" id="form-password" style="{% if show_2fa %}display:none{% endif %}">
+        <div class="logo-block">
+          <div class="logo-frame">
+            {% if custom_logo %}
+            <img src="{{ custom_logo }}" alt="Logo" class="logo-avatar" id="logo-pw-img" onerror="this.style.display='none';document.getElementById('fallback-icon').style.display='flex';">
+            {% endif %}
+            <span id="fallback-icon" class="logo-fallback" style="display:{% if custom_logo %}none{% else %}flex{% endif %};">
+              <i class="bi bi-shield-lock-fill"></i>
+            </span>
+          </div>
+          <span class="auth-chip"><i class="bi bi-shield-check"></i> Админ-панель</span>
+          <div class="app-name">{{ app_name | default('VPN Panel') }}</div>
+          <p class="app-sub">Войдите под администраторским аккаунтом, чтобы открыть дашборд, платежи и системные настройки.</p>
           <span class="version-badge">v{{ app_version | default('1.0.0') }}</span>
         </div>
-      </div>
 
-      {% if error and not show_2fa %}
-      <div class="alert-custom mb-3 d-flex align-items-center gap-2">
-        <i class="bi bi-exclamation-triangle-fill"></i>
-        <span>{{ error }}</span>
-      </div>
-      {% endif %}
-
-      <form method="post" action="/panel/login" id="login-form">
-        <div class="mb-3">
-          <label class="form-label">Логин</label>
-          <div class="input-group">
-            <span class="input-group-text"><i class="bi bi-person-fill"></i></span>
-            <input type="text" name="username" class="form-control" placeholder="admin" required {% if not show_2fa %}autofocus {% endif %}autocomplete="username" />
-          </div>
+        {% if error and not show_2fa %}
+        <div class="alert-custom mb-3 d-flex align-items-center gap-2">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <span>{{ error }}</span>
         </div>
-        <div class="mb-4">
-          <label class="form-label">Пароль</label>
-          <div class="input-group">
-            <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
-            <input type="password" name="password" id="password-input" class="form-control" placeholder="Введите пароль" required autocomplete="current-password" />
-            <button type="button" class="input-group-text" id="toggle-password" style="cursor:pointer;border-radius:0 12px 12px 0;border-left:0;" onclick="togglePassword()" tabindex="-1">
-              <i class="bi bi-eye" id="toggle-icon"></i>
-            </button>
-          </div>
-        </div>
-        <button type="submit" class="btn btn-login w-100" id="login-btn">
-          <span class="spinner"></span>
-          <span class="btn-text"><i class="bi bi-box-arrow-in-right me-2"></i>Войти в панель</span>
-        </button>
-      </form>
-
-    </div>
-
-    <div id="form-2fa" class="login-card" style="display:{% if show_2fa %}block{% else %}none{% endif %}">
-      <div class="logo-block">
-        {% if custom_logo %}
-        <img src="{{ custom_logo }}" alt="Logo" class="logo-avatar" id="logo-2fa-img" onerror="this.style.display='none';document.getElementById('fallback-2fa-icon').style.display='flex';">
         {% endif %}
-        <div id="fallback-2fa-icon" style="display:{% if custom_logo %}none{% else %}flex{% endif %};width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--accent-warm),var(--accent-secondary));align-items:center;justify-content:center;margin-bottom:1rem;box-shadow:0 8px 32px rgba(245,158,11,.35);font-size:1.8rem;color:#fff;">
-          <i class="bi bi-shield-lock-fill"></i>
-        </div>
-        <div class="app-name">{{ app_name | default('VPN Panel') }}</div>
-        <div class="app-sub">
-          Вход по 2FA-коду
+
+        <form method="post" action="/panel/login" id="login-form">
+          <div class="mb-3">
+            <label class="form-label">Логин</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-person-fill"></i></span>
+              <input type="text" name="username" class="form-control" placeholder="admin" required {% if not show_2fa %}autofocus {% endif %}autocomplete="username" />
+            </div>
+          </div>
+          <div class="mb-4">
+            <label class="form-label">Пароль</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+              <input type="password" name="password" id="password-input" class="form-control" placeholder="Введите пароль" required autocomplete="current-password" />
+              <button type="button" class="input-group-text" id="toggle-password" style="cursor:pointer;border-radius:0 14px 14px 0;border-left:0;" onclick="togglePassword()" tabindex="-1">
+                <i class="bi bi-eye" id="toggle-icon"></i>
+              </button>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-login w-100" id="login-btn">
+            <span class="spinner"></span>
+            <span class="btn-text"><i class="bi bi-box-arrow-in-right me-2"></i>Войти в панель</span>
+          </button>
+        </form>
+      </div>
+
+      <div id="form-2fa" class="login-card" style="display:{% if show_2fa %}block{% else %}none{% endif %}">
+        <div class="logo-block">
+          <div class="logo-frame logo-frame-warm">
+            {% if custom_logo %}
+            <img src="{{ custom_logo }}" alt="Logo" class="logo-avatar" id="logo-2fa-img" onerror="this.style.display='none';document.getElementById('fallback-2fa-icon').style.display='flex';">
+            {% endif %}
+            <span id="fallback-2fa-icon" class="logo-fallback" style="display:{% if custom_logo %}none{% else %}flex{% endif %};">
+              <i class="bi bi-shield-lock-fill"></i>
+            </span>
+          </div>
+          <span class="auth-chip auth-chip-warm"><i class="bi bi-key-fill"></i> Two-Factor Access</span>
+          <div class="app-name">{{ app_name | default('VPN Panel') }}</div>
+          <p class="app-sub">Подтвердите вход кодом из приложения аутентификации или резервным кодом.</p>
           <span class="version-badge">v{{ app_version | default('1.0.0') }}</span>
         </div>
-      </div>
 
-      {% if error and show_2fa %}
-      <div class="alert-custom mb-3 d-flex align-items-center gap-2">
-        <i class="bi bi-exclamation-triangle-fill"></i>
-        <span>{{ error }}</span>
-      </div>
-      {% endif %}
-
-      <form method="post" action="/panel/2fa-login" id="login-2fa-form">
-        <div class="mb-4">
-          <label class="form-label">Код 2FA или резервный код</label>
-          <div class="input-group">
-            <span class="input-group-text"><i class="bi bi-key-fill"></i></span>
-            <input type="text" name="code" class="form-control" placeholder="000000" required maxlength="12" inputmode="numeric" pattern="[0-9A-Za-z-]{4,12}" autocomplete="one-time-code" autofocus />
-          </div>
+        {% if error and show_2fa %}
+        <div class="alert-custom mb-3 d-flex align-items-center gap-2">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <span>{{ error }}</span>
         </div>
-        <button type="submit" class="btn btn-login w-100 btn-2fa" id="login-2fa-btn">
-          <span class="spinner"></span>
-          <span class="btn-text"><i class="bi bi-shield-check me-2"></i>Войти по коду</span>
+        {% endif %}
+
+        <form method="post" action="/panel/2fa-login" id="login-2fa-form">
+          <div class="mb-4">
+            <label class="form-label">Код 2FA или резервный код</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-key-fill"></i></span>
+              <input type="text" name="code" class="form-control" placeholder="000000" required maxlength="12" inputmode="numeric" pattern="[0-9A-Za-z-]{4,12}" autocomplete="one-time-code" autofocus />
+            </div>
+          </div>
+          <button type="submit" class="btn btn-login w-100 btn-2fa" id="login-2fa-btn">
+            <span class="spinner"></span>
+            <span class="btn-text"><i class="bi bi-shield-check me-2"></i>Войти по коду</span>
+          </button>
+        </form>
+
+        <div class="footer-text">Если код не принимается, используйте резервный код восстановления.</div>
+        <button type="button" class="btn-back-2fa" onclick="toggle2faLogin()">
+          <i class="bi bi-arrow-left me-1"></i>Назад к паролю
         </button>
-      </form>
-
-      <div class="footer-text" style="margin-top:1rem">
-        Подтвердите вход кодом из приложения или резервным кодом
       </div>
-      <button type="button" class="btn-back-2fa" onclick="toggle2faLogin()">
-        <i class="bi bi-arrow-left me-1"></i>Назад к паролю
-      </button>
-    </div>
 
-    <div class="security-badge">
-      <i class="bi bi-shield-check"></i>
-      <span>SSL · CSRF Protection · Rate Limited</span>
+      <div class="security-badge">
+        <i class="bi bi-shield-check"></i>
+        <span>SSL · CSRF Protection · Rate Limited · 2FA Ready</span>
+      </div>
     </div>
   </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     function togglePassword() {
@@ -346,7 +749,7 @@
         card.querySelector('input[name="username"]').focus();
       }
     }
-    // Loading state on submit
+
     document.getElementById('login-form').addEventListener('submit', function() {
       const btn = document.getElementById('login-btn');
       btn.classList.add('loading');
@@ -358,7 +761,6 @@
       btn.disabled = true;
     });
 
-    // Hide page loader
     window.addEventListener('load', function() {
       var loader = document.getElementById('loginLoader');
       if (loader) loader.classList.add('hidden');

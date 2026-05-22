@@ -153,13 +153,20 @@
         <div class="card p-3 h-100">
           <div class="d-flex align-items-center gap-3">
             <div class="d-flex flex-column align-items-center gap-2" style="flex-shrink:0">
-              {% if bot_settings.get('custom_logo') %}
-              <div style="width:72px;height:72px;border-radius:16px;overflow:hidden;border:2px solid var(--border);background:var(--bg)">
-                <img src="{{ bot_settings.get('custom_logo') }}" id="logo-preview" style="width:100%;height:100%;object-fit:cover;display:block" />
+              <div id="logo-preview-shell" class="brand-surface brand-surface-lg" aria-hidden="true" style="--brand-surface-size:72px;--brand-surface-radius:18px;--brand-surface-padding:9px">
+                {% if bot_settings.get('custom_logo') %}
+                <img
+                  src="{{ bot_settings.get('custom_logo') }}"
+                  id="logo-preview-media"
+                  alt="Logo preview"
+                  class="brand-surface-img"
+                  onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+                />
+                <span class="brand-surface-fallback" style="display:none"><i class="bi bi-shield-lock-fill"></i></span>
+                {% else %}
+                <span id="logo-preview-media" class="brand-surface-fallback"><i class="bi bi-shield-lock-fill"></i></span>
+                {% endif %}
               </div>
-              {% else %}
-              <div id="logo-preview" style="width:72px;height:72px;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--accent-secondary));display:flex;align-items:center;justify-content:center;font-size:2rem;color:#fff;border:2px solid var(--border);box-shadow:0 0 20px var(--accent-glow)"><i class="bi bi-shield-lock-fill"></i></div>
-              {% endif %}
               <span style="font-size:.65rem;color:var(--text-muted);font-weight:600">Логотип</span>
             </div>
             <div style="flex:1;min-width:0">
@@ -1232,18 +1239,23 @@ function handleLogoUpload(event) {
     if (input) {
       const file = input.files[0];
       if (file) {
-        const preview = document.getElementById('logo-preview');
-        if (preview) {
+        const previewShell = document.getElementById('logo-preview-shell');
+        if (previewShell) {
           const url = URL.createObjectURL(file);
-          if (preview.tagName === 'IMG') {
-            preview.src = url;
-          } else {
-            const img = document.createElement('img');
-            img.src = url;
-            img.id = 'logo-preview';
-            img.style.cssText = 'width:64px;height:64px;border-radius:14px;object-fit:contain;background:var(--surface);border:1px solid var(--border);';
-            preview.replaceWith(img);
-          }
+          const img = document.createElement('img');
+          const fallback = document.createElement('span');
+          img.src = url;
+          img.id = 'logo-preview-media';
+          img.alt = 'Logo preview';
+          img.className = 'brand-surface-img';
+          img.onerror = function() {
+            this.style.display = 'none';
+            fallback.style.display = 'flex';
+          };
+          fallback.className = 'brand-surface-fallback';
+          fallback.style.display = 'none';
+          fallback.innerHTML = '<i class="bi bi-shield-lock-fill"></i>';
+          previewShell.replaceChildren(img, fallback);
         }
       }
     }

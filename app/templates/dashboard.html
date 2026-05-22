@@ -155,14 +155,23 @@
     align-items: center;
     gap: .85rem;
   }
+  .hero-brand-mark {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03)),
+      rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.16);
+    box-shadow:
+      0 18px 30px rgba(3, 7, 18, 0.32),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
   .hero-brand-logo {
-    width: 56px;
-    height: 56px;
-    border-radius: 18px;
-    object-fit: cover;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+    object-position: center;
+    padding: 9px;
+    border-radius: inherit;
   }
   .hero-brand-copy strong {
     display: block;
@@ -684,8 +693,10 @@
   [data-bs-theme="light"] .hero-chip {
     color: var(--text);
   }
-  [data-bs-theme="light"] .hero-brand-logo {
-    background: rgba(241, 245, 249, 0.92);
+  [data-bs-theme="light"] .hero-brand-mark {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(241, 245, 249, 0.9)),
+      rgba(255, 255, 255, 0.92);
     border-color: var(--border);
   }
   [data-bs-theme="light"] .hero-live-pill {
@@ -795,11 +806,14 @@
       <div class="hero-panel">
         <div class="hero-panel-top">
           <div class="hero-brand">
-            <img
-              src="{{ custom_logo or '/static/img/logo.svg' }}"
-              alt="Scorbium"
-              class="hero-brand-logo"
-            />
+            <span class="brand-surface brand-surface-md hero-brand-mark" aria-hidden="true">
+              <img
+                src="{{ custom_logo or '/static/img/logo.svg' }}"
+                alt="Scorbium"
+                class="hero-brand-logo"
+                onerror="this.onerror=null;this.src='/static/img/logo.svg';"
+              />
+            </span>
             <div class="hero-brand-copy">
               <strong>{{ app_name | default('Scorbium Dashboard') }}</strong>
               <span>Панель управления VPN</span>

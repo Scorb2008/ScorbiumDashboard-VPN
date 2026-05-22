@@ -12,8 +12,24 @@
     @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
     .auth-title { color:#fff; font-size:1.3rem; font-weight:700; margin-bottom:.3rem; }
     .auth-subtitle { color:#6b7280; font-size:.85rem; margin-bottom:1.5rem; }
-    .logo-avatar { width:80px; height:80px; border-radius:20px; object-fit:cover; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); box-shadow:0 8px 32px rgba(0,0,0,.15); transition: transform .3s ease; }
+    .logo-avatar {
+      width:80px; height:80px; border-radius:20px;
+      object-fit:contain; object-position:center; padding:10px;
+      background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+      border:1px solid rgba(255,255,255,.1);
+      box-shadow:0 8px 32px rgba(0,0,0,.15), inset 0 1px 0 rgba(255,255,255,.08);
+      transition: transform .3s ease;
+    }
     .logo-avatar:hover { transform:scale(1.05); }
+    .logo-fallback {
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#fff;
+      font-size:1.7rem;
+      background:linear-gradient(135deg, #00d4aa, #0ea5e9);
+      padding:0;
+    }
     .code-input { font-size:1.5rem; letter-spacing:6px; text-align:center; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); border-radius:12px; color:#fff; padding:.8rem; }
     .code-input:focus { border-color:#00d4aa; box-shadow:0 0 0 3px rgba(0,212,170,.15); outline:none; }
     .btn-2fa { background:#00d4aa; color:#000; font-weight:600; border:none; border-radius:12px; padding:.7rem; transition: transform .2s ease, background .2s ease; }
@@ -26,9 +42,12 @@
   <div class="auth-card">
     <div class="text-center mb-4">
       {% if custom_logo %}
-      <img src="{{ custom_logo }}" alt="Logo" class="logo-avatar mb-3" onerror="this.style.display='none'">
+      <img src="{{ custom_logo }}" alt="Logo" class="logo-avatar mb-3" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="logo-avatar logo-fallback mb-3" style="display:none">
+        <i class="bi bi-shield-lock-fill"></i>
+      </div>
       {% else %}
-      <div class="logo-avatar mb-3">
+      <div class="logo-avatar logo-fallback mb-3">
         <i class="bi bi-shield-lock-fill"></i>
       </div>
       {% endif %}
