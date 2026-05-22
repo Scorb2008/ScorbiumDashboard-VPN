@@ -52,7 +52,9 @@ class PlanService:
         plan = await self.get_by_id(plan_id)
         if not plan:
             return None
-        plan.update_fields(**kwargs)
+        for key, value in kwargs.items():
+            if hasattr(plan, key):
+                setattr(plan, key, value)
         await self.session.flush()
         return plan
 

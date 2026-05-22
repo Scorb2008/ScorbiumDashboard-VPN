@@ -150,6 +150,11 @@ async def cancel_subscription(
     if key:
         key.status = VpnKeyStatus.EXPIRED.value
         await db.commit()
+        await TelegramNotifyService().send_message(
+            key.user_id,
+            "⚠️ <b>Подписка остановлена администратором.</b>\n\n"
+            "Если это произошло по ошибке, напишите в поддержку.",
+        )
     resp = Response(status_code=200)
     _toast(resp, "Подписка отменена")
     return resp

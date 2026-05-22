@@ -193,14 +193,19 @@ async def payments_stats_json(request: Request, days: int = 30, db: AsyncSession
     for p in providers:
         p["share"] = round(p["count"] / total_prov * 100)
 
+    dialect_name = (db.bind.dialect.name if db.bind and db.bind.dialect else "").lower()
+    if dialect_name == "sqlite":
+        day_bucket = func.date(Payment.created_at).label("day")
+    else:
+        day_bucket = func.date_trunc("day", Payment.created_at).label("day")
     result = await db.execute(
         select(
-            func.date_trunc('day', Payment.created_at).label('day'),
+            day_bucket,
             func.coalesce(func.sum(Payment.amount), 0).label('amount'),
         ).where(
             Payment.status == PaymentStatus.SUCCEEDED.value,
             Payment.created_at >= cutoff
-        ).group_by(func.date_trunc('day', Payment.created_at)).order_by(func.date_trunc('day', Payment.created_at))
+        ).group_by(day_bucket).order_by(day_bucket)
     )
     daily = [{"date": str(r.day)[:10], "amount": float(r.amount)} for r in result.all()]
 

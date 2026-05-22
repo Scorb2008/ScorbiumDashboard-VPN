@@ -58,7 +58,9 @@ async def _provision_and_notify(
     payment_amount = None
     payment_currency = "RUB"
     payment_provider = "—"
-    should_notify = False
+    should_notify_user = force_notify
+    should_notify_admins = False
+    settings = {}
 
     async with AsyncSessionFactory() as session:
         plan = await PlanService(session).get_by_id(plan_id)
@@ -82,7 +84,8 @@ async def _provision_and_notify(
         )
         payment = delivery.payment
         key = delivery.key
-        should_notify = delivery.just_processed
+        should_notify_user = force_notify or delivery.just_processed
+        should_notify_admins = delivery.just_processed
 
         if payment:
             payment_amount = str(payment.amount)
@@ -97,9 +100,7 @@ async def _provision_and_notify(
                 "access_url": key.access_url,
             }
 
-    if not key_data:
-        return False
-    if not should_notify and not force_notify:
+    if not should_notify_user and not should_notify_admins:
         return True
 
     user_info = {
@@ -141,10 +142,11 @@ async def _provision_and_notify(
         else:
             text = "✅ Оплата прошла успешно! Ваш VPN-ключ готовится. Проверьте раздел «Мои ключи» через пару минут."
 
-    try:
-        await bot.send_message(user_id, text, parse_mode="HTML")
-    except Exception as e:
-        log.warning(f"Failed to notify user {user_id}: {e}")
+    if should_notify_user:
+        try:
+            await bot.send_message(user_id, text, parse_mode="HTML")
+        except Exception as e:
+            log.warning(f"Failed to notify user {user_id}: {e}")
 
     from app.core.config import config as _cfg
 
@@ -167,25 +169,27 @@ async def _provision_and_notify(
         f"{icon} {payment_provider}\n"
         f"🔑 Ключ: {'выдан' if key_data else '❌ ошибка'}"
     )
-    for admin_id in _cfg.telegram.telegram_admin_ids:
-        try:
-            await notify.send_message(admin_id, admin_text)
-        except Exception as e:
-            log.warning(f"Failed to notify admin {admin_id}: {e}")
+    if should_notify_admins:
+        for admin_id in _cfg.telegram.telegram_admin_ids:
+            try:
+                await notify.send_message(admin_id, admin_text)
+            except Exception as e:
+                log.warning(f"Failed to notify admin {admin_id}: {e}")
 
-    try:
-        from app.services.notification import notification_manager
-        await notification_manager.broadcast({
-            "type": "new_payment",
-            "data": {
-                "payment_id": payment_id,
-                "user_id": user_id,
-                "amount": payment_amount or plan_price,
-                "currency": payment_currency,
-            },
-        })
-    except Exception as e:
-        log.warning(f"[bot] WebSocket broadcast failed: {e}")
+    if should_notify_admins:
+        try:
+            from app.services.notification import notification_manager
+            await notification_manager.broadcast({
+                "type": "new_payment",
+                "data": {
+                    "payment_id": payment_id,
+                    "user_id": user_id,
+                    "amount": payment_amount or plan_price,
+                    "currency": payment_currency,
+                },
+            })
+        except Exception as e:
+            log.warning(f"[bot] WebSocket broadcast failed: {e}")
     return True
 
 
@@ -367,6 +371,9 @@ async def handle_yookassa_check(callback: CallbackQuery, bot: Bot) -> None:
             return
 
         if payment.status == PaymentStatus.SUCCEEDED.value and payment.vpn_key_id:
+            await _provision_and_notify(
+                callback.from_user.id, payment_id, plan_id, bot, force_notify=True
+            )
             await callback.answer(t("payment_success", lang), show_alert=True)
             return
 
@@ -389,14 +396,13 @@ async def handle_yookassa_check(callback: CallbackQuery, bot: Bot) -> None:
                 )
                 await session.commit()
                 await callback.answer(t("payment_success", lang), show_alert=True)
-                if delivery.key:
-                    await _provision_and_notify(
-                        callback.from_user.id,
-                        payment_id,
-                        plan_id,
-                        bot,
-                        force_notify=not confirmation.just_confirmed or not delivery.just_processed,
-                    )
+                await _provision_and_notify(
+                    callback.from_user.id,
+                    payment_id,
+                    plan_id,
+                    bot,
+                    force_notify=not confirmation.just_confirmed or not delivery.just_processed,
+                )
             elif yk_payment.status == "canceled":
                 payment.status = PaymentStatus.FAILED.value
                 await session.commit()
@@ -628,15 +634,14 @@ async def successful_payment(message: Message, bot: Bot) -> None:
         if not payment or not plan or payment.user_id != message.from_user.id:
             return
         await PaymentService(session).confirm_once(payment_id, charge_id)
-        delivery = await PaymentFulfillmentService(session).provision_subscription_once(
+        await PaymentFulfillmentService(session).provision_subscription_once(
             payment_id, message.from_user.id, plan
         )
         await session.commit()
 
-    if delivery.key:
-        await _provision_and_notify(
-            message.from_user.id, payment_id, plan_id, bot, force_notify=True
-        )
+    await _provision_and_notify(
+        message.from_user.id, payment_id, plan_id, bot, force_notify=True
+    )
 
 
 # ── CryptoBot ─────────────────────────────────────────────────────────────────
@@ -739,6 +744,9 @@ async def handle_crypto_check(callback: CallbackQuery, bot: Bot) -> None:
             return
 
         if payment.status == PaymentStatus.SUCCEEDED.value and payment.vpn_key_id:
+            await _provision_and_notify(
+                callback.from_user.id, payment_id, plan_id, bot, force_notify=True
+            )
             await callback.answer(t("payment_success", lang), show_alert=True)
             return
 
@@ -767,14 +775,13 @@ async def handle_crypto_check(callback: CallbackQuery, bot: Bot) -> None:
                 )
                 await session.commit()
             await callback.answer(t("payment_success", lang), show_alert=True)
-            if delivery.key:
-                await _provision_and_notify(
-                    callback.from_user.id,
-                    payment_id,
-                    plan_id,
-                    bot,
-                    force_notify=not confirmation.just_confirmed or not delivery.just_processed,
-                )
+            await _provision_and_notify(
+                callback.from_user.id,
+                payment_id,
+                plan_id,
+                bot,
+                force_notify=not confirmation.just_confirmed or not delivery.just_processed,
+            )
         else:
             await callback.answer(t("payment_pending", lang), show_alert=True)
     except Exception as e:
@@ -1230,6 +1237,9 @@ async def handle_platega_check(callback: CallbackQuery, bot: Bot) -> None:
             await callback.answer("❌", show_alert=True)
             return
         if payment.status == PaymentStatus.SUCCEEDED.value and payment.vpn_key_id:
+            await _provision_and_notify(
+                callback.from_user.id, payment_id, plan_id, bot, force_notify=True
+            )
             await callback.answer(t("payment_success", lang), show_alert=True)
             return
 
@@ -1256,14 +1266,13 @@ async def handle_platega_check(callback: CallbackQuery, bot: Bot) -> None:
                 )
                 await session.commit()
             await callback.answer(t("payment_success", lang), show_alert=True)
-            if delivery.key:
-                await _provision_and_notify(
-                    callback.from_user.id,
-                    payment_id,
-                    plan_id,
-                    bot,
-                    force_notify=not confirmation.just_confirmed or not delivery.just_processed,
-                )
+            await _provision_and_notify(
+                callback.from_user.id,
+                payment_id,
+                plan_id,
+                bot,
+                force_notify=not confirmation.just_confirmed or not delivery.just_processed,
+            )
         else:
             await callback.answer(t("payment_pending", lang), show_alert=True)
     except Exception as e:
@@ -1364,6 +1373,9 @@ async def handle_freekassa_check(callback: CallbackQuery, bot: Bot) -> None:
             return
 
         if payment.status == PaymentStatus.SUCCEEDED.value and payment.vpn_key_id:
+            await _provision_and_notify(
+                callback.from_user.id, payment_id, plan_id, bot, force_notify=True
+            )
             await callback.answer(t("payment_success", lang), show_alert=True)
             return
 
@@ -1396,14 +1408,13 @@ async def handle_freekassa_check(callback: CallbackQuery, bot: Bot) -> None:
                     )
                     await sess2.commit()
                 await callback.answer(t("payment_success", lang), show_alert=True)
-                if delivery.key:
-                    await _provision_and_notify(
-                        callback.from_user.id,
-                        payment_id,
-                        plan_id,
-                        bot,
-                        force_notify=not confirmation.just_confirmed or not delivery.just_processed,
-                    )
+                await _provision_and_notify(
+                    callback.from_user.id,
+                    payment_id,
+                    plan_id,
+                    bot,
+                    force_notify=not confirmation.just_confirmed or not delivery.just_processed,
+                )
             else:
                 await callback.answer(t("payment_pending", lang), show_alert=True)
         else:

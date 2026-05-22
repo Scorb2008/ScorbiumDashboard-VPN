@@ -27,8 +27,7 @@
       <form id="planForm"
             hx-post="/panel/plans"
             hx-target="#plans-grid-wrapper"
-            hx-swap="outerHTML"
-            hx-on::after-request="onPlanSaved(event)">
+            hx-swap="innerHTML">
         <div class="modal-body">
           <input type="hidden" id="plan-id" name="plan_id" value="" />
           <div class="row g-3">
@@ -88,18 +87,21 @@
     new bootstrap.Modal(document.getElementById('planModal')).show();
   }
 
-  function onPlanSaved(e) {
-    const submitBtn = document.getElementById('plan-save-btn');
-    if (submitBtn) submitBtn.disabled = false;
-    if (e.detail.successful) {
-      bootstrap.Modal.getInstance(document.getElementById('planModal'))?.hide();
-    }
-  }
-
   document.addEventListener('htmx:beforeRequest', function(e) {
     if (e.target && e.target.id === 'planForm') {
       const submitBtn = document.getElementById('plan-save-btn');
       if (submitBtn) submitBtn.disabled = true;
+    }
+  });
+
+  document.addEventListener('htmx:afterRequest', function(e) {
+    if (e.target && e.target.id === 'planForm') {
+      const submitBtn = document.getElementById('plan-save-btn');
+      if (submitBtn) submitBtn.disabled = false;
+      if (e.detail.successful) {
+        bootstrap.Modal.getInstance(document.getElementById('planModal'))?.hide();
+        openCreateModal();
+      }
     }
   });
 

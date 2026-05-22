@@ -13,11 +13,14 @@ from app.api.dependencies import get_db
 from app.api.panel.routes import payments as payments_routes
 from app.api.panel.routes import subscriptions as subscriptions_routes
 from app.api.panel.routes import support as support_routes
+from app.bot.handlers import payments as bot_payments
+from app.models.payment import Payment, PaymentProvider, PaymentStatus, PaymentType
 from app.models.promo import PromoCode, PromoType
 from app.models.promo_usage import PromoUsage
 from app.models.support import SupportTicket, TicketMessage, TicketPriority, TicketStatus
 from app.models.vpn_key import VpnKey, VpnKeyStatus
 from app.services import encryption as encryption_service
+from app.services.plan import PlanService
 from app.services.platega import PlategaService
 
 
@@ -126,6 +129,30 @@ async def test_payments_page_htmx_returns_rows_and_ignores_invalid_status(
     assert "<tr>" in body
     assert "История платежей" not in body
     assert f"#{sample_payment.id}" in body
+
+
+@pytest.mark.asyncio
+async def test_payments_stats_json_returns_daily_buckets_without_grouping_errors(
+    session, sample_payment, monkeypatch
+):
+    sample_payment.status = PaymentStatus.SUCCEEDED.value
+    sample_payment.amount = Decimal("199.99")
+    await session.commit()
+
+    monkeypatch.setattr(payments_routes, "_require_permission", lambda request, permission: {"sub": "admin", "role": "superadmin"})
+
+    response = await payments_routes.payments_stats_json(
+        request=_make_request("/panel/payments/stats/json"),
+        days=30,
+        db=session,
+    )
+
+    payload = json.loads(response.body)
+    assert response.status_code == 200
+    assert payload["total_payments"] == 1
+    assert payload["total_revenue"] == "199.99"
+    assert payload["daily"]
+    assert payload["daily"][0]["amount"] == 199.99
 
 
 @pytest.mark.asyncio
@@ -261,3 +288,104 @@ async def test_subscriptions_page_includes_expired_and_revoked_keys(
     assert f"#{revoked_key.id}" in body
     assert "Истекла" in body
     assert "Отозвана" in body
+
+
+@pytest.mark.asyncio
+async def test_bot_provision_and_notify_sends_fallback_message_when_key_not_ready(
+    session, sample_user, sample_plan, monkeypatch
+):
+    payment = Payment(
+        user_id=sample_user.id,
+        provider=PaymentProvider.YOOKASSA.value,
+        payment_type=PaymentType.SUBSCRIPTION.value,
+        amount=sample_plan.price,
+        currency="RUB",
+        status=PaymentStatus.SUCCEEDED.value,
+        external_id="yk_ready_later",
+    )
+    session.add(payment)
+    await session.commit()
+
+    class _SessionCtx:
+        def __init__(self, db_session):
+            self._db_session = db_session
+
+        async def __aenter__(self):
+            return self._db_session
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    class _Bot:
+        def __init__(self):
+            self.messages: list[tuple[int, str]] = []
+
+        async def send_message(self, chat_id, text, parse_mode="HTML"):
+            self.messages.append((chat_id, text))
+
+    async def fake_get_all(self):
+        return {}
+
+    async def fake_provision(self, user_id: int, plan):
+        return None
+
+    monkeypatch.setattr(bot_payments, "AsyncSessionFactory", lambda: _SessionCtx(session))
+    monkeypatch.setattr(bot_payments.BotSettingsService, "get_all", fake_get_all)
+    monkeypatch.setattr(bot_payments.VpnKeyService, "provision", fake_provision)
+
+    bot = _Bot()
+    ok = await bot_payments._provision_and_notify(
+        sample_user.id,
+        payment.id,
+        sample_plan.id,
+        bot,
+        force_notify=True,
+    )
+
+    assert ok is True
+    assert bot.messages
+    assert "готовится" in bot.messages[0][1]
+
+
+@pytest.mark.asyncio
+async def test_plan_service_update_allows_clearing_description(session, sample_plan):
+    updated = await PlanService(session).update(
+        sample_plan.id,
+        name="Updated Plan",
+        description=None,
+    )
+    await session.commit()
+
+    assert updated is not None
+    assert updated.name == "Updated Plan"
+    assert updated.description is None
+
+
+@pytest.mark.asyncio
+async def test_cancel_subscription_notifies_user(session, sample_vpn_key, monkeypatch):
+    sent: list[tuple[int, str]] = []
+
+    class _Notify:
+        async def send_message(self, chat_id, text):
+            sent.append((chat_id, text))
+            return True
+
+    monkeypatch.setattr(subscriptions_routes, "_require_permission", lambda request, permission: {"sub": "admin", "role": "superadmin"})
+    monkeypatch.setattr(subscriptions_routes, "TelegramNotifyService", lambda: _Notify())
+
+    response = await subscriptions_routes.cancel_subscription(
+        key_id=sample_vpn_key.id,
+        request=_make_request(f"/panel/subscriptions/{sample_vpn_key.id}/cancel"),
+        db=session,
+    )
+
+    await session.refresh(sample_vpn_key)
+
+    assert response.status_code == 200
+    assert sample_vpn_key.status == VpnKeyStatus.EXPIRED.value
+    assert sent == [
+        (
+            sample_vpn_key.user_id,
+            "⚠️ <b>Подписка остановлена администратором.</b>\n\nЕсли это произошло по ошибке, напишите в поддержку.",
+        )
+    ]

@@ -31,14 +31,16 @@
         <button class="btn btn-sm btn-outline-secondary"
           hx-post="/panel/plans/{{ plan.id }}/toggle"
           hx-target="#plans-grid-wrapper"
-          hx-swap="outerHTML"
+          hx-swap="innerHTML"
+          hx-disabled-elt="this"
           title="{{ 'Отключить' if plan.is_active else 'Включить' }}">
           <i class="bi bi-{{ 'pause' if plan.is_active else 'play' }}"></i>
         </button>
         <button class="btn btn-sm btn-outline-danger"
           hx-delete="/panel/plans/{{ plan.id }}"
           hx-target="#plans-grid-wrapper"
-          hx-swap="outerHTML"
+          hx-swap="innerHTML"
+          hx-disabled-elt="this"
           hx-confirm="Удалить тариф «{{ plan.name }}»?">
           <i class="bi bi-trash"></i>
         </button>
