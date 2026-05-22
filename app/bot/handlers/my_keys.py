@@ -77,6 +77,14 @@ async def _get_lang(user_id: int, session) -> str:
     return get_lang(settings, user_lang)
 
 
+def _extension_already_applied_text(lang: str) -> str:
+    return {
+        "ru": "Продление уже применено",
+        "en": "Extension already applied",
+        "fa": "تمدید قبلا اعمال شده است",
+    }.get(lang, "Extension already applied")
+
+
 async def _complete_extension_payment(
     user_id: int, payment_id: int, plan_id: int, key_id: int, external_id: str
 ) -> str | None:
@@ -662,7 +670,7 @@ async def extend_yookassa(callback: CallbackQuery, bot) -> None:
         return_url = f"https://t.me/{me.username}"
         yk_payment = await yk.create_payment(
             amount=plan.price,
-            description=f"VPN продление — {plan.name}",
+            description=f"Продление подписки {plan.name}",
             return_url=return_url,
             metadata={
                 "payment_id": str(payment.id),
@@ -735,7 +743,7 @@ async def extend_sbp(callback: CallbackQuery, bot) -> None:
         return_url = f"https://t.me/{me.username}"
         yk_payment = await yk.create_sbp_payment(
             amount=plan.price,
-            description=f"VPN продление — {plan.name}",
+            description=f"Продление подписки {plan.name}",
             return_url=return_url,
             metadata={
                 "payment_id": str(payment.id),
@@ -808,7 +816,7 @@ async def extend_stars(callback: CallbackQuery, bot) -> None:
 
     ok = await TelegramStarsService(bot).send_invoice(
         chat_id=callback.from_user.id,
-        title=f"VPN продление — {plan.name}",
+        title=f"Продление подписки {plan.name}",
         description=f"{plan.duration_days} дней",
         payload=f"extend_stars:{payment.id}:{plan_id}:{key_id}",
         stars_amount=stars,
@@ -872,7 +880,7 @@ async def extend_crypto(callback: CallbackQuery, bot) -> None:
         invoice = await crypto.create_invoice(
             amount=usdt_amount,
             currency="USDT",
-            description=f"VPN продление — {plan.name}",
+            description=f"Продление подписки {plan.name}",
             payload=f"extend_crypto:{payment.id}:{plan_id}:{key_id}",
         )
         if not invoice:
@@ -1019,7 +1027,7 @@ async def extend_platega(callback: CallbackQuery, bot) -> None:
         transaction = await platega.create_transaction(
             amount=float(plan.price),
             currency="RUB",
-            description=f"VPN продление — {plan.name}",
+            description=f"Продление подписки {plan.name}",
             return_url=return_url,
             failed_url=return_url,
             payload_data=f"pl_{payment_id}_{plan_id}_{key_id}",
@@ -1073,13 +1081,16 @@ async def extend_check_fk(callback: CallbackQuery, bot) -> None:
         from app.services.bot_settings import BotSettingsService
         from app.services.freekassa import FreeKassaService
 
+        lang = await _get_lang(callback.from_user.id, session)
         payment = await PaymentService(session).get_by_id(payment_id)
         if not payment or payment.user_id != callback.from_user.id:
             await callback.answer("Платёж не найден", show_alert=True)
             return
 
         if payment.status == PaymentStatus.SUCCEEDED.value and payment.vpn_key_id:
-            await callback.answer("Уже оплачено!", show_alert=True)
+            await callback.answer(
+                _extension_already_applied_text(lang), show_alert=True
+            )
             return
 
         settings = await BotSettingsService(session).get_all()
@@ -1123,13 +1134,16 @@ async def extend_check_platega(callback: CallbackQuery, bot) -> None:
         from app.services.bot_settings import BotSettingsService
         from app.services.platega import PlategaService
 
+        lang = await _get_lang(callback.from_user.id, session)
         payment = await PaymentService(session).get_by_id(payment_id)
         if not payment or payment.user_id != callback.from_user.id:
             await callback.answer("Платёж не найден", show_alert=True)
             return
 
         if payment.status == PaymentStatus.SUCCEEDED.value and payment.vpn_key_id:
-            await callback.answer("Уже оплачено!", show_alert=True)
+            await callback.answer(
+                _extension_already_applied_text(lang), show_alert=True
+            )
             return
 
         settings = await BotSettingsService(session).get_all()
@@ -1139,9 +1153,8 @@ async def extend_check_platega(callback: CallbackQuery, bot) -> None:
             return
 
         transaction = await platega.get_transaction_status(payment.external_id)
-        if (
-            transaction.get("ok")
-            and str(transaction.get("status", "")).upper() == "CONFIRMED"
+        if transaction.get("ok") and PlategaService.is_success_status(
+            transaction.get("status", "")
         ):
             exp = await _complete_extension_payment(
                 callback.from_user.id,
@@ -1169,13 +1182,16 @@ async def extend_check_yk(callback: CallbackQuery, bot) -> None:
     async with AsyncSessionFactory() as session:
         from app.services.payment import PaymentService
 
+        lang = await _get_lang(callback.from_user.id, session)
         payment = await PaymentService(session).get_by_id(payment_id)
         if not payment or payment.user_id != callback.from_user.id:
             await callback.answer("Платёж не найден", show_alert=True)
             return
 
         if payment.status == PaymentStatus.SUCCEEDED.value and payment.vpn_key_id:
-            await callback.answer("Уже оплачено!", show_alert=True)
+            await callback.answer(
+                _extension_already_applied_text(lang), show_alert=True
+            )
             return
 
         if payment.external_id:
@@ -1218,6 +1234,7 @@ async def extend_check_crypto(callback: CallbackQuery, bot) -> None:
         from app.services.payment import PaymentService
         from app.services.vpn_key import VpnKeyService
 
+        lang = await _get_lang(callback.from_user.id, session)
         settings = await BotSettingsService(session).get_all()
         crypto = CryptoBotService.from_settings(settings)
         if not crypto:
@@ -1229,7 +1246,9 @@ async def extend_check_crypto(callback: CallbackQuery, bot) -> None:
             await callback.answer("Платёж не найден", show_alert=True)
             return
         if payment.status == PaymentStatus.SUCCEEDED.value and payment.vpn_key_id:
-            await callback.answer("Уже оплачено!", show_alert=True)
+            await callback.answer(
+                _extension_already_applied_text(lang), show_alert=True
+            )
             return
         if not payment.external_id:
             await callback.answer("Ошибка", show_alert=True)

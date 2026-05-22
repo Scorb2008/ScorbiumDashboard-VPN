@@ -15,7 +15,7 @@ from urllib.parse import urlencode
 class PlategaService:
     """Service for Platega.io API integration."""
 
-    DEFAULT_DESCRIPTION = "VPN payment"
+    DEFAULT_DESCRIPTION = "Payment"
     SUCCESS_STATUSES = {"CONFIRMED", "SUCCESS", "PAID", "COMPLETED"}
     FAILURE_STATUSES = {
         "FAILED",

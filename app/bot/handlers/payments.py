@@ -32,6 +32,14 @@ async def _get_user_lang(user_id: int, session) -> str:
     return get_lang(settings, user_lang)
 
 
+def _payment_already_confirmed_text(lang: str) -> str:
+    return {
+        "ru": "Оплата уже подтверждена",
+        "en": "Payment already confirmed",
+        "fa": "پرداخت قبلا تایید شده است",
+    }.get(lang, "Payment already confirmed")
+
+
 async def _provision_with_retry(session, user_id: int, plan, max_retries: int = 3):
     """Retry VPN provisioning with backoff."""
     for attempt in range(max_retries):
@@ -47,7 +55,12 @@ async def _provision_with_retry(session, user_id: int, plan, max_retries: int = 
 
 
 async def _provision_and_notify(
-    user_id: int, payment_id: int, plan_id: int, bot: Bot, force_notify: bool = False
+    user_id: int,
+    payment_id: int,
+    plan_id: int,
+    bot: Bot,
+    force_notify: bool = False,
+    force_admin_notify: bool = False,
 ) -> bool:
     """Создаём VPN-подписку и уведомляем пользователя.
 
@@ -59,7 +72,7 @@ async def _provision_and_notify(
     payment_currency = "RUB"
     payment_provider = "—"
     should_notify_user = force_notify
-    should_notify_admins = False
+    should_notify_admins = force_admin_notify
     settings = {}
 
     async with AsyncSessionFactory() as session:
@@ -85,7 +98,7 @@ async def _provision_and_notify(
         payment = delivery.payment
         key = delivery.key
         should_notify_user = force_notify or delivery.just_processed
-        should_notify_admins = delivery.just_processed
+        should_notify_admins = force_admin_notify or delivery.just_processed
 
         if payment:
             payment_amount = str(payment.amount)
@@ -302,7 +315,7 @@ async def handle_yookassa_payment(callback: CallbackQuery, bot: Bot) -> None:
 
             yk_payment = await yk.create_payment(
                 amount=plan.price,
-                description=f"VPN — {plan.name}",
+                description=f"Подписка на {plan.name}",
                 return_url=return_url,
                 metadata={"payment_id": str(payment.id), "plan_id": str(plan.id)},
             )
@@ -374,10 +387,9 @@ async def handle_yookassa_check(callback: CallbackQuery, bot: Bot) -> None:
             return
 
         if payment.status == PaymentStatus.SUCCEEDED.value and payment.vpn_key_id:
-            await _provision_and_notify(
-                callback.from_user.id, payment_id, plan_id, bot, force_notify=True
+            await callback.answer(
+                _payment_already_confirmed_text(lang), show_alert=True
             )
-            await callback.answer(t("payment_success", lang), show_alert=True)
             return
 
         try:
@@ -399,14 +411,18 @@ async def handle_yookassa_check(callback: CallbackQuery, bot: Bot) -> None:
                 ).provision_subscription_once(payment_id, callback.from_user.id, plan)
                 await session.commit()
                 await callback.answer(t("payment_success", lang), show_alert=True)
-                await _provision_and_notify(
-                    callback.from_user.id,
-                    payment_id,
-                    plan_id,
-                    bot,
-                    force_notify=not confirmation.just_confirmed
-                    or not delivery.just_processed,
+                should_notify_user = (
+                    confirmation.just_confirmed or delivery.just_processed
                 )
+                if should_notify_user:
+                    await _provision_and_notify(
+                        callback.from_user.id,
+                        payment_id,
+                        plan_id,
+                        bot,
+                        force_notify=True,
+                        force_admin_notify=delivery.just_processed,
+                    )
             elif yk_payment.status == "canceled":
                 payment.status = PaymentStatus.FAILED.value
                 await session.commit()
@@ -450,7 +466,7 @@ async def handle_sbp_payment(callback: CallbackQuery, bot: Bot) -> None:
 
             yk_payment = await yk.create_sbp_payment(
                 amount=plan.price,
-                description=f"VPN — {plan.name}",
+                description=f"Подписка на {plan.name}",
                 return_url=return_url,
                 metadata={"payment_id": str(payment.id), "plan_id": str(plan.id)},
             )
@@ -534,7 +550,7 @@ async def handle_stars_payment(callback: CallbackQuery, bot: Bot) -> None:
 
     ok = await TelegramStarsService(bot).send_invoice(
         chat_id=callback.from_user.id,
-        title=f"VPN — {plan.name}",
+        title=f"Подписка на {plan.name}",
         description=f"{plan.duration_days} {'дней' if lang == 'ru' else 'days'}",
         payload=f"stars:{payment_id}:{plan_id}",
         stars_amount=stars,
@@ -650,7 +666,12 @@ async def successful_payment(message: Message, bot: Bot) -> None:
         await session.commit()
 
     await _provision_and_notify(
-        message.from_user.id, payment_id, plan_id, bot, force_notify=True
+        message.from_user.id,
+        payment_id,
+        plan_id,
+        bot,
+        force_notify=True,
+        force_admin_notify=True,
     )
 
 
@@ -688,7 +709,7 @@ async def handle_crypto_payment(callback: CallbackQuery, bot: Bot) -> None:
             invoice = await crypto.create_invoice(
                 amount=usdt_amount,
                 currency="USDT",
-                description=f"VPN — {plan.name}",
+                description=f"Подписка на {plan.name}",
                 payload=f"crypto:{payment_id}:{plan_id}",
             )
 
@@ -754,10 +775,9 @@ async def handle_crypto_check(callback: CallbackQuery, bot: Bot) -> None:
             return
 
         if payment.status == PaymentStatus.SUCCEEDED.value and payment.vpn_key_id:
-            await _provision_and_notify(
-                callback.from_user.id, payment_id, plan_id, bot, force_notify=True
+            await callback.answer(
+                _payment_already_confirmed_text(lang), show_alert=True
             )
-            await callback.answer(t("payment_success", lang), show_alert=True)
             return
 
         settings = await BotSettingsService(session).get_all()
@@ -785,14 +805,16 @@ async def handle_crypto_check(callback: CallbackQuery, bot: Bot) -> None:
                 ).provision_subscription_once(payment_id, callback.from_user.id, plan)
                 await session.commit()
             await callback.answer(t("payment_success", lang), show_alert=True)
-            await _provision_and_notify(
-                callback.from_user.id,
-                payment_id,
-                plan_id,
-                bot,
-                force_notify=not confirmation.just_confirmed
-                or not delivery.just_processed,
-            )
+            should_notify_user = confirmation.just_confirmed or delivery.just_processed
+            if should_notify_user:
+                await _provision_and_notify(
+                    callback.from_user.id,
+                    payment_id,
+                    plan_id,
+                    bot,
+                    force_notify=True,
+                    force_admin_notify=delivery.just_processed,
+                )
         else:
             await callback.answer(t("payment_pending", lang), show_alert=True)
     except Exception as e:
@@ -1185,7 +1207,7 @@ async def handle_platega_payment(callback: CallbackQuery, bot: Bot) -> None:
             transaction = await platega.create_transaction(
                 amount=float(plan.price),
                 currency="RUB",
-                description=f"VPN — {plan.name}",
+                description=f"Подписка на {plan.name}",
                 return_url=return_url,
                 failed_url=return_url,
                 payload_data=f"pl_{payment_id}_{plan_id}",
@@ -1252,10 +1274,9 @@ async def handle_platega_check(callback: CallbackQuery, bot: Bot) -> None:
             await callback.answer("❌", show_alert=True)
             return
         if payment.status == PaymentStatus.SUCCEEDED.value and payment.vpn_key_id:
-            await _provision_and_notify(
-                callback.from_user.id, payment_id, plan_id, bot, force_notify=True
+            await callback.answer(
+                _payment_already_confirmed_text(lang), show_alert=True
             )
-            await callback.answer(t("payment_success", lang), show_alert=True)
             return
 
         settings = await BotSettingsService(session).get_all()
@@ -1266,9 +1287,8 @@ async def handle_platega_check(callback: CallbackQuery, bot: Bot) -> None:
 
     try:
         transaction = await platega.get_transaction_status(payment.external_id)
-        if (
-            transaction.get("ok")
-            and str(transaction.get("status", "")).upper() == "CONFIRMED"
+        if transaction.get("ok") and PlategaService.is_success_status(
+            transaction.get("status", "")
         ):
             async with AsyncSessionFactory() as session:
                 payment = await PaymentService(session).get_by_id(payment_id)
@@ -1285,14 +1305,16 @@ async def handle_platega_check(callback: CallbackQuery, bot: Bot) -> None:
                 ).provision_subscription_once(payment_id, callback.from_user.id, plan)
                 await session.commit()
             await callback.answer(t("payment_success", lang), show_alert=True)
-            await _provision_and_notify(
-                callback.from_user.id,
-                payment_id,
-                plan_id,
-                bot,
-                force_notify=not confirmation.just_confirmed
-                or not delivery.just_processed,
-            )
+            should_notify_user = confirmation.just_confirmed or delivery.just_processed
+            if should_notify_user:
+                await _provision_and_notify(
+                    callback.from_user.id,
+                    payment_id,
+                    plan_id,
+                    bot,
+                    force_notify=True,
+                    force_admin_notify=delivery.just_processed,
+                )
         else:
             await callback.answer(t("payment_pending", lang), show_alert=True)
     except Exception as e:
@@ -1391,10 +1413,9 @@ async def handle_freekassa_check(callback: CallbackQuery, bot: Bot) -> None:
             return
 
         if payment.status == PaymentStatus.SUCCEEDED.value and payment.vpn_key_id:
-            await _provision_and_notify(
-                callback.from_user.id, payment_id, plan_id, bot, force_notify=True
+            await callback.answer(
+                _payment_already_confirmed_text(lang), show_alert=True
             )
-            await callback.answer(t("payment_success", lang), show_alert=True)
             return
 
         if not payment.external_id:
@@ -1432,14 +1453,18 @@ async def handle_freekassa_check(callback: CallbackQuery, bot: Bot) -> None:
                     )
                     await sess2.commit()
                 await callback.answer(t("payment_success", lang), show_alert=True)
-                await _provision_and_notify(
-                    callback.from_user.id,
-                    payment_id,
-                    plan_id,
-                    bot,
-                    force_notify=not confirmation.just_confirmed
-                    or not delivery.just_processed,
+                should_notify_user = (
+                    confirmation.just_confirmed or delivery.just_processed
                 )
+                if should_notify_user:
+                    await _provision_and_notify(
+                        callback.from_user.id,
+                        payment_id,
+                        plan_id,
+                        bot,
+                        force_notify=True,
+                        force_admin_notify=delivery.just_processed,
+                    )
             else:
                 await callback.answer(t("payment_pending", lang), show_alert=True)
         else:
@@ -1659,9 +1684,8 @@ async def topup_check_platega(callback: CallbackQuery, bot: Bot) -> None:
 
     try:
         transaction = await platega.get_transaction_status(existing.external_id)
-        if (
-            transaction.get("ok")
-            and str(transaction.get("status", "")).upper() == "CONFIRMED"
+        if transaction.get("ok") and PlategaService.is_success_status(
+            transaction.get("status", "")
         ):
             await _topup_confirm_balance(
                 payment_id,

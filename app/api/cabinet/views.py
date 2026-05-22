@@ -284,19 +284,22 @@ async def _create_cabinet_yookassa_payment(
 
         yk = await YookassaService.create()
         return_url = _absolute_cabinet_url(
-            request, "/cabinet/plans", payment_id=payment.id
+            request,
+            "/cabinet/plans",
+            payment_id=payment.id,
+            selected_plan=plan.id,
         )
         if payment_method == "sbp":
             yk_payment = await yk.create_sbp_payment(
                 amount=charged_amount,
-                description=f"VPN подписка — {plan.name}",
+                description=f"Подписка на {plan.name}",
                 return_url=return_url,
                 metadata={"payment_id": str(payment.id), "plan_id": str(plan.id)},
             )
         else:
             yk_payment = await yk.create_payment(
                 amount=charged_amount,
-                description=f"VPN подписка — {plan.name}",
+                description=f"Подписка на {plan.name}",
                 return_url=return_url,
                 metadata={"payment_id": str(payment.id), "plan_id": str(plan.id)},
             )
@@ -404,13 +407,16 @@ async def _create_cabinet_platega_payment(
             )
 
         return_url = _absolute_cabinet_url(
-            request, "/cabinet/plans", payment_id=payment.id
+            request,
+            "/cabinet/plans",
+            payment_id=payment.id,
+            selected_plan=plan.id,
         )
         payload = f"pl_{payment.id}_{plan.id}"
         transaction = await platega.create_transaction(
             amount=float(charged_amount),
             currency=str(plan.currency or "RUB"),
-            description=f"VPN подписка — {plan.name}",
+            description=f"Подписка на {plan.name}",
             return_url=return_url,
             failed_url=return_url,
             payload_data=payload,
