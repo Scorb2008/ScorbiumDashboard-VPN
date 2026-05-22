@@ -41,9 +41,7 @@
           </div>
         </div>
 
-        {% set bu = settings.get('bot_username', '') or telegram_bot_username or '' %}
         {% set oidc_enabled = telegram_client_id|int > 0 %}
-        {% set legacy_enabled = bu|length > 0 %}
         <div id="web-login" class="s" {% if is_mini_app %}style="display:none"{% endif %}>
           {% if oidc_enabled %}
           <div id="telegram-login-oidc" style="display:flex;justify-content:center;min-height:40px">
@@ -51,24 +49,8 @@
               <i class="bi bi-telegram"></i> Войти через Telegram
             </button>
           </div>
-          {% if legacy_enabled %}
-          <div id="telegram-login-legacy-fallback" class="ib" style="display:none;margin-top:12px;justify-content:center;text-align:center">
-            <div>
-              <div><strong>Запасной вход</strong></div>
-              <div class="muted" style="margin-top:4px">Если новый Telegram Login не открылся, используйте классический Telegram Login Widget.</div>
-              <button type="button" class="btn btn-o" style="margin-top:10px" onclick="showLegacyTelegramLogin()">
-                <i class="bi bi-arrow-left-right"></i> Открыть классический вход
-              </button>
-            </div>
-          </div>
-          <div id="telegram-login-legacy" style="display:none;justify-content:center;min-height:40px;margin-top:12px"></div>
-          <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="{{ bu }}" data-size="large" data-radius="14" data-request-access="write" data-userpic="false" data-onauth="onTelegramAuth(user)"></script>
-          {% endif %}
-          {% elif legacy_enabled %}
-          <div id="telegram-login-legacy" style="display:flex;justify-content:center;min-height:40px"></div>
-          <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="{{ bu }}" data-size="large" data-radius="14" data-request-access="write" data-userpic="false" data-onauth="onTelegramAuth(user)"></script>
           {% else %}
-          <div class="ib"><i class="bi bi-exclamation-triangle cr"></i><span>Вход через Telegram не настроен: нет ни `TELEGRAM_BOT_USERNAME`, ни `TELEGRAM_CLIENT_ID`</span></div>
+          <div class="ib"><i class="bi bi-exclamation-triangle cr"></i><span>Вход через Telegram не настроен: отсутствует `TELEGRAM_CLIENT_ID`</span></div>
           {% endif %}
         </div>
 
@@ -90,14 +72,6 @@ var telegramOidcLoading = false;
 var telegramOidcScriptPromise = null;
 var telegramOidcDirectPopup = null;
 var telegramOidcDirectHandler = null;
-var hasLegacyTelegramLogin = {{ 'true' if legacy_enabled else 'false' }};
-
-function showLegacyTelegramLogin() {
-  var fallbackRoot = document.getElementById('telegram-login-legacy-fallback');
-  var legacyRoot = document.getElementById('telegram-login-legacy');
-  if (fallbackRoot) fallbackRoot.style.display = 'flex';
-  if (legacyRoot) legacyRoot.style.display = 'flex';
-}
 
 function setOidcButtonState(text, disabled) {
   var btn = document.getElementById('telegram-oidc-button');
@@ -254,13 +228,9 @@ async function openTelegramOidc() {
       return;
     } catch (directError) {
       setOidcButtonState('Войти через Telegram', false);
+      showWebLoginFallback();
     }
-    if (hasLegacyTelegramLogin) {
-      showLegacyTelegramLogin();
-      showToast('Не удалось открыть новый Telegram Login, используйте классический вход', 'error');
-    } else {
-      showToast('Не удалось открыть Telegram Login', 'error');
-    }
+    showToast('Не удалось открыть Telegram Login', 'error');
     return;
   }
 
@@ -283,27 +253,23 @@ async function openTelegramOidc() {
       return;
     } catch (directError) {
       setOidcButtonState('Войти через Telegram', false);
+      showWebLoginFallback();
     }
-    if (hasLegacyTelegramLogin) {
-      showLegacyTelegramLogin();
-      showToast('Не удалось открыть новый Telegram Login, используйте классический вход', 'error');
-    } else {
-      showToast('Не удалось открыть Telegram Login', 'error');
-    }
+    showToast('Не удалось открыть Telegram Login', 'error');
   }
 }
 
 function onTelegramOidcAuth(result) {
   if (!result || result.error) {
     setOidcButtonState('Войти через Telegram', false);
-    if (hasLegacyTelegramLogin) showLegacyTelegramLogin();
+    showWebLoginFallback();
     if (result && result.error)
       showToast(result.error, 'error');
     return;
   }
   if (!result.id_token) {
     setOidcButtonState('Войти через Telegram', false);
-    if (hasLegacyTelegramLogin) showLegacyTelegramLogin();
+    showWebLoginFallback();
     showToast('Telegram не вернул id_token', 'error');
     return;
   }
@@ -314,14 +280,12 @@ function onTelegramOidcAuth(result) {
       else {
         setOidcButtonState('Войти через Telegram', false);
         showToast(r.data.message || 'Ошибка', 'error');
-        if (hasLegacyTelegramLogin) showLegacyTelegramLogin();
         showWebLoginFallback();
       }
     })
     .catch(function() {
       setOidcButtonState('Войти через Telegram', false);
       showToast('Ошибка сети', 'error');
-      if (hasLegacyTelegramLogin) showLegacyTelegramLogin();
       showWebLoginFallback();
     });
 }
@@ -341,10 +305,8 @@ function showWebLoginFallback() {
   document.getElementById('login-status').style.display = 'none';
   var webLogin = document.getElementById('web-login');
   var oidcRoot = document.getElementById('telegram-login-oidc');
-  var legacyRoot = document.getElementById('telegram-login-legacy');
   if (webLogin) webLogin.style.display = '';
-  if (oidcRoot) oidcRoot.style.display = hasLegacyTelegramLogin ? 'none' : 'flex';
-  if (legacyRoot) legacyRoot.style.display = hasLegacyTelegramLogin ? 'flex' : 'none';
+  if (oidcRoot) oidcRoot.style.display = 'flex';
   setMiniAppControls({ retry:false, home:false });
 }
 function showMiniAppFailure(m) {
@@ -352,7 +314,7 @@ function showMiniAppFailure(m) {
   document.getElementById('miniapp-status').style.display = '';
   setMiniAppControls({ retry:true, home:true });
   document.getElementById('login-hint').style.display = '';
-  document.getElementById('login-hint').textContent = 'Telegram не передал данные mini app. Можно повторить попытку или войти обычным Telegram Login ниже';
+  document.getElementById('login-hint').textContent = 'Telegram не передал данные mini app. Можно повторить попытку или войти через Telegram ниже';
 }
 async function startMiniAppLogin(force) {
   document.getElementById('miniapp-status').style.display = '';
@@ -406,9 +368,7 @@ async function bootMiniAppLogin() {
   } catch (e) {}
   {% if oidc_enabled %}
   loadTelegramOidcSdk().catch(function() {});
-  if (!isMiniAppRuntime() && !hasLegacyTelegramLogin) {
-    document.getElementById('login-status').style.display = 'none';
-  }
+  if (!isMiniAppRuntime()) document.getElementById('login-status').style.display = 'none';
   {% else %}
   if (!hasMiniAppInitData) {
     showWebLoginFallback();
@@ -421,18 +381,5 @@ async function bootMiniAppLogin() {
   document.getElementById('miniapp-status').style.display = 'none';
   document.getElementById('login-hint').style.display = '';
   document.getElementById('web-login').style.display = '';
-})();
-function onTelegramAuth(user) {
-  setLoginState('Проверка...');
-  cabinetJson('/cabinet/auth', {method:'POST', body:JSON.stringify(user)})
-    .then(function(r) { if (r.data.ok) { window.location.replace(cabinetUrl(r.data.redirect || '/cabinet/')); } else { showToast(r.data.message || 'Ошибка','error'); showWebLoginFallback(); }})
-    .catch(function() { showToast('Ошибка сети','error'); showWebLoginFallback(); });
-}
-(function() {
-  var origin = 'https://oauth.telegram.org';
-  window.addEventListener('message', function(e) {
-    if (e.origin !== origin) return;
-    try { var d = JSON.parse(e.data); if (d.event === 'auth_user' && d.auth_data) onTelegramAuth(d.auth_data); } catch(err) {}
-  });
 })();
 {% endblock %}
