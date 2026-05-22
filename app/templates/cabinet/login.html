@@ -295,6 +295,7 @@ async function bootMiniAppLogin() {
 }
 
 (function() {
+  var hasMiniAppInitData = !!getMiniAppInitData();
   {% if oidc_enabled %}
   loadTelegramOidcSdk().catch(function() {
     if (hasLegacyTelegramLogin) showLegacyTelegramLogin();
@@ -303,14 +304,17 @@ async function bootMiniAppLogin() {
     document.getElementById('login-status').style.display = 'none';
   }
   {% else %}
-  if (!isMiniAppRuntime()) {
+  if (!hasMiniAppInitData) {
     showWebLoginFallback();
   }
   {% endif %}
-  if (isMiniAppRuntime()) {
+  if (hasMiniAppInitData) {
     bootMiniAppLogin();
     return;
   }
+  document.getElementById('miniapp-status').style.display = 'none';
+  document.getElementById('login-hint').style.display = '';
+  document.getElementById('web-login').style.display = '';
 })();
 function onTelegramAuth(user) {
   setLoginState('Проверка...');
