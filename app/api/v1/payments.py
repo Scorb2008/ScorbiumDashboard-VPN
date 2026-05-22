@@ -10,7 +10,10 @@ from app.models.payment import PaymentStatus, PaymentType
 from app.schemas.payment import PaymentCreate, PaymentRead
 from app.services.bot_settings import BotSettingsService
 from app.services.payment import PaymentService
-from app.services.payment_fulfillment import PaymentFulfillmentService, TopupFulfillmentResult
+from app.services.payment_fulfillment import (
+    PaymentFulfillmentService,
+    TopupFulfillmentResult,
+)
 from app.services.plan import PlanService
 from app.utils.log import log
 
@@ -27,7 +30,9 @@ YOOKASSA_ALLOWED_IPS = {
 
 
 async def _get_yookassa_webhook_secret(db: AsyncSession) -> str:
-    override = (await BotSettingsService(db).get("yookassa_secret_key_override") or "").strip()
+    override = (
+        await BotSettingsService(db).get("yookassa_secret_key_override") or ""
+    ).strip()
     if override:
         return override
     fallback = config.yookassa.yookassa_secret_key
@@ -36,7 +41,9 @@ async def _get_yookassa_webhook_secret(db: AsyncSession) -> str:
 
 def _money_equal(left, right) -> bool:
     try:
-        return Decimal(str(left)).quantize(Decimal("0.01")) == Decimal(str(right)).quantize(Decimal("0.01"))
+        return Decimal(str(left)).quantize(Decimal("0.01")) == Decimal(
+            str(right)
+        ).quantize(Decimal("0.01"))
     except (InvalidOperation, TypeError, ValueError):
         return False
 
@@ -56,7 +63,9 @@ async def _verify_remote_provider_payment(
     """
     payment = await PaymentService(db).get_by_id(payment_id)
     if not payment:
-        log.warning(f"{provider} webhook: payment {payment_id} not found before remote verification")
+        log.warning(
+            f"{provider} webhook: payment {payment_id} not found before remote verification"
+        )
         return False
 
     settings = await BotSettingsService(db).get_all()
@@ -73,10 +82,14 @@ async def _verify_remote_provider_payment(
             status_raw = PlategaService.normalize_status(remote.get("status", ""))
             amount_raw = (remote.get("payment_details") or {}).get("amount")
             if not remote.get("ok") or not PlategaService.is_success_status(status_raw):
-                log.warning(f"Platega webhook: remote status is not confirmed for {external_id}: {status_raw}")
+                log.warning(
+                    f"Platega webhook: remote status is not confirmed for {external_id}: {status_raw}"
+                )
                 return False
             if amount_raw is not None and not _money_equal(amount_raw, payment.amount):
-                log.warning(f"Platega webhook: amount mismatch for payment {payment_id}")
+                log.warning(
+                    f"Platega webhook: amount mismatch for payment {payment_id}"
+                )
                 return False
             return True
 
@@ -90,13 +103,17 @@ async def _verify_remote_provider_payment(
             remote = await svc.get_payment_status(external_id)
             status_raw = str(remote.get("status", "")).upper()
             if not remote.get("ok") or status_raw not in {"SUCCESS", "OVERPAID"}:
-                log.warning(f"PayPalych webhook: remote status is not paid for {external_id}: {status_raw}")
+                log.warning(
+                    f"PayPalych webhook: remote status is not paid for {external_id}: {status_raw}"
+                )
                 return False
             amount_raw = remote.get("account_amount")
             if amount_raw is None:
                 amount_raw = remote.get("amount")
             if amount_raw is not None and not _money_equal(amount_raw, payment.amount):
-                log.warning(f"PayPalych webhook: amount mismatch for payment {payment_id}")
+                log.warning(
+                    f"PayPalych webhook: amount mismatch for payment {payment_id}"
+                )
                 return False
             return True
 
@@ -110,11 +127,15 @@ async def _verify_remote_provider_payment(
             remote = await svc.get_invoice(external_id)
             status_raw = str((remote or {}).get("status", "")).lower()
             if not remote or status_raw not in {"paid", "success", "completed"}:
-                log.warning(f"AiKassa webhook: remote status is not paid for {external_id}: {status_raw}")
+                log.warning(
+                    f"AiKassa webhook: remote status is not paid for {external_id}: {status_raw}"
+                )
                 return False
             amount_raw = remote.get("amount")
             if amount_raw is not None and not _money_equal(amount_raw, payment.amount):
-                log.warning(f"AiKassa webhook: amount mismatch for payment {payment_id}")
+                log.warning(
+                    f"AiKassa webhook: amount mismatch for payment {payment_id}"
+                )
                 return False
             return True
     except Exception as exc:
@@ -147,7 +168,9 @@ def _platega_headers_match(request: Request, settings: dict) -> bool:
 
 def _compute_paypalych_signature(out_sum: str, inv_id: str, api_token: str) -> str:
     payload = f"{out_sum}:{inv_id}:{api_token}"
-    return hashlib.md5(payload.encode("utf-8")).hexdigest().upper()
+    return (
+        hashlib.md5(payload.encode("utf-8"), usedforsecurity=False).hexdigest().upper()
+    )
 
 
 def _verify_paypalych_signature(
@@ -171,7 +194,9 @@ async def _notify_topup_success(payment_user_id: int, amount, balance) -> None:
     try:
         await TelegramNotifyService().send_message(payment_user_id, text)
     except Exception as e:
-        log.warning(f"Topup success notification failed for user {payment_user_id}: {e}")
+        log.warning(
+            f"Topup success notification failed for user {payment_user_id}: {e}"
+        )
 
 
 async def _finalize_topup_payment(
@@ -227,7 +252,9 @@ async def list_payments(
     db: AsyncSession = Depends(get_db),
     _: str = Depends(get_current_admin),
 ) -> list[PaymentRead]:
-    return await PaymentService(db).get_all(limit=limit, offset=offset, status=status, user_id=user_id)
+    return await PaymentService(db).get_all(
+        limit=limit, offset=offset, status=status, user_id=user_id
+    )
 
 
 @router.get("/{payment_id}", response_model=PaymentRead, summary="Get payment")
@@ -238,11 +265,18 @@ async def get_payment(
 ) -> PaymentRead:
     payment = await PaymentService(db).get_by_id(payment_id)
     if not payment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found"
+        )
     return payment
 
 
-@router.post("/", response_model=PaymentRead, status_code=status.HTTP_201_CREATED, summary="Create pending payment")
+@router.post(
+    "/",
+    response_model=PaymentRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create pending payment",
+)
 async def create_payment(
     data: PaymentCreate,
     db: AsyncSession = Depends(get_db),
@@ -250,11 +284,15 @@ async def create_payment(
 ) -> PaymentRead:
     plan = await PlanService(db).get_by_id(data.plan_id)
     if not plan:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found"
+        )
     return await PaymentService(db).create_pending(data.user_id, plan, data.provider)
 
 
-@router.post("/{payment_id}/refund", response_model=PaymentRead, summary="Refund payment")
+@router.post(
+    "/{payment_id}/refund", response_model=PaymentRead, summary="Refund payment"
+)
 async def refund_payment(
     payment_id: int,
     db: AsyncSession = Depends(get_db),
@@ -262,21 +300,28 @@ async def refund_payment(
 ) -> PaymentRead:
     payment = await PaymentService(db).refund(payment_id)
     if not payment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found"
+        )
     return payment
 
 
 @router.post("/webhook/freekassa", summary="FreeKassa webhook", include_in_schema=False)
-async def freekassa_webhook(request: Request, db: AsyncSession = Depends(get_db)) -> str:
+async def freekassa_webhook(
+    request: Request, db: AsyncSession = Depends(get_db)
+) -> str:
     """
     URL оповещения для FreeKassa.
     Укажи в личном кабинете: https://project.cfd/api/v1/payments/webhook/freekassa
     """
     import ipaddress
     from app.services.freekassa import FreeKassaService
+
     client_ip = request.headers.get("X-Real-IP") or request.client.host
     try:
-        if ipaddress.ip_address(client_ip) not in {ipaddress.ip_address(ip) for ip in FreeKassaService.ALLOWED_IPS}:
+        if ipaddress.ip_address(client_ip) not in {
+            ipaddress.ip_address(ip) for ip in FreeKassaService.ALLOWED_IPS
+        }:
             log.warning(f"FreeKassa webhook: blocked IP {client_ip}")
             return "FORBIDDEN"
     except Exception:
@@ -319,7 +364,9 @@ async def freekassa_webhook(request: Request, db: AsyncSession = Depends(get_db)
                     log.error(f"FreeKassa: topup payment {payment_id} not found")
                     return "YES"
                 if not result.just_processed:
-                    log.info(f"FreeKassa: duplicate topup webhook ignored for payment {payment_id}")
+                    log.info(
+                        f"FreeKassa: duplicate topup webhook ignored for payment {payment_id}"
+                    )
                     return "YES"
                 log.info(f"FreeKassa: topup {payment_id} confirmed + balance credited")
                 return "YES"
@@ -345,7 +392,7 @@ async def freekassa_webhook(request: Request, db: AsyncSession = Depends(get_db)
         payment_id,
         str(form.get("intid", "")),
         plan_id,
-        key_id if 'key_id' in locals() else None,
+        key_id if "key_id" in locals() else None,
     )
     if not payment:
         log.error(f"FreeKassa webhook: payment {payment_id} not found")
@@ -354,7 +401,7 @@ async def freekassa_webhook(request: Request, db: AsyncSession = Depends(get_db)
         log.info(f"FreeKassa webhook: duplicate or stale payment ignored: {payment_id}")
         return "YES"
 
-    if 'key_id' in locals():
+    if "key_id" in locals():
         await db.commit()
         if key:
             exp = key.expires_at.strftime("%d.%m.%Y") if key.expires_at else "—"
@@ -366,7 +413,9 @@ async def freekassa_webhook(request: Request, db: AsyncSession = Depends(get_db)
     else:
         await db.commit()
 
-        success_msg = settings.get("payment_success_message", "✅ Оплата прошла успешно!")
+        success_msg = settings.get(
+            "payment_success_message", "✅ Оплата прошла успешно!"
+        )
         plan = await PlanService(db).get_by_id(plan_id)
         days = plan.duration_days if plan else "—"
         if key:
@@ -380,7 +429,9 @@ async def freekassa_webhook(request: Request, db: AsyncSession = Depends(get_db)
 
 
 @router.post("/webhook/yookassa", summary="Yookassa webhook", include_in_schema=False)
-async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
+async def yookassa_webhook(
+    request: Request, db: AsyncSession = Depends(get_db)
+) -> dict:
     """Atomic YooKassa webhook: verify source IP, confirm payment + provision."""
     import json
     import ipaddress
@@ -420,7 +471,9 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
     plan_id = metadata.get("plan_id")
     extend_key_id = metadata.get("extend_key_id")
 
-    log.info(f"Yookassa webhook: event={event} payment_id={payment_id} plan_id={plan_id} extend_key_id={extend_key_id}")
+    log.info(
+        f"Yookassa webhook: event={event} payment_id={payment_id} plan_id={plan_id} extend_key_id={extend_key_id}"
+    )
 
     if event == "payment.canceled" and payment_id:
         try:
@@ -437,12 +490,18 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
     try:
         payment = await PaymentService(db).get_by_id(int(payment_id))
         if not payment:
-            log.warning("Yookassa webhook: payment %s not found before processing", payment_id)
+            log.warning(
+                "Yookassa webhook: payment %s not found before processing", payment_id
+            )
             return {"status": "ok"}
 
         status_value = str(obj.get("status", "")).lower().strip()
         if status_value and status_value != "succeeded":
-            log.warning("Yookassa webhook: unexpected object status %s for payment %s", status_value, payment_id)
+            log.warning(
+                "Yookassa webhook: unexpected object status %s for payment %s",
+                status_value,
+                payment_id,
+            )
             return {"status": "ok"}
 
         if payment.payment_type == PaymentType.TOPUP.value:
@@ -452,9 +511,13 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
             if not result.payment:
                 log.warning(f"Yookassa topup: payment {payment_id} not found")
             elif not result.just_processed:
-                log.info(f"Yookassa topup: duplicate or stale webhook ignored for payment {payment_id}")
+                log.info(
+                    f"Yookassa topup: duplicate or stale webhook ignored for payment {payment_id}"
+                )
             else:
-                log.info(f"Yookassa topup: payment {payment_id} confirmed + balance credited")
+                log.info(
+                    f"Yookassa topup: payment {payment_id} confirmed + balance credited"
+                )
             return {"status": "ok"}
 
         if not plan_id:
@@ -464,7 +527,12 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
             )
             return {"status": "ok"}
 
-        payment, key, just_confirmed, just_processed = await _finalize_subscription_payment(
+        (
+            payment,
+            key,
+            just_confirmed,
+            just_processed,
+        ) = await _finalize_subscription_payment(
             db,
             int(payment_id),
             str(external_id),
@@ -476,7 +544,9 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
             log.warning(f"Yookassa: payment {payment_id} not found for confirmation")
             return {"status": "ok"}
         if not just_confirmed and not just_processed:
-            log.info(f"Yookassa: duplicate or stale webhook ignored for payment {payment_id}")
+            log.info(
+                f"Yookassa: duplicate or stale webhook ignored for payment {payment_id}"
+            )
             return {"status": "ok"}
 
         await db.commit()
@@ -484,8 +554,11 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
         try:
             from app.services.telegram_notify import TelegramNotifyService
             from app.services.bot_settings import BotSettingsService
+
             settings = await BotSettingsService(db).get_all()
-            success_msg = settings.get("payment_success_message", "Оплата прошла успешно!")
+            success_msg = settings.get(
+                "payment_success_message", "Оплата прошла успешно!"
+            )
             plan = await PlanService(db).get_by_id(int(plan_id))
             days = plan.duration_days if plan else "—"
 
@@ -522,7 +595,9 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
 
 @router.post("/webhook/cryptobot", summary="CryptoBot webhook", include_in_schema=False)
-async def cryptobot_webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
+async def cryptobot_webhook(
+    request: Request, db: AsyncSession = Depends(get_db)
+) -> dict:
     """Handle CryptoBot invoice paid webhook with signature verification."""
     try:
         raw_body = await request.body()
@@ -535,6 +610,7 @@ async def cryptobot_webhook(request: Request, db: AsyncSession = Depends(get_db)
 
     sig_header = request.headers.get("X-Crypto-Pay-API-Signature", "").strip()
     from app.services.webhook_security import verify_cryptobot_signature
+
     settings = await BotSettingsService(db).get_all()
     cb_token = settings.get("cryptobot_token", "").strip()
     if not cb_token:
@@ -568,9 +644,13 @@ async def cryptobot_webhook(request: Request, db: AsyncSession = Depends(get_db)
             if not result.payment:
                 log.error(f"CryptoBot topup: payment {payment_id} not found")
             elif not result.just_processed:
-                log.info(f"CryptoBot topup: duplicate or stale payment ignored: {payment_id}")
+                log.info(
+                    f"CryptoBot topup: duplicate or stale payment ignored: {payment_id}"
+                )
             else:
-                log.info(f"CryptoBot topup: payment {payment_id} confirmed + balance credited")
+                log.info(
+                    f"CryptoBot topup: payment {payment_id} confirmed + balance credited"
+                )
             return {"ok": True}
 
         parts = payload_raw.split("_")
@@ -582,7 +662,12 @@ async def cryptobot_webhook(request: Request, db: AsyncSession = Depends(get_db)
             log.error(f"CryptoBot webhook: unknown payload format: {payload_raw}")
             return {"ok": True}
 
-        payment, key, just_confirmed, just_processed = await _finalize_subscription_payment(
+        (
+            payment,
+            key,
+            just_confirmed,
+            just_processed,
+        ) = await _finalize_subscription_payment(
             db,
             int(payment_id),
             str(invoice_id),
@@ -593,13 +678,17 @@ async def cryptobot_webhook(request: Request, db: AsyncSession = Depends(get_db)
             log.error(f"CryptoBot webhook: payment {payment_id} not found")
             return {"ok": True}
         if not just_confirmed and not just_processed:
-            log.info(f"CryptoBot webhook: duplicate or stale payment ignored: {payment_id}")
+            log.info(
+                f"CryptoBot webhook: duplicate or stale payment ignored: {payment_id}"
+            )
             return {"ok": True}
 
         await db.commit()
 
         settings = await BotSettingsService(db).get_all()
-        success_msg = settings.get("payment_success_message", "✅ Оплата прошла успешно!")
+        success_msg = settings.get(
+            "payment_success_message", "✅ Оплата прошла успешно!"
+        )
 
         if key:
             if extend_key_id:
@@ -659,8 +748,12 @@ async def platega_webhook(request: Request, db: AsyncSession = Depends(get_db)) 
             return "OK"
 
         callback_amount = data.get("amount")
-        if callback_amount is not None and not _money_equal(callback_amount, payment.amount):
-            log.warning(f"Platega webhook: callback amount mismatch for payment {payment_id}")
+        if callback_amount is not None and not _money_equal(
+            callback_amount, payment.amount
+        ):
+            log.warning(
+                f"Platega webhook: callback amount mismatch for payment {payment_id}"
+            )
             return "OK"
 
         if not await _verify_remote_provider_payment(
@@ -671,7 +764,12 @@ async def platega_webhook(request: Request, db: AsyncSession = Depends(get_db)) 
         ):
             return "OK"
 
-        payment, key, just_confirmed, just_processed = await _finalize_subscription_payment(
+        (
+            payment,
+            key,
+            just_confirmed,
+            just_processed,
+        ) = await _finalize_subscription_payment(
             db,
             int(payment_id),
             transaction_id,
@@ -679,16 +777,22 @@ async def platega_webhook(request: Request, db: AsyncSession = Depends(get_db)) 
             extend_key_id,
         )
         if not payment:
-            log.info(f"Platega webhook: duplicate or stale payment ignored: {payment_id}")
+            log.info(
+                f"Platega webhook: duplicate or stale payment ignored: {payment_id}"
+            )
             return "OK"
         if not just_confirmed and not just_processed:
-            log.info(f"Platega webhook: duplicate or stale payment ignored: {payment_id}")
+            log.info(
+                f"Platega webhook: duplicate or stale payment ignored: {payment_id}"
+            )
             return "OK"
 
         await db.commit()
 
         settings = await BotSettingsService(db).get_all()
-        success_msg = settings.get("payment_success_message", "✅ Оплата прошла успешно!")
+        success_msg = settings.get(
+            "payment_success_message", "✅ Оплата прошла успешно!"
+        )
 
         if key:
             if extend_key_id:
@@ -709,7 +813,9 @@ async def platega_webhook(request: Request, db: AsyncSession = Depends(get_db)) 
 
 
 @router.post("/webhook/paypalych", summary="PayPalych webhook", include_in_schema=False)
-async def paypalych_webhook(request: Request, db: AsyncSession = Depends(get_db)) -> str:
+async def paypalych_webhook(
+    request: Request, db: AsyncSession = Depends(get_db)
+) -> str:
     """Handle PayPalych bill webhook."""
     try:
         data = await request.form()
@@ -756,7 +862,9 @@ async def paypalych_webhook(request: Request, db: AsyncSession = Depends(get_db)
             return "OK"
 
         if out_sum and not _money_equal(out_sum, payment.amount):
-            log.warning(f"PayPalych webhook: callback amount mismatch for payment {payment_id}")
+            log.warning(
+                f"PayPalych webhook: callback amount mismatch for payment {payment_id}"
+            )
             return "OK"
 
         if not await _verify_remote_provider_payment(
@@ -767,7 +875,12 @@ async def paypalych_webhook(request: Request, db: AsyncSession = Depends(get_db)
         ):
             return "OK"
 
-        payment, key, just_confirmed, just_processed = await _finalize_subscription_payment(
+        (
+            payment,
+            key,
+            just_confirmed,
+            just_processed,
+        ) = await _finalize_subscription_payment(
             db,
             int(payment_id),
             transaction_id,
@@ -775,16 +888,22 @@ async def paypalych_webhook(request: Request, db: AsyncSession = Depends(get_db)
             extend_key_id,
         )
         if not payment:
-            log.info(f"PayPalych webhook: duplicate or stale payment ignored: {payment_id}")
+            log.info(
+                f"PayPalych webhook: duplicate or stale payment ignored: {payment_id}"
+            )
             return "OK"
         if not just_confirmed and not just_processed:
-            log.info(f"PayPalych webhook: duplicate or stale payment ignored: {payment_id}")
+            log.info(
+                f"PayPalych webhook: duplicate or stale payment ignored: {payment_id}"
+            )
             return "OK"
 
         await db.commit()
 
         settings = await BotSettingsService(db).get_all()
-        success_msg = settings.get("payment_success_message", "✅ Оплата прошла успешно!")
+        success_msg = settings.get(
+            "payment_success_message", "✅ Оплата прошла успешно!"
+        )
 
         if key:
             if extend_key_id:
@@ -835,7 +954,12 @@ async def aikassa_webhook(request: Request, db: AsyncSession = Depends(get_db)) 
         ):
             return "OK"
 
-        payment, key, just_confirmed, just_processed = await _finalize_subscription_payment(
+        (
+            payment,
+            key,
+            just_confirmed,
+            just_processed,
+        ) = await _finalize_subscription_payment(
             db,
             int(payment_id),
             invoice_id,
@@ -846,13 +970,17 @@ async def aikassa_webhook(request: Request, db: AsyncSession = Depends(get_db)) 
             log.error(f"AiKassa webhook: payment {payment_id} not found")
             return "OK"
         if not just_confirmed and not just_processed:
-            log.info(f"AiKassa webhook: duplicate or stale payment ignored: {payment_id}")
+            log.info(
+                f"AiKassa webhook: duplicate or stale payment ignored: {payment_id}"
+            )
             return "OK"
 
         await db.commit()
 
         settings = await BotSettingsService(db).get_all()
-        success_msg = settings.get("payment_success_message", "✅ Оплата прошла успешно!")
+        success_msg = settings.get(
+            "payment_success_message", "✅ Оплата прошла успешно!"
+        )
 
         if key:
             if extend_key_id:

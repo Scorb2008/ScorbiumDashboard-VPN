@@ -26,7 +26,10 @@ class VpnKey(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(
-        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+        BigInteger,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     plan_id = Column(
         Integer, ForeignKey("plans.id", ondelete="SET NULL"), nullable=True
@@ -42,9 +45,13 @@ class VpnKey(Base):
         nullable=False,
         index=True,
     )
-    download = deferred(Column(BigInteger, default=0, nullable=False, server_default="0"))
+    download = deferred(
+        Column(BigInteger, default=0, nullable=False, server_default="0")
+    )
     upload = deferred(Column(BigInteger, default=0, nullable=False, server_default="0"))
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
     user = relationship("User", back_populates="vpn_keys")
     plan = relationship("Plan", lazy="selectin")

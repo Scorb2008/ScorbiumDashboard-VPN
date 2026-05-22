@@ -65,7 +65,9 @@ def test_format_subprocess_error_prefers_actual_error_over_drop_notice():
 
     formatted = _format_subprocess_error(result)
 
-    assert 'ERROR: unrecognized configuration parameter "transaction_timeout"' in formatted
+    assert (
+        'ERROR: unrecognized configuration parameter "transaction_timeout"' in formatted
+    )
     assert "NOTICE: drop cascades" not in formatted
 
 
@@ -89,23 +91,35 @@ def _make_request() -> Request:
 async def test_backup_import_success_without_request_db_session(monkeypatch):
     reset_cache = AsyncMock()
     sync_urls = AsyncMock(return_value={})
-    run_subprocess = AsyncMock(return_value=CompletedProcess(args=["psql"], returncode=0, stdout=b"", stderr=b""))
+    run_subprocess = AsyncMock(
+        return_value=CompletedProcess(
+            args=["psql"], returncode=0, stdout=b"", stderr=b""
+        )
+    )
     run_migrations = AsyncMock(return_value=(True, None))
 
-    monkeypatch.setattr(backup_routes, "_require_permission", lambda request, permission: None)
+    monkeypatch.setattr(
+        backup_routes, "_require_permission", lambda request, permission: None
+    )
     monkeypatch.setattr(
         backup_routes,
         "config",
-        SimpleNamespace(database=SimpleNamespace(sync_dsn="postgresql://restore-target")),
+        SimpleNamespace(
+            database=SimpleNamespace(sync_dsn="postgresql://restore-target")
+        ),
     )
     monkeypatch.setattr(backup_routes, "_run_subprocess", run_subprocess)
     monkeypatch.setattr(backup_routes, "_run_post_restore_migrations", run_migrations)
-    monkeypatch.setattr(backup_routes, "_sync_deployment_settings_after_restore", sync_urls)
+    monkeypatch.setattr(
+        backup_routes, "_sync_deployment_settings_after_restore", sync_urls
+    )
     monkeypatch.setattr(backup_routes, "reset_bot_settings_cache", reset_cache)
 
     response = await backup_import(
         _make_request(),
-        file=UploadFile(filename="backup.sql", file=io.BytesIO(b"CREATE TABLE demo(id int);\n")),
+        file=UploadFile(
+            filename="backup.sql", file=io.BytesIO(b"CREATE TABLE demo(id int);\n")
+        ),
         confirm="yes",
     )
 
@@ -120,7 +134,9 @@ async def test_backup_import_success_without_request_db_session(monkeypatch):
 
 
 async def test_backup_import_rejects_empty_file(monkeypatch):
-    monkeypatch.setattr(backup_routes, "_require_permission", lambda request, permission: None)
+    monkeypatch.setattr(
+        backup_routes, "_require_permission", lambda request, permission: None
+    )
 
     response = await backup_import(
         _make_request(),
@@ -138,14 +154,20 @@ async def test_backup_import_rejects_empty_file(monkeypatch):
 async def test_backup_export_uses_async_subprocess_runner(monkeypatch):
     sql_bytes = b"CREATE TABLE demo(id int);\n"
     run_subprocess = AsyncMock(
-        return_value=CompletedProcess(args=["pg_dump"], returncode=0, stdout=sql_bytes, stderr=b"")
+        return_value=CompletedProcess(
+            args=["pg_dump"], returncode=0, stdout=sql_bytes, stderr=b""
+        )
     )
 
-    monkeypatch.setattr(backup_routes, "_require_permission", lambda request, permission: None)
+    monkeypatch.setattr(
+        backup_routes, "_require_permission", lambda request, permission: None
+    )
     monkeypatch.setattr(
         backup_routes,
         "config",
-        SimpleNamespace(database=SimpleNamespace(sync_dsn="postgresql://backup-target")),
+        SimpleNamespace(
+            database=SimpleNamespace(sync_dsn="postgresql://backup-target")
+        ),
     )
     monkeypatch.setattr(backup_routes, "_run_subprocess", run_subprocess)
 
@@ -176,7 +198,9 @@ async def test_run_post_restore_migrations_runs_fix_and_upgrade(monkeypatch):
     ]
 
 
-async def test_sync_deployment_url_settings_overwrites_stale_restore_urls(session, monkeypatch):
+async def test_sync_deployment_url_settings_overwrites_stale_restore_urls(
+    session, monkeypatch
+):
     session.add_all(
         [
             BotSettings(key="panel_url", value="https://old.example.com/panel/"),
@@ -204,9 +228,7 @@ async def test_sync_deployment_url_settings_overwrites_stale_restore_urls(sessio
         row.key: row.value
         for row in (
             await session.execute(
-                select(BotSettings).where(
-                    BotSettings.key.in_(updated.keys())
-                )
+                select(BotSettings).where(BotSettings.key.in_(updated.keys()))
             )
         ).scalars()
     }

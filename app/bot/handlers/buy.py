@@ -74,7 +74,10 @@ async def select_plan(callback: CallbackQuery) -> None:
         has_yookassa = _yk_toggle and _yk_configured
         has_sbp = _sbp_toggle and _yk_configured
 
-        has_cryptobot = bool(settings.get("cryptobot_token", "").strip()) and (await svc.get("ps_cryptobot_enabled") or "0") == "1"
+        has_cryptobot = (
+            bool(settings.get("cryptobot_token", "").strip())
+            and (await svc.get("ps_cryptobot_enabled") or "0") == "1"
+        )
 
         _fk_toggle = (await svc.get("ps_freekassa_enabled") or "0") == "1"
         _fk_shop = await svc.get("freekassa_shop_id") or ""

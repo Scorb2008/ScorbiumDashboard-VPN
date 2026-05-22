@@ -1,4 +1,5 @@
 """VPN Nodes management routes."""
+
 import html
 from fastapi import APIRouter, Depends, Form, Request, Response
 from fastapi.responses import HTMLResponse
@@ -37,20 +38,26 @@ async def nodes_data(request: Request):
         data = await svc.get_nodes()
         nodes = data.get("nodes", []) if isinstance(data, dict) else data
     except Exception as e:
-        return HTMLResponse(f'''<div class="p-3" style="color:var(--danger)">Ошибка: {html.escape(str(e))}</div>''')
+        return HTMLResponse(
+            f"""<div class="p-3" style="color:var(--danger)">Ошибка: {html.escape(str(e))}</div>"""
+        )
 
     if not nodes:
-        return HTMLResponse('''<div class="p-3 text-muted">Нод нет</div>''')
+        return HTMLResponse("""<div class="p-3 text-muted">Нод нет</div>""")
 
     cards = ""
     for n in nodes:
         status = n.get("status", "")
-        color = {"connected": "var(--success)", "connecting": "var(--warning)", "error": "var(--danger)"}.get(status, "var(--muted)")
+        color = {
+            "connected": "var(--success)",
+            "connecting": "var(--warning)",
+            "error": "var(--danger)",
+        }.get(status, "var(--muted)")
         pulse = "animation: pulse-glow 2s infinite" if status == "connecting" else ""
         node_name = html.escape(str(n.get("name", "")))
         node_addr = html.escape(str(n.get("address", "")))
         node_id = html.escape(str(n.get("id", "")))
-        cards += f'''
+        cards += f"""
         <div class="col-md-6 col-xl-4">
           <div class="card glass p-3 h-100">
             <div class="d-flex align-items-center justify-content-between mb-2">
@@ -71,15 +78,18 @@ async def nodes_data(request: Request):
               </button>
             </div>
           </div>
-        </div>'''
+        </div>"""
 
-    return HTMLResponse(f'''<div class="row g-3" id="nodes-grid" hx-get="/panel/nodes/data" hx-trigger="every 30s" hx-swap="outerHTML">{cards}</div>''')
+    return HTMLResponse(
+        f"""<div class="row g-3" id="nodes-grid" hx-get="/panel/nodes/data" hx-trigger="every 30s" hx-swap="outerHTML">{cards}</div>"""
+    )
 
 
 @router.post("/{node_id}/reconnect", response_class=HTMLResponse)
 async def reconnect_node(node_id: int, request: Request):
     _require_permission(request, "system")
     from app.services.pasarguard.pasarguard import PasarguardService
+
     try:
         svc = PasarguardService()
         await svc.reconnect_node(node_id)
@@ -92,7 +102,9 @@ async def reconnect_node(node_id: int, request: Request):
 
 
 @router.post("/{node_id}/delete", response_class=HTMLResponse)
-async def delete_node(node_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+async def delete_node(
+    node_id: int, request: Request, db: AsyncSession = Depends(get_db)
+):
     _require_permission(request, "system")
     try:
         svc = PasarguardService()

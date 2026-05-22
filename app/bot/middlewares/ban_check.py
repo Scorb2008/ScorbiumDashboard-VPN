@@ -22,7 +22,9 @@ class BanCheckMiddleware(BaseMiddleware):
         user_id: int | None = None
         if isinstance(event, Update):
             if event.message:
-                user_id = event.message.from_user.id if event.message.from_user else None
+                user_id = (
+                    event.message.from_user.id if event.message.from_user else None
+                )
             elif event.callback_query:
                 user_id = event.callback_query.from_user.id
             elif event.pre_checkout_query:
@@ -41,14 +43,20 @@ class BanCheckMiddleware(BaseMiddleware):
             # Check bot_enabled
             bot_enabled = await settings_svc.get("bot_enabled")
             if bot_enabled == "0":
-                msg = await settings_svc.get("bot_disabled_message") or "🔧 Бот временно отключён. Попробуйте позже."
+                msg = (
+                    await settings_svc.get("bot_disabled_message")
+                    or "🔧 Бот временно отключён. Попробуйте позже."
+                )
                 await _reply(event, msg)
                 return
 
             # Check ban
             user = await UserService(session).get_by_id(user_id)
             if user and user.is_banned:
-                ban_msg = await settings_svc.get("ban_message") or "🚫 Ваш аккаунт заблокирован."
+                ban_msg = (
+                    await settings_svc.get("ban_message")
+                    or "🚫 Ваш аккаунт заблокирован."
+                )
                 await _reply(event, ban_msg)
                 return
 

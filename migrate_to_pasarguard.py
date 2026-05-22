@@ -26,9 +26,13 @@ Usage:
     # Also restore expired keys (disabled on panel):
     python migrate_to_pasarguard.py --include-expired --update-db
 
+    # Temporary legacy mode for self-signed local panel TLS:
+    PASARGUARD_MIGRATION_INSECURE_TLS=1 python migrate_to_pasarguard.py --dry-run
+
 Environment variables (fallback when CLI args not provided):
     DB_ENGINE, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME
     PASARGUARD_ADMIN_PANEL, PASARGUARD_ADMIN_LOGIN, PASARGUARD_ADMIN_PASSWORD
+    PASARGUARD_MIGRATION_INSECURE_TLS=1  # disables TLS certificate validation
 """
 
 import argparse
@@ -73,6 +77,9 @@ if _env_file.exists():
 # Helpers
 # ---------------------------------------------------------------------------
 
+PASARGUARD_MIGRATION_INSECURE_TLS_ENV = "PASARGUARD_MIGRATION_INSECURE_TLS"
+
+
 def _build_db_url(args: argparse.Namespace) -> str:
     """Build asyncpg DSN from CLI args or environment."""
     if args.db_url:
@@ -80,7 +87,6 @@ def _build_db_url(args: argparse.Namespace) -> str:
         # asyncpg needs postgresql://, not postgresql+asyncpg://
         return url.replace("postgresql+asyncpg://", "postgresql://")
 
-    engine = os.getenv("DB_ENGINE", "postgresql")
     user = os.getenv("DB_USER", "postgres")
     password = os.getenv("DB_PASSWORD", "postgres")
     host = os.getenv("DB_HOST", "localhost")
@@ -92,7 +98,9 @@ def _build_db_url(args: argparse.Namespace) -> str:
 def _panel_url(args: argparse.Namespace) -> str:
     url = args.panel_url or os.getenv("PASARGUARD_ADMIN_PANEL", "")
     if not url:
-        print("ERROR: Panel URL not provided. Use --panel-url or set PASARGUARD_ADMIN_PANEL")
+        print(
+            "ERROR: Panel URL not provided. Use --panel-url or set PASARGUARD_ADMIN_PANEL"
+        )
         sys.exit(1)
     return url.rstrip("/")
 
@@ -100,6 +108,13 @@ def _panel_url(args: argparse.Namespace) -> str:
 def _log(msg: str, level: str = "INFO") -> None:
     ts = datetime.now().strftime("%H:%M:%S")
     print(f"[{ts}] [{level}] {msg}")
+
+
+def _env_flag(name: str) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _extract_sub_token(access_url: str) -> Optional[str]:
@@ -122,15 +137,27 @@ def _extract_sub_token(access_url: str) -> Optional[str]:
 # PasarGuard API client (minimal, standalone)
 # ---------------------------------------------------------------------------
 
+
 class PanelClient:
-    def __init__(self, base_url: str, login: str, password: str) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        login: str,
+        password: str,
+        *,
+        verify_tls: bool = True,
+    ) -> None:
         self.base_url = base_url
         self.login = login
         self.password = password
+        self.verify_tls = verify_tls
         self._token: Optional[str] = None
 
+    def _client(self, timeout: int) -> httpx.AsyncClient:
+        return httpx.AsyncClient(timeout=timeout, verify=self.verify_tls)
+
     async def authenticate(self) -> None:
-        async with httpx.AsyncClient(timeout=15, verify=False) as client:
+        async with self._client(timeout=15) as client:
             resp = await client.post(
                 f"{self.base_url}/api/admin/token",
                 data={"username": self.login, "password": self.password},
@@ -149,7 +176,7 @@ class PanelClient:
         return {"Authorization": f"Bearer {self._token}"}
 
     async def get_user(self, username: str) -> Optional[dict]:
-        async with httpx.AsyncClient(timeout=15, verify=False) as client:
+        async with self._client(timeout=15) as client:
             resp = await client.get(
                 f"{self.base_url}/api/user/{username}",
                 headers=self._headers,
@@ -193,7 +220,7 @@ class PanelClient:
         if old_sub_token:
             payload["subscription_url"] = old_sub_token
 
-        async with httpx.AsyncClient(timeout=15, verify=False) as client:
+        async with self._client(timeout=15) as client:
             resp = await client.post(
                 f"{self.base_url}/api/user",
                 headers=self._headers,
@@ -203,7 +230,7 @@ class PanelClient:
             return resp.json()
 
     async def get_groups(self) -> list[dict]:
-        async with httpx.AsyncClient(timeout=15, verify=False) as client:
+        async with self._client(timeout=15) as client:
             resp = await client.get(
                 f"{self.base_url}/api/groups",
                 headers=self._headers,
@@ -214,7 +241,7 @@ class PanelClient:
 
     async def validate(self) -> bool:
         try:
-            async with httpx.AsyncClient(timeout=10, verify=False) as client:
+            async with self._client(timeout=10) as client:
                 resp = await client.get(
                     f"{self.base_url}/api/system",
                     headers=self._headers,
@@ -228,6 +255,7 @@ class PanelClient:
 # Main migration logic
 # ---------------------------------------------------------------------------
 
+
 async def run(args: argparse.Namespace) -> None:
     db_url = _build_db_url(args)
     panel_base = _panel_url(args)
@@ -235,22 +263,39 @@ async def run(args: argparse.Namespace) -> None:
     panel_password = args.panel_password or os.getenv("PASARGUARD_ADMIN_PASSWORD", "")
 
     if not panel_password:
-        print("ERROR: Panel password not provided. Use --panel-password or PASARGUARD_ADMIN_PASSWORD")
+        print(
+            "ERROR: Panel password not provided. Use --panel-password or PASARGUARD_ADMIN_PASSWORD"
+        )
         sys.exit(1)
 
     dry_run = args.dry_run
     update_db = args.update_db
     include_expired = args.include_expired
+    verify_tls = not _env_flag(PASARGUARD_MIGRATION_INSECURE_TLS_ENV)
 
     _log(f"Database: {db_url.split('@')[-1]}")  # hide credentials
     _log(f"Panel:    {panel_base}")
     _log(f"Mode:     {'DRY RUN' if dry_run else 'LIVE MIGRATION'}")
     _log(f"Scope:    {'active + expired' if include_expired else 'active only'}")
     _log(f"Update DB access_url: {'yes' if update_db else 'no'}")
+    if verify_tls:
+        _log("Panel TLS certificate verification: enabled")
+    else:
+        _log(
+            "Panel TLS certificate verification: disabled via "
+            f"{PASARGUARD_MIGRATION_INSECURE_TLS_ENV}=1 "
+            "(legacy mode for temporary self-signed local environments only)",
+            "WARN",
+        )
     print()
 
     # ── 1. Connect to panel ──────────────────────────────────────────────
-    panel = PanelClient(panel_base, panel_login, panel_password)
+    panel = PanelClient(
+        panel_base,
+        panel_login,
+        panel_password,
+        verify_tls=verify_tls,
+    )
     if not dry_run:
         await panel.authenticate()
         if not await panel.validate():
@@ -261,7 +306,9 @@ async def run(args: argparse.Namespace) -> None:
         # Fetch available groups
         groups = await panel.get_groups()
         if groups:
-            _log(f"Available groups on panel: {json.dumps([g.get('name', g.get('id')) for g in groups])}")
+            _log(
+                f"Available groups on panel: {json.dumps([g.get('name', g.get('id')) for g in groups])}"
+            )
 
     # ── 2. Connect to database ───────────────────────────────────────────
     _log("Connecting to database...")
@@ -335,7 +382,9 @@ async def run(args: argparse.Namespace) -> None:
             _log(f"    old sub token: {old_sub_token}")
 
         if dry_run:
-            _log(f"    -> [DRY RUN] Would create user '{username}' (status={panel_status})")
+            _log(
+                f"    -> [DRY RUN] Would create user '{username}' (status={panel_status})"
+            )
             created += 1
             continue
 
@@ -360,7 +409,7 @@ async def run(args: argparse.Namespace) -> None:
                             new_url,
                             key_id,
                         )
-                        _log(f"    -> Updated access_url in DB")
+                        _log("    -> Updated access_url in DB")
                 continue
         except Exception as e:
             _log(f"    -> Error checking existing user: {e}", "WARN")
@@ -392,7 +441,7 @@ async def run(args: argparse.Namespace) -> None:
             new_path = _extract_sub_token(new_url)
             if old_path and new_path and old_path.rstrip("/") == new_path.rstrip("/"):
                 urls_preserved += 1
-                _log(f"    -> CREATED (sub URL preserved!)")
+                _log("    -> CREATED (sub URL preserved!)")
             else:
                 urls_changed += 1
                 _log(f"    -> CREATED (sub URL changed: {old_path} -> {new_path})")
@@ -446,6 +495,7 @@ async def run(args: argparse.Namespace) -> None:
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(

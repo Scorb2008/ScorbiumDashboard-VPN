@@ -1,4 +1,5 @@
 """Prometheus metrics collection for the VPN dashboard."""
+
 from prometheus_client import (
     Counter,
     Gauge,
@@ -170,6 +171,7 @@ bg_task_errors_total = Counter(
 def metrics_response():
     """Return a FastAPI-compatible response with Prometheus metrics."""
     from fastapi.responses import Response
+
     return Response(
         content=generate_latest(REGISTRY),
         media_type=CONTENT_TYPE_LATEST,

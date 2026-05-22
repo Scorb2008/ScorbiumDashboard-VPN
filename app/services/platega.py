@@ -4,6 +4,7 @@ Docs: https://docs.platega.io/
 Auth: X-MerchantId + X-Secret headers
 Base URL: https://app.platega.io
 """
+
 import json
 import http.client
 import os
@@ -35,17 +36,15 @@ class PlategaService:
         return {
             "X-MerchantId": self.merchant_id,
             "X-Secret": self.api_secret,
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
     async def _make_request(
-        self,
-        method: str,
-        path: str,
-        body: Optional[Dict] = None
+        self, method: str, path: str, body: Optional[Dict] = None
     ) -> Dict[str, Any]:
         """Make HTTP request to Platega API."""
         import asyncio
+
         conn = None
         try:
             conn = http.client.HTTPSConnection(self.base_url, timeout=15)
@@ -54,8 +53,7 @@ class PlategaService:
             # Run blocking I/O in executor
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(
-                None,
-                lambda: conn.request(method, path, payload, headers) or None
+                None, lambda: conn.request(method, path, payload, headers) or None
             )
             response = await loop.run_in_executor(None, conn.getresponse)
             data = await loop.run_in_executor(None, response.read)
@@ -69,7 +67,9 @@ class PlategaService:
             if response.status >= 400:
                 return {
                     "ok": False,
-                    "error": result.get("message") or result.get("error") or f"HTTP {response.status}",
+                    "error": result.get("message")
+                    or result.get("error")
+                    or f"HTTP {response.status}",
                     "status_code": response.status,
                     "raw": result,
                 }
@@ -119,9 +119,15 @@ class PlategaService:
             body["paymentMethod"] = payment_method
         # Add Telegram ID for Stars payments
         if user_telegram_id and user_id:
-            body["description"] = f"TgId:{user_telegram_id} UserId:{user_id} {final_description}".strip()
+            body["description"] = (
+                f"TgId:{user_telegram_id} UserId:{user_id} {final_description}".strip()
+            )
 
-        path = "/transaction/process" if payment_method is not None else "/v2/transaction/process"
+        path = (
+            "/transaction/process"
+            if payment_method is not None
+            else "/v2/transaction/process"
+        )
         result = await self._make_request("POST", path, body)
         if "transactionId" in result:
             return {
@@ -240,6 +246,9 @@ class PlategaService:
             result = await self.get_balance()
             if result.get("ok"):
                 return {"ok": True, "message": "✅ Platega.io подключен"}
-            return {"ok": False, "message": f"Ошибка: {result.get('error', 'Неизвестно')}"}
+            return {
+                "ok": False,
+                "message": f"Ошибка: {result.get('error', 'Неизвестно')}",
+            }
         except Exception as e:
             return {"ok": False, "message": f"Ошибка подключения: {str(e)}"}

@@ -103,14 +103,17 @@ async def cmd_start(message: Message) -> None:
 
         if created:
             from app.services.notification import notification_manager
-            await notification_manager.broadcast({
-                "type": "new_user",
-                "data": {
-                    "user_id": user.id,
-                    "full_name": message.from_user.full_name or "",
-                    "username": message.from_user.username or "",
-                },
-            })
+
+            await notification_manager.broadcast(
+                {
+                    "type": "new_user",
+                    "data": {
+                        "user_id": user.id,
+                        "full_name": message.from_user.full_name or "",
+                        "username": message.from_user.username or "",
+                    },
+                }
+            )
 
         settings = await BotSettingsService(session).get_all()
         welcome_tpl = settings.get("welcome_message")
@@ -491,12 +494,16 @@ async def process_promo(message: Message, state: FSMContext) -> None:
 
         code = raw_text.upper()
         promo_service = PromoService(session)
-        validation = await promo_service.validate_for_user(code, user_id=message.from_user.id)
+        validation = await promo_service.validate_for_user(
+            code, user_id=message.from_user.id
+        )
         promo = validation.promo
         if promo:
             pt = str(promo.promo_type)
             if pt == "balance":
-                consumed = await promo_service.consume(promo, user_id=message.from_user.id)
+                consumed = await promo_service.consume(
+                    promo, user_id=message.from_user.id
+                )
                 if not consumed:
                     result_text = validation.message or t("promo_invalid", lang)
                 else:
@@ -505,10 +512,16 @@ async def process_promo(message: Message, state: FSMContext) -> None:
                     )
                     result_text = t("promo_balance", lang, value=promo.value)
             elif pt == "days":
-                keys = await VpnKeyService(session).get_active_for_user(message.from_user.id)
+                keys = await VpnKeyService(session).get_active_for_user(
+                    message.from_user.id
+                )
                 if not keys:
-                    keys = await VpnKeyService(session).get_all_for_user(message.from_user.id)
-                consumed = await promo_service.consume(promo, user_id=message.from_user.id)
+                    keys = await VpnKeyService(session).get_all_for_user(
+                        message.from_user.id
+                    )
+                consumed = await promo_service.consume(
+                    promo, user_id=message.from_user.id
+                )
                 if not consumed:
                     result_text = validation.message or t("promo_invalid", lang)
                 elif not keys:
@@ -883,14 +896,17 @@ async def support_message(message: Message, state: FSMContext) -> None:
     safe_subject = escape_html(subject)
     safe_text = escape_html(truncate(text, 300))
     from app.services.notification import notification_manager
-    await notification_manager.broadcast({
-        "type": "new_ticket",
-        "data": {
-            "ticket_id": ticket_id,
-            "user_id": message.from_user.id,
-            "subject": subject,
-        },
-    })
+
+    await notification_manager.broadcast(
+        {
+            "type": "new_ticket",
+            "data": {
+                "ticket_id": ticket_id,
+                "user_id": message.from_user.id,
+                "subject": subject,
+            },
+        }
+    )
     for admin_id in config.telegram.telegram_admin_ids:
         await notify.send_message(
             admin_id,

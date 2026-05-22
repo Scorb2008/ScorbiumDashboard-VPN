@@ -1,4 +1,5 @@
 """Plans management routes."""
+
 from decimal import Decimal
 from typing import Optional
 
@@ -50,10 +51,12 @@ async def create_plan_view(
         _toast(resp, "Длительность должна быть минимум 1 день", "error")
         return resp
     import re
+
     slug = re.sub(r"[^a-z0-9]+", "_", name.lower().strip()).strip("_") or "plan"
     existing = await PlanService(db).get_by_slug(slug)
     if existing:
         import time
+
         slug = f"{slug}_{int(time.time()) % 10000}"
     await PlanService(db).create(
         name=name,
@@ -114,7 +117,7 @@ async def toggle_plan_view(
     plan = await PlanService(db).toggle_active(plan_id)
     if not plan:
         resp = Response(status_code=404)
-        _toast(resp, 'Тариф не найден', 'error')
+        _toast(resp, "Тариф не найден", "error")
         return resp
     await db.commit()
     plans = await PlanService(db).get_all()

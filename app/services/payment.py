@@ -19,14 +19,14 @@ class PaymentService:
         self.session = session
 
     async def get_by_id(self, payment_id: int) -> Optional[Payment]:
-        result = await self.session.execute(select(Payment).where(Payment.id == payment_id))
+        result = await self.session.execute(
+            select(Payment).where(Payment.id == payment_id)
+        )
         return result.scalar_one_or_none()
 
     async def get_by_id_for_update(self, payment_id: int) -> Optional[Payment]:
         result = await self.session.execute(
-            select(Payment)
-            .where(Payment.id == payment_id)
-            .with_for_update()
+            select(Payment).where(Payment.id == payment_id).with_for_update()
         )
         return result.scalar_one_or_none()
 
@@ -44,7 +44,12 @@ class PaymentService:
         user_id: Optional[int] = None,
         payment_type: Optional[PaymentType] = None,
     ) -> list[Payment]:
-        q = select(Payment).order_by(Payment.created_at.desc()).limit(limit).offset(offset)
+        q = (
+            select(Payment)
+            .order_by(Payment.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
         if status:
             q = q.where(Payment.status == status.value)
         if user_id:
@@ -94,6 +99,7 @@ class PaymentService:
     ) -> Payment:
         """Создать pending платёж за подписку."""
         from datetime import datetime, timezone, timedelta
+
         cutoff = datetime.now(timezone.utc) - timedelta(minutes=15)
         old_result = await self.session.execute(
             select(Payment).where(
@@ -132,6 +138,7 @@ class PaymentService:
     ) -> Payment:
         """Создать pending платёж пополнения баланса."""
         from datetime import datetime, timezone, timedelta
+
         cutoff = datetime.now(timezone.utc) - timedelta(minutes=15)
         # Отменяем старые pending topup от того же провайдера
         old_result = await self.session.execute(
@@ -162,6 +169,7 @@ class PaymentService:
 
     async def expire_old_pending(self, max_age_minutes: int = 15) -> int:
         from datetime import datetime, timezone, timedelta
+
         cutoff = datetime.now(timezone.utc) - timedelta(minutes=max_age_minutes)
         result = await self.session.execute(
             select(Payment).where(
@@ -187,12 +195,16 @@ class PaymentService:
         result = await self.confirm_once(payment_id, external_id)
         return result.payment
 
-    async def confirm_topup(self, payment_id: int, external_id: str) -> Optional[Payment]:
+    async def confirm_topup(
+        self, payment_id: int, external_id: str
+    ) -> Optional[Payment]:
         """Atomic topup confirmation with FOR UPDATE lock."""
         result = await self.confirm_topup_once(payment_id, external_id)
         return result.payment
 
-    async def confirm_once(self, payment_id: int, external_id: str) -> PaymentConfirmationResult:
+    async def confirm_once(
+        self, payment_id: int, external_id: str
+    ) -> PaymentConfirmationResult:
         """Confirm a subscription payment exactly once.
 
         Returns whether this call changed the payment from pending to succeeded.
@@ -201,11 +213,15 @@ class PaymentService:
         """
         return await self._confirm_once(payment_id, external_id)
 
-    async def confirm_topup_once(self, payment_id: int, external_id: str) -> PaymentConfirmationResult:
+    async def confirm_topup_once(
+        self, payment_id: int, external_id: str
+    ) -> PaymentConfirmationResult:
         """Confirm a top-up payment exactly once."""
         return await self._confirm_once(payment_id, external_id)
 
-    async def _confirm_once(self, payment_id: int, external_id: str) -> PaymentConfirmationResult:
+    async def _confirm_once(
+        self, payment_id: int, external_id: str
+    ) -> PaymentConfirmationResult:
         payment = await self.get_by_id_for_update(payment_id)
         if not payment:
             return PaymentConfirmationResult(payment=None, just_confirmed=False)

@@ -39,8 +39,12 @@ async def test_send_alerts_reads_language_before_session_context_exits(monkeypat
 
     settings = _ExplodingSettings()
 
-    monkeypatch.setattr("app.services.health.AsyncSessionFactory", lambda: _ExplodingSessionContext())
-    monkeypatch.setattr("app.services.bot_settings.BotSettingsService", lambda _session: settings)
+    monkeypatch.setattr(
+        "app.services.health.AsyncSessionFactory", lambda: _ExplodingSessionContext()
+    )
+    monkeypatch.setattr(
+        "app.services.bot_settings.BotSettingsService", lambda _session: settings
+    )
 
     sent_messages = []
 

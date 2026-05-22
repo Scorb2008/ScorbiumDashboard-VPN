@@ -19,20 +19,41 @@ _bg_tasks = []
 _OPENAPI_TAGS = [
     {"name": "Health", "description": "Checking API availability and service status."},
     {"name": "Auth", "description": "Authentication and issuance of access tokens."},
-    {"name": "Dashboard", "description": "Summary statistics and data from the main dashboard."},
+    {
+        "name": "Dashboard",
+        "description": "Summary statistics and data from the main dashboard.",
+    },
     {"name": "Users", "description": "Managing users and their profiles."},
-    {"name": "Plans", "description": "CRUD operations for tariffs and subscription plans."},
-    {"name": "Subscriptions", "description": "CRUD operations for tariffs and subscription plans."},
-    {"name": "Payments", "description": "Payments, status checks and payment transactions."},
+    {
+        "name": "Plans",
+        "description": "CRUD operations for tariffs and subscription plans.",
+    },
+    {
+        "name": "Subscriptions",
+        "description": "CRUD operations for tariffs and subscription plans.",
+    },
+    {
+        "name": "Payments",
+        "description": "Payments, status checks and payment transactions.",
+    },
     {"name": "VPN", "description": "Operations related to the VPN panel and keys."},
     {"name": "Support", "description": "Support tickets and user messages."},
     {"name": "Broadcasts", "description": "Mailings and mass notifications."},
-    {"name": "Telegram", "description": "Telegram settings and integration API methods."},
+    {
+        "name": "Telegram",
+        "description": "Telegram settings and integration API methods.",
+    },
     {"name": "Promos", "description": "Promo codes, discounts and bonus logic."},
     {"name": "Referrals", "description": "Referral program and invitation statistics."},
     {"name": "Admin Panel", "description": "HTML/HTMX routes of the admin panel."},
-    {"name": "Cabinet Auth", "description": "Authorization of the user account and Telegram Login Widget."},
-    {"name": "Cabinet", "description": "User account, payments and client subscriptions."},
+    {
+        "name": "Cabinet Auth",
+        "description": "Authorization of the user account and Telegram Login Widget.",
+    },
+    {
+        "name": "Cabinet",
+        "description": "User account, payments and client subscriptions.",
+    },
 ]
 
 
@@ -58,7 +79,9 @@ def _log_task_exception(task: asyncio.Task):
         return
     exc = task.exception()
     if exc:
-        log.error(f"Background task {task.get_name() or task} failed: {exc}", exc_info=exc)
+        log.error(
+            f"Background task {task.get_name() or task} failed: {exc}", exc_info=exc
+        )
 
 
 def _is_secure_request(request: Request) -> bool:
@@ -116,6 +139,7 @@ def _make_dp():
     dp.update.outer_middleware(ChannelCheckMiddleware())
     dp.update.outer_middleware(UserNotifyMiddleware())
     from app.bot.middlewares.metrics import BotMetricsMiddleware
+
     dp.update.outer_middleware(BotMetricsMiddleware())
     dp.include_router(_start.router)
     dp.include_router(_buy.router)
@@ -136,10 +160,11 @@ async def _lifespan(app: FastAPI):
     log.info("🚀 Starting VPN Dashboard API...")
 
     import os as _os
+
     if not _os.environ.get("JWT_SECRET_KEY", "").strip():
         log.warning(
             "JWT_SECRET_KEY is not set! Authentication will fail. "
-            "Generate one: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+            'Generate one: python -c "import secrets; print(secrets.token_urlsafe(32))"'
         )
 
     await init_db()
@@ -165,7 +190,9 @@ async def _lifespan(app: FastAPI):
             )
             log.info("Bot webhook set -> %s", config.telegram.telegram_webhook_url)
         except Exception as e:
-            log.error("Failed to set Telegram webhook: %s. App will run without bot.", e)
+            log.error(
+                "Failed to set Telegram webhook: %s. App will run without bot.", e
+            )
     else:
         try:
             await _bot.delete_webhook(drop_pending_updates=True)
@@ -173,21 +200,27 @@ async def _lifespan(app: FastAPI):
             log.warning("Failed to delete Telegram webhook (non-critical): %s", e)
         try:
             _start_bg_task(
-                _dp.start_polling(_bot, allowed_updates=_dp.resolve_used_update_types()),
+                _dp.start_polling(
+                    _bot, allowed_updates=_dp.resolve_used_update_types()
+                ),
                 name="bot_polling",
             )
             log.info("Bot polling started")
         except Exception as e:
-            log.error("Failed to start Telegram polling: %s. App will run without bot.", e)
+            log.error(
+                "Failed to start Telegram polling: %s. App will run without bot.", e
+            )
 
     _start_bg_task(payment_polling_loop(), name="payment_polling")
     _start_bg_task(expire_loop(), name="expire_loop")
     _start_bg_task(sync_loop(), name="sync_loop")
 
     from app.bot.middlewares.metrics import BotMetricsLoop
+
     _start_bg_task(BotMetricsLoop.run(), name="bot_metrics")
 
     from app.services.slow_query import register_slow_query_logger
+
     register_slow_query_logger()
 
     # Token blacklist cleanup every hour
@@ -197,6 +230,7 @@ async def _lifespan(app: FastAPI):
             try:
                 from app.core.database import AsyncSessionFactory
                 from app.services.token_blacklist import TokenBlacklistService
+
                 async with AsyncSessionFactory() as _s:
                     removed = await TokenBlacklistService(_s).cleanup_expired()
                     await _s.commit()
@@ -204,13 +238,16 @@ async def _lifespan(app: FastAPI):
                         log.info(f"Cleaned up {removed} expired blacklisted tokens")
             except Exception as e:
                 log.error("token_cleanup error: %s", e, exc_info=True)
+
     _start_bg_task(_token_cleanup_loop(), name="token_cleanup")
 
     import os as _os
+
     _env_cryptobot = _os.environ.get("CRYPTOBOT_TOKEN", "").strip()
     if _env_cryptobot:
         from app.core.database import AsyncSessionFactory as _ASF
         from app.services.bot_settings import BotSettingsService as _BSS
+
         async with _ASF() as _s:
             _existing = await _BSS(_s).get("cryptobot_token")
             if not _existing:
@@ -220,6 +257,7 @@ async def _lifespan(app: FastAPI):
 
     try:
         import httpx as _httpx
+
         _token = config.telegram.telegram_bot_token.get_secret_value()
         async with _httpx.AsyncClient(timeout=10) as _c:
             _r = await _c.get(f"https://api.telegram.org/bot{_token}/getMe")
@@ -228,6 +266,7 @@ async def _lifespan(app: FastAPI):
                 if _username:
                     from app.core.database import AsyncSessionFactory as _ASF2
                     from app.services.bot_settings import BotSettingsService as _BSS2
+
                     async with _ASF2() as _s2:
                         _existing_bu = await _BSS2(_s2).get("bot_username")
                         if not _existing_bu:
@@ -239,31 +278,40 @@ async def _lifespan(app: FastAPI):
 
     log.info("✅ Application ready")
 
-    from aiogram.types import BotCommand, BotCommandScopeAllPrivateChats, BotCommandScopeChat
+    from aiogram.types import (
+        BotCommand,
+        BotCommandScopeAllPrivateChats,
+        BotCommandScopeChat,
+    )
+
     user_commands = [
-        BotCommand(command="start",      description="🏠 Главное меню"),
-        BotCommand(command="profile",    description="👤 Мой профиль"),
-        BotCommand(command="keys",       description="🔑 Мои подписки"),
-        BotCommand(command="status",     description="📊 Статус подписок"),
-        BotCommand(command="extend",     description="🔄 Продлить подписку"),
-        BotCommand(command="top",        description="🏆 Топ рефереров"),
-        BotCommand(command="gift",       description="🎁 Подарить подписку"),
-        BotCommand(command="autorenew",  description="🔄 Автопродление"),
-        BotCommand(command="id",         description="🆔 Мой Telegram ID"),
+        BotCommand(command="start", description="🏠 Главное меню"),
+        BotCommand(command="profile", description="👤 Мой профиль"),
+        BotCommand(command="keys", description="🔑 Мои подписки"),
+        BotCommand(command="status", description="📊 Статус подписок"),
+        BotCommand(command="extend", description="🔄 Продлить подписку"),
+        BotCommand(command="top", description="🏆 Топ рефереров"),
+        BotCommand(command="gift", description="🎁 Подарить подписку"),
+        BotCommand(command="autorenew", description="🔄 Автопродление"),
+        BotCommand(command="id", description="🆔 Мой Telegram ID"),
     ]
     admin_commands = user_commands + [
-        BotCommand(command="admin",      description="👑 Панель администратора"),
-        BotCommand(command="ban",        description="🚫 Забанить пользователя"),
-        BotCommand(command="unban",      description="✅ Разбанить пользователя"),
-        BotCommand(command="promo",      description="🎁 Создать промокод"),
+        BotCommand(command="admin", description="👑 Панель администратора"),
+        BotCommand(command="ban", description="🚫 Забанить пользователя"),
+        BotCommand(command="unban", description="✅ Разбанить пользователя"),
+        BotCommand(command="promo", description="🎁 Создать промокод"),
         BotCommand(command="addbalance", description="💰 Пополнить баланс"),
-        BotCommand(command="givekey",    description="🔑 Выдать ключ"),
+        BotCommand(command="givekey", description="🔑 Выдать ключ"),
     ]
     try:
-        await _bot.set_my_commands(user_commands, scope=BotCommandScopeAllPrivateChats())
+        await _bot.set_my_commands(
+            user_commands, scope=BotCommandScopeAllPrivateChats()
+        )
         for admin_id in config.telegram.telegram_admin_ids:
             try:
-                await _bot.set_my_commands(admin_commands, scope=BotCommandScopeChat(chat_id=admin_id))
+                await _bot.set_my_commands(
+                    admin_commands, scope=BotCommandScopeChat(chat_id=admin_id)
+                )
             except Exception:
                 pass
         log.info("✅ Bot commands set")
@@ -315,9 +363,11 @@ def create_app() -> FastAPI:
     app.add_middleware(RateLimitMiddleware)
 
     import os as _os
+
     _sentry_dsn = _os.environ.get("SENTRY_DSN", "").strip()
     if _sentry_dsn:
         import sentry_sdk
+
         sentry_sdk.init(
             dsn=_sentry_dsn,
             traces_sample_rate=0.1,
@@ -326,7 +376,11 @@ def create_app() -> FastAPI:
         log.info("Sentry initialized")
 
     from starlette.middleware.base import BaseHTTPMiddleware as _BHM
-    from app.api.middleware.csrf import CSRFMiddleware, generate_csrf_token as _gct, CSRF_COOKIE as _CC
+    from app.api.middleware.csrf import (
+        CSRFMiddleware,
+        generate_csrf_token as _gct,
+        CSRF_COOKIE as _CC,
+    )
 
     class _PanelSessionGuard(_BHM):
         async def dispatch(self, request: Request, call_next):
@@ -348,7 +402,9 @@ def create_app() -> FastAPI:
                         sub = str(info.get("sub", "")).strip()
                         if jti and sub:
                             async with AsyncSessionFactory() as session:
-                                revoked = await TokenBlacklistService(session).is_blacklisted(jti, sub)
+                                revoked = await TokenBlacklistService(
+                                    session
+                                ).is_blacklisted(jti, sub)
                             if revoked:
                                 request.state.panel_admin_info = None
                                 request.state.revoked_panel_session = True
@@ -370,7 +426,9 @@ def create_app() -> FastAPI:
         async def dispatch(self, request: Request, call_next):
             resp = await call_next(request)
             path = request.url.path
-            is_html_panel = path.startswith("/panel") and not path.startswith("/panel/api")
+            is_html_panel = path.startswith("/panel") and not path.startswith(
+                "/panel/api"
+            )
             is_html_cabinet = path.startswith("/cabinet")
             if is_html_panel or is_html_cabinet:
                 if not request.cookies.get(_CC):
@@ -385,18 +443,24 @@ def create_app() -> FastAPI:
                         path="/",
                     )
             return resp
+
     app.add_middleware(_CSRFInjector)
     app.add_middleware(CSRFMiddleware)
 
     @app.exception_handler(Exception)
     async def _global_exc(request: Request, exc: Exception) -> JSONResponse:
         log.error("Unhandled exception on %s: %s", request.url, exc)
-        return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+        return JSONResponse(
+            status_code=500, content={"detail": "Internal server error"}
+        )
 
     @app.exception_handler(403)
     async def _forbidden_exc(request: Request, exc: Exception):
         from fastapi.templating import Jinja2Templates
-        tpl = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
+
+        tpl = Jinja2Templates(
+            directory=str(Path(__file__).resolve().parent.parent / "templates")
+        )
         return tpl.TemplateResponse(
             request,
             "forbidden.html",
@@ -428,7 +492,9 @@ def create_app() -> FastAPI:
                 resp.headers["X-Frame-Options"] = "DENY"
 
             if request.url.scheme == "https":
-                resp.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
+                resp.headers["Strict-Transport-Security"] = (
+                    "max-age=63072000; includeSubDomains; preload"
+                )
 
             resp.headers["Permissions-Policy"] = (
                 "accelerometer=(), camera=(), geolocation=(), gyroscope=(), "
@@ -486,14 +552,17 @@ def create_app() -> FastAPI:
                 resp.headers["Pragma"] = "no-cache"
 
             return resp
+
     app.add_middleware(_SecurityHeaders)
 
     from app.api.middleware_prometheus import PrometheusMiddleware
+
     app.add_middleware(PrometheusMiddleware)
 
     app.include_router(get_router())
     app.include_router(get_panel_router())
     from app.api.cabinet import get_cabinet_router
+
     app.include_router(get_cabinet_router())
     static_path = Path(__file__).resolve().parent.parent / "static"
     static_path.mkdir(exist_ok=True)
@@ -567,6 +636,7 @@ def create_app() -> FastAPI:
         try:
             while True:
                 from app.services.system_metrics import SystemMetrics
+
                 metrics = await SystemMetrics.collect()
                 await websocket.send_json(metrics)
                 await asyncio.sleep(3)
@@ -578,12 +648,18 @@ def create_app() -> FastAPI:
         """Serve the HTML dashboard page."""
         from fastapi.templating import Jinja2Templates
         from pathlib import Path
-        templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
-        return templates.TemplateResponse(request, "metrics/dashboard.html", {"request": request})
+
+        templates = Jinja2Templates(
+            directory=str(Path(__file__).resolve().parent.parent / "templates")
+        )
+        return templates.TemplateResponse(
+            request, "metrics/dashboard.html", {"request": request}
+        )
 
     @app.post(config.telegram.telegram_webhook_path, include_in_schema=False)
     async def telegram_webhook(request: Request):
         from aiogram.types import Update
+
         bot, dp = get_bot(), get_dp()
         if bot is None or dp is None:
             return JSONResponse({"ok": False}, status_code=503)
@@ -594,25 +670,31 @@ def create_app() -> FastAPI:
     @app.get("/panel", include_in_schema=False)
     async def panel_redirect():
         from fastapi.responses import RedirectResponse
+
         return RedirectResponse(url="/panel/")
 
     @app.get("/panel-root", include_in_schema=False)
     async def panel_root():
         from fastapi.responses import RedirectResponse
+
         return RedirectResponse(url="/panel/")
 
     @app.get("/health", include_in_schema=False)
     async def health_check():
         from sqlalchemy import text
         from fastapi.responses import JSONResponse
+
         try:
             from app.core.database import AsyncSessionFactory
+
             async with AsyncSessionFactory() as session:
                 await session.execute(text("SELECT 1"))
             return JSONResponse({"status": "ok", "db": "connected"})
         except Exception as e:
             log.error("Health check failed: %s", e)
-            return JSONResponse({"status": "error", "db": "unavailable"}, status_code=503)
+            return JSONResponse(
+                {"status": "error", "db": "unavailable"}, status_code=503
+            )
 
     @app.get("/metrics", include_in_schema=False)
     async def prometheus_metrics(request: Request):
@@ -621,8 +703,10 @@ def create_app() -> FastAPI:
             auth = request.headers.get("Authorization", "")
             if auth != f"Bearer {key}":
                 from fastapi.responses import JSONResponse
+
                 return JSONResponse(status_code=403, content={"detail": "Forbidden"})
         from app.services.metrics import metrics_response
+
         return metrics_response()
 
     return app
@@ -630,6 +714,7 @@ def create_app() -> FastAPI:
 
 def _start_monitoring():
     """Start background service monitoring and alerts (called from lifespan)."""
+
     async def _monitor_loop():
         import asyncio
         from app.services.health import health_service
@@ -649,6 +734,7 @@ def _start_monitoring():
 
                 from app.core.database import AsyncSessionFactory
                 from sqlalchemy import text
+
                 try:
                     async with AsyncSessionFactory() as session:
                         await session.execute(text("SELECT 1"))
@@ -658,4 +744,5 @@ def _start_monitoring():
 
             except Exception as e:
                 log.error("Monitor loop error: %s", e)
+
     _start_bg_task(_monitor_loop(), name="service_monitor")

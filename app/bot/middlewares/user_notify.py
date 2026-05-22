@@ -3,6 +3,7 @@ Middleware: уведомляет пользователя о важных соб
 - Просроченные подписки (показывает один раз в 24 часа)
 - Неоплаченные pending платежи старше 5 минут
 """
+
 import asyncio
 from datetime import datetime, timezone, timedelta
 from typing import Any, Awaitable, Callable, Dict
@@ -19,8 +20,8 @@ _notified_pending: dict[int, float] = {}
 _bg_tasks: set[asyncio.Task] = set()
 _BG_SEM = asyncio.Semaphore(50)
 
-_EXPIRED_COOLDOWN = 86400   # 24 часа между уведомлениями о просрочке
-_PENDING_COOLDOWN = 300     # 5 минут между уведомлениями о pending
+_EXPIRED_COOLDOWN = 86400  # 24 часа между уведомлениями о просрочке
+_PENDING_COOLDOWN = 300  # 5 минут между уведомлениями о pending
 _NOTIFY_CACHE_PRUNE_THRESHOLD = 2048
 _NOTIFY_CACHE_STALE_MULTIPLIER = 4
 
@@ -37,7 +38,9 @@ class UserNotifyMiddleware(BaseMiddleware):
         user_id: int | None = None
         if isinstance(event, Update):
             if event.message:
-                user_id = event.message.from_user.id if event.message.from_user else None
+                user_id = (
+                    event.message.from_user.id if event.message.from_user else None
+                )
             elif event.callback_query:
                 user_id = event.callback_query.from_user.id
 
@@ -60,7 +63,9 @@ async def _coro_wrapper(coro):
             pass
 
 
-def _prune_notification_cache(cache: dict[int, float], now: float, cooldown: int) -> None:
+def _prune_notification_cache(
+    cache: dict[int, float], now: float, cooldown: int
+) -> None:
     if len(cache) < _NOTIFY_CACHE_PRUNE_THRESHOLD:
         return
 
@@ -74,6 +79,7 @@ async def _update_last_seen(user_id: int) -> None:
     from datetime import datetime, timezone
     from sqlalchemy import update
     from app.models.user import User
+
     try:
         async with AsyncSessionFactory() as session:
             await session.execute(
@@ -97,6 +103,7 @@ async def _check_and_notify(user_id: int) -> None:
 async def _notify_expired_keys(user_id: int) -> None:
     """Уведомляет о просроченных подписках (раз в 24 часа)."""
     import time
+
     now = time.time()
     _prune_notification_cache(_notified_expired, now, _EXPIRED_COOLDOWN)
     last = _notified_expired.get(user_id, 0)
@@ -141,6 +148,7 @@ async def _notify_expired_keys(user_id: int) -> None:
 async def _notify_pending_payments(user_id: int) -> None:
     """Уведомляет о зависших pending платежах (раз в 5 минут)."""
     import time
+
     now = time.time()
     _prune_notification_cache(_notified_pending, now, _PENDING_COOLDOWN)
     last = _notified_pending.get(user_id, 0)

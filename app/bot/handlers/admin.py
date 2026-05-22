@@ -436,13 +436,16 @@ async def cmd_system(message: Message):
         return
 
     from app.services.system_metrics import SystemMetrics
+
     metrics = await SystemMetrics.collect()
 
     text = "⚙️ <b>System Metrics</b>\n\n"
     text += f"💻 CPU: {metrics['cpu']}%\n"
     text += f"🧠 RAM: {metrics['ram']['percent']}% ({metrics['ram']['used']}/{metrics['ram']['total']} GB)\n"
     text += f"💾 Disk: {metrics['disk']['percent']}% ({metrics['disk']['used']}/{metrics['disk']['total']} GB)\n"
-    text += f"🌐 Network: ↑{metrics['net']['sent_mb']} MB / ↓{metrics['net']['recv_mb']} MB"
+    text += (
+        f"🌐 Network: ↑{metrics['net']['sent_mb']} MB / ↓{metrics['net']['recv_mb']} MB"
+    )
 
     await message.answer(text)
 
@@ -466,7 +469,6 @@ async def cmd_userinfo(message: Message) -> None:
 
     from app.services.user import UserService
     from app.services.vpn_key import VpnKeyService
-    from app.services.payment import PaymentService
 
     try:
         async with AsyncSessionFactory() as session:
@@ -476,9 +478,9 @@ async def cmd_userinfo(message: Message) -> None:
                 return
 
             keys = await VpnKeyService(session).get_all_for_user(user_id)
-            active = sum(1 for k in keys if str(k.status) == 'active')
+            active = sum(1 for k in keys if str(k.status) == "active")
 
-            text = f"👤 <b>User Info</b>\n\n"
+            text = "👤 <b>User Info</b>\n\n"
             text += f"ID: <code>{user.id}</code>\n"
             text += f"Username: @{user.username or '—'}\n"
             text += f"Name: {user.full_name or '—'}\n"
@@ -526,7 +528,9 @@ async def admin_panel(message: Message) -> None:
         return
     text, kb, photo = await _admin_main_text_extended()
     if photo:
-        await message.answer_photo(photo=photo, caption=text, reply_markup=kb, parse_mode="HTML")
+        await message.answer_photo(
+            photo=photo, caption=text, reply_markup=kb, parse_mode="HTML"
+        )
     else:
         await message.answer(text, reply_markup=kb, parse_mode="HTML")
 
@@ -633,10 +637,15 @@ async def admin_stats(callback: CallbackQuery) -> None:
         try:
             await callback.message.delete()
             await callback.message.answer_photo(
-                photo=photo, caption=text, reply_markup=_back_admin_kb(), parse_mode="HTML"
+                photo=photo,
+                caption=text,
+                reply_markup=_back_admin_kb(),
+                parse_mode="HTML",
             )
         except Exception:
-            await callback.message.answer(text, reply_markup=_back_admin_kb(), parse_mode="HTML")
+            await callback.message.answer(
+                text, reply_markup=_back_admin_kb(), parse_mode="HTML"
+            )
     else:
         await callback.message.edit_text(
             text, reply_markup=_back_admin_kb(), parse_mode="HTML"
@@ -659,6 +668,7 @@ async def admin_maintenance(callback: CallbackQuery) -> None:
         new_state = not current
         await settings.set_maintenance_mode(new_state)
         from app.services.audit import AuditService
+
         await AuditService(session).log(
             admin_id=callback.from_user.id,
             action="maintenance_toggle",
@@ -691,7 +701,6 @@ async def admin_traffic(callback: CallbackQuery) -> None:
     async with AsyncSessionFactory() as session:
         settings = BotSettingsService(session)
         threshold_gb = await settings.get_traffic_abuse_threshold()
-        speed_limit = await settings.get_traffic_abuse_speed_limit()
 
     from app.services.bot_settings import create_traffic_analysis_service
 
@@ -712,7 +721,7 @@ async def admin_traffic(callback: CallbackQuery) -> None:
     if not top_abusers:
         lines.append("✅ Нарушителей не обнаружено")
     else:
-        lines.append(f"⛔️ <b>Топ нарушителей:</b>\n")
+        lines.append("⛔️ <b>Топ нарушителей:</b>\n")
         for u in top_abusers:
             gb = u.get("total_gb", 0)
             username = u.get("username", "")
@@ -883,8 +892,6 @@ async def admin_search_result(message: Message, state: FSMContext) -> None:
     await state.clear()
     query = message.text.strip().lstrip("@")
 
-    from app.utils.html_utils import sanitize_search_query
-
     safe_query = sanitize_search_query(query, max_length=50)
 
     async with AsyncSessionFactory() as session:
@@ -959,6 +966,7 @@ async def admin_ban_user(callback: CallbackQuery) -> None:
             or "🚫 Ваш аккаунт заблокирован."
         )
         from app.services.audit import AuditService
+
         await AuditService(session).log(
             admin_id=callback.from_user.id,
             action="ban",
@@ -1078,6 +1086,7 @@ async def admin_deductbal_confirm(message: Message, state: FSMContext) -> None:
     async with AsyncSessionFactory() as session:
         user = await UserService(session).deduct_balance(user_id, amount)
         from app.services.audit import AuditService
+
         await AuditService(session).log(
             admin_id=message.from_user.id,
             action="deduct_balance",
@@ -1247,7 +1256,13 @@ async def admin_gift_key_start(callback: CallbackQuery, state: FSMContext) -> No
 # ── Admin extend subscription ────────────────────────────────────────────────
 
 
-@router.callback_query(F.data.startswith("adm:extend:") & ~F.data.startswith("adm:extend:sep") & ~F.data.startswith("adm:extend:pick:") & ~F.data.startswith("adm:extend:confirm:") & ~F.data.startswith("adm:extend:custom:"))
+@router.callback_query(
+    F.data.startswith("adm:extend:")
+    & ~F.data.startswith("adm:extend:sep")
+    & ~F.data.startswith("adm:extend:pick:")
+    & ~F.data.startswith("adm:extend:confirm:")
+    & ~F.data.startswith("adm:extend:custom:")
+)
 async def admin_extend_start(callback: CallbackQuery) -> None:
     if not _is_admin(callback.from_user.id):
         return
@@ -1255,14 +1270,15 @@ async def admin_extend_start(callback: CallbackQuery) -> None:
 
     async with AsyncSessionFactory() as session:
         keys = await VpnKeyService(session).get_all_for_user(user_id)
-        plans = await PlanService(session).get_all(only_active=True)
 
     active_keys = [
-        k for k in keys
+        k
+        for k in keys
         if str(k.status.value if hasattr(k.status, "value") else k.status) == "active"
     ]
     expired_keys = [
-        k for k in keys
+        k
+        for k in keys
         if str(k.status.value if hasattr(k.status, "value") else k.status) != "active"
     ]
 
@@ -1281,11 +1297,15 @@ async def admin_extend_start(callback: CallbackQuery) -> None:
                 )
             )
     else:
-        builder.row(InlineKeyboardButton(text="Нет активных", callback_data="adm:extend:sep1"))
+        builder.row(
+            InlineKeyboardButton(text="Нет активных", callback_data="adm:extend:sep1")
+        )
 
     if expired_keys:
         builder.row(
-            InlineKeyboardButton(text="━━━ Истёкшие ━━━", callback_data="adm:extend:sep2")
+            InlineKeyboardButton(
+                text="━━━ Истёкшие ━━━", callback_data="adm:extend:sep2"
+            )
         )
         for k in expired_keys[:5]:
             name = k.name or f"Подписка #{k.id}"
@@ -1351,7 +1371,6 @@ async def admin_quick_summary(callback: CallbackQuery) -> None:
     from sqlalchemy import select, func, cast, Numeric
     from app.models.payment import Payment
     from app.models.user import User
-    from app.models.vpn_key import VpnKey, VpnKeyStatus
 
     async with AsyncSessionFactory() as session:
         now = datetime.now(timezone.utc)
@@ -1371,9 +1390,9 @@ async def admin_quick_summary(callback: CallbackQuery) -> None:
         new_today = new_today_r.scalar_one()
 
         new_yesterday_r = await session.execute(
-            select(func.count()).select_from(User).where(
-                User.created_at >= yesterday, User.created_at < today
-            )
+            select(func.count())
+            .select_from(User)
+            .where(User.created_at >= yesterday, User.created_at < today)
         )
         new_yesterday = new_yesterday_r.scalar_one()
 
@@ -1383,9 +1402,9 @@ async def admin_quick_summary(callback: CallbackQuery) -> None:
         new_week = new_week_r.scalar_one()
 
         new_last_week_r = await session.execute(
-            select(func.count()).select_from(User).where(
-                User.created_at >= last_week_start, User.created_at < last_week_end
-            )
+            select(func.count())
+            .select_from(User)
+            .where(User.created_at >= last_week_start, User.created_at < last_week_end)
         )
         new_last_week = new_last_week_r.scalar_one()
 
@@ -1402,7 +1421,8 @@ async def admin_quick_summary(callback: CallbackQuery) -> None:
             select(func.coalesce(func.sum(cast(Payment.amount, Numeric)), 0)).where(
                 Payment.status == PaymentStatus.SUCCEEDED.value,
                 Payment.payment_type == PaymentType.SUBSCRIPTION.value,
-                Payment.created_at >= yesterday, Payment.created_at < today,
+                Payment.created_at >= yesterday,
+                Payment.created_at < today,
             )
         )
         rev_yesterday = float(rev_yesterday_r.scalar_one() or 0)
@@ -1420,22 +1440,23 @@ async def admin_quick_summary(callback: CallbackQuery) -> None:
             select(func.coalesce(func.sum(cast(Payment.amount, Numeric)), 0)).where(
                 Payment.status == PaymentStatus.SUCCEEDED.value,
                 Payment.payment_type == PaymentType.SUBSCRIPTION.value,
-                Payment.created_at >= last_week_start, Payment.created_at < last_week_end,
+                Payment.created_at >= last_week_start,
+                Payment.created_at < last_week_end,
             )
         )
         rev_last_week = float(rev_last_week_r.scalar_one() or 0)
 
         online_1h_r = await session.execute(
-            select(func.count()).select_from(User).where(
-                User.last_seen >= now - timedelta(hours=1)
-            )
+            select(func.count())
+            .select_from(User)
+            .where(User.last_seen >= now - timedelta(hours=1))
         )
         online_1h = online_1h_r.scalar_one()
 
         online_24h_r = await session.execute(
-            select(func.count()).select_from(User).where(
-                User.last_seen >= now - timedelta(hours=24)
-            )
+            select(func.count())
+            .select_from(User)
+            .where(User.last_seen >= now - timedelta(hours=24))
         )
         online_24h = online_24h_r.scalar_one()
 
@@ -1469,9 +1490,13 @@ async def admin_quick_summary(callback: CallbackQuery) -> None:
     )
 
     try:
-        await callback.message.edit_text(text, reply_markup=builder.as_markup(), parse_mode="HTML")
+        await callback.message.edit_text(
+            text, reply_markup=builder.as_markup(), parse_mode="HTML"
+        )
     except Exception:
-        await callback.message.answer(text, reply_markup=builder.as_markup(), parse_mode="HTML")
+        await callback.message.answer(
+            text, reply_markup=builder.as_markup(), parse_mode="HTML"
+        )
     await callback.answer()
 
 
@@ -1485,9 +1510,9 @@ async def admin_quick_ban_start(callback: CallbackQuery, state: FSMContext) -> N
     await state.set_state(QuickBanState.waiting_user_id)
     await callback.message.edit_text(
         "⛔ <b>Быстрый бан</b>\n\nВведите Telegram ID пользователя:",
-        reply_markup=InlineKeyboardBuilder().row(
-            InlineKeyboardButton(text="◀️ Отмена", callback_data="adm:back")
-        ).as_markup(),
+        reply_markup=InlineKeyboardBuilder()
+        .row(InlineKeyboardButton(text="◀️ Отмена", callback_data="adm:back"))
+        .as_markup(),
         parse_mode="HTML",
     )
     await callback.answer()
@@ -1537,12 +1562,17 @@ async def admin_quick_ban_confirm(message: Message, state: FSMContext) -> None:
         await UserService(session).ban(user_id)
         await session.commit()
 
-        ban_msg = reason if reason != "-" else (
-            await BotSettingsService(session).get("ban_message")
-            or "🚫 Ваш аккаунт заблокирован."
+        ban_msg = (
+            reason
+            if reason != "-"
+            else (
+                await BotSettingsService(session).get("ban_message")
+                or "🚫 Ваш аккаунт заблокирован."
+            )
         )
 
         from app.services.audit import AuditService
+
         await AuditService(session).log(
             admin_id=message.from_user.id,
             action="quick_ban",
@@ -1553,6 +1583,7 @@ async def admin_quick_ban_confirm(message: Message, state: FSMContext) -> None:
         await session.commit()
 
     from app.services.telegram_notify import TelegramNotifyService
+
     await TelegramNotifyService().send_message(user_id, ban_msg)
 
     await message.answer(f"✅ Пользователь {user_id} заблокирован")
@@ -1587,7 +1618,7 @@ def _build_filter_stmt(filter_type: str, now):
     from app.models.vpn_key import VpnKey, VpnKeyStatus
 
     if filter_type == "all":
-        return select(User.id).where(User.is_banned == False)
+        return select(User.id).where(User.is_banned.is_(False))
     elif filter_type == "active":
         return (
             select(User.id)
@@ -1597,7 +1628,7 @@ def _build_filter_stmt(filter_type: str, now):
         )
     elif filter_type == "no_sub":
         subq = select(VpnKey.user_id).where(VpnKey.status == VpnKeyStatus.ACTIVE.value)
-        return select(User.id).where(User.id.not_in(subq), User.is_banned == False)
+        return select(User.id).where(User.id.not_in(subq), User.is_banned.is_(False))
     elif filter_type == "expired_sub":
         subq = select(VpnKey.user_id).where(VpnKey.status == VpnKeyStatus.ACTIVE.value)
         return (
@@ -1607,24 +1638,33 @@ def _build_filter_stmt(filter_type: str, now):
             .distinct()
         )
     elif filter_type == "balance_gt0":
-        return select(User.id).where(User.balance > 0, User.is_banned == False)
+        return select(User.id).where(User.balance > 0, User.is_banned.is_(False))
     elif filter_type == "balance_gt500":
-        return select(User.id).where(User.balance > 500, User.is_banned == False)
+        return select(User.id).where(User.balance > 500, User.is_banned.is_(False))
     elif filter_type == "reg_7d":
-        return select(User.id).where(User.created_at >= now - timedelta(days=7), User.is_banned == False)
+        return select(User.id).where(
+            User.created_at >= now - timedelta(days=7),
+            User.is_banned.is_(False),
+        )
     elif filter_type == "reg_30d":
-        return select(User.id).where(User.created_at >= now - timedelta(days=30), User.is_banned == False)
+        return select(User.id).where(
+            User.created_at >= now - timedelta(days=30),
+            User.is_banned.is_(False),
+        )
     elif filter_type == "lang_ru":
-        return select(User.id).where(User.language == "ru", User.is_banned == False)
+        return select(User.id).where(User.language == "ru", User.is_banned.is_(False))
     elif filter_type == "lang_en":
-        return select(User.id).where(User.language == "en", User.is_banned == False)
+        return select(User.id).where(User.language == "en", User.is_banned.is_(False))
     elif filter_type == "inactive_30d":
         return select(User.id).where(
             User.last_seen < now - timedelta(days=30),
-            User.is_banned == False,
+            User.is_banned.is_(False),
         )
     elif filter_type == "autorenew_on":
-        return select(User.id).where(User.autorenew == True, User.is_banned == False)
+        return select(User.id).where(
+            User.autorenew.is_(True),
+            User.is_banned.is_(False),
+        )
     return None
 
 
@@ -1635,9 +1675,9 @@ async def admin_broadcast_filtered(callback: CallbackQuery, state: FSMContext) -
     await state.set_state(BroadcastFilterState.waiting_text)
     await callback.message.edit_text(
         "📢 <b>Рассылка с фильтром</b>\n\nВведите текст рассылки (HTML поддерживается):",
-        reply_markup=InlineKeyboardBuilder().row(
-            InlineKeyboardButton(text="◀️ Отмена", callback_data="adm:broadcast")
-        ).as_markup(),
+        reply_markup=InlineKeyboardBuilder()
+        .row(InlineKeyboardButton(text="◀️ Отмена", callback_data="adm:broadcast"))
+        .as_markup(),
         parse_mode="HTML",
     )
     await callback.answer()
@@ -1663,7 +1703,9 @@ async def admin_broadcast_filter_text(message: Message, state: FSMContext) -> No
 
 
 @router.callback_query(F.data.startswith("bc_filter:"))
-async def admin_broadcast_filter_confirm(callback: CallbackQuery, state: FSMContext) -> None:
+async def admin_broadcast_filter_confirm(
+    callback: CallbackQuery, state: FSMContext
+) -> None:
     if not _is_admin(callback.from_user.id):
         return
     filter_type = callback.data.split(":", 1)[1]
@@ -1684,15 +1726,17 @@ async def admin_broadcast_filter_confirm(callback: CallbackQuery, state: FSMCont
             await callback.answer("❌ Неизвестный фильтр", show_alert=True)
             return
 
-        count_result = await session.execute(select(func.count()).select_from(stmt.subquery()))
+        count_result = await session.execute(
+            select(func.count()).select_from(stmt.subquery())
+        )
         total_count = count_result.scalar_one()
 
     if total_count == 0:
         await callback.message.edit_text(
             "⚠️ <b>Нет пользователей</b>, соответствующих этому фильтру.",
-            reply_markup=InlineKeyboardBuilder().row(
-                InlineKeyboardButton(text="◀️ Назад", callback_data="adm:broadcast")
-            ).as_markup(),
+            reply_markup=InlineKeyboardBuilder()
+            .row(InlineKeyboardButton(text="◀️ Назад", callback_data="adm:broadcast"))
+            .as_markup(),
             parse_mode="HTML",
         )
         await state.clear()
@@ -1709,7 +1753,11 @@ async def admin_broadcast_filter_confirm(callback: CallbackQuery, state: FSMCont
             callback_data="bc_filter:send:confirm",
         )
     )
-    builder.row(InlineKeyboardButton(text="◀️ Выбрать другой фильтр", callback_data="bc_filter:reselect"))
+    builder.row(
+        InlineKeyboardButton(
+            text="◀️ Выбрать другой фильтр", callback_data="bc_filter:reselect"
+        )
+    )
     builder.row(InlineKeyboardButton(text="◀️ Отмена", callback_data="adm:broadcast"))
 
     await callback.message.edit_text(
@@ -1725,7 +1773,9 @@ async def admin_broadcast_filter_confirm(callback: CallbackQuery, state: FSMCont
 
 
 @router.callback_query(F.data == "bc_filter:reselect")
-async def admin_broadcast_filter_reselect(callback: CallbackQuery, state: FSMContext) -> None:
+async def admin_broadcast_filter_reselect(
+    callback: CallbackQuery, state: FSMContext
+) -> None:
     if not _is_admin(callback.from_user.id):
         return
     await state.set_state(BroadcastFilterState.waiting_filter)
@@ -1746,7 +1796,9 @@ async def admin_broadcast_filter_reselect(callback: CallbackQuery, state: FSMCon
 
 
 @router.callback_query(F.data == "bc_filter:send:confirm")
-async def admin_broadcast_filter_send(callback: CallbackQuery, state: FSMContext) -> None:
+async def admin_broadcast_filter_send(
+    callback: CallbackQuery, state: FSMContext
+) -> None:
     if not _is_admin(callback.from_user.id):
         return
 
@@ -1767,8 +1819,6 @@ async def admin_broadcast_filter_send(callback: CallbackQuery, state: FSMContext
     )
 
     from datetime import datetime, timezone
-    from sqlalchemy import select
-    from app.models.user import User
     from app.services.telegram_notify import TelegramNotifyService
 
     async with AsyncSessionFactory() as session:
@@ -1815,6 +1865,7 @@ async def admin_broadcast_filter_send(callback: CallbackQuery, state: FSMContext
         await session.flush()
 
         from app.services.audit import AuditService
+
         await AuditService(session).log(
             admin_id=callback.from_user.id,
             action="broadcast_filtered",
@@ -1830,9 +1881,9 @@ async def admin_broadcast_filter_send(callback: CallbackQuery, state: FSMContext
         f"👥 Найдено: <b>{total}</b>\n"
         f"✅ Отправлено: <b>{sent}</b>\n"
         f"❌ Ошибок: <b>{failed}</b>",
-        reply_markup=InlineKeyboardBuilder().row(
-            InlineKeyboardButton(text="◀️ Назад", callback_data="adm:broadcast")
-        ).as_markup(),
+        reply_markup=InlineKeyboardBuilder()
+        .row(InlineKeyboardButton(text="◀️ Назад", callback_data="adm:broadcast"))
+        .as_markup(),
         parse_mode="HTML",
     )
     await state.clear()
@@ -1855,9 +1906,9 @@ async def admin_search_advanced(callback: CallbackQuery, state: FSMContext) -> N
         "• @username\n"
         "• Имя\n"
         "• External ID платежа",
-        reply_markup=InlineKeyboardBuilder().row(
-            InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back")
-        ).as_markup(),
+        reply_markup=InlineKeyboardBuilder()
+        .row(InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back"))
+        .as_markup(),
         parse_mode="HTML",
     )
     await callback.answer()
@@ -1873,6 +1924,7 @@ async def admin_audit_log(callback: CallbackQuery) -> None:
 
     async with AsyncSessionFactory() as session:
         from app.services.audit import AuditService
+
         entries = await AuditService(session).get_recent(limit=50)
 
     if not entries:
@@ -1880,13 +1932,21 @@ async def admin_audit_log(callback: CallbackQuery) -> None:
     else:
         lines = ["📋 <b>История действий</b>\n"]
         action_icons = {
-            "quick_ban": "⛔", "ban": "🚫", "unban": "✅",
-            "add_balance": "💰", "deduct_balance": "💸",
-            "gift_key": "🎁", "extend_key": "🔄",
-            "broadcast": "📢", "broadcast_filtered": "📢",
-            "create_plan": "📦", "backup_db": "💾",
-            "create_promo": "🏷", "maintenance_toggle": "🔧",
-            "2fa_backup_exported": "🔐", "login": "🔑",
+            "quick_ban": "⛔",
+            "ban": "🚫",
+            "unban": "✅",
+            "add_balance": "💰",
+            "deduct_balance": "💸",
+            "gift_key": "🎁",
+            "extend_key": "🔄",
+            "broadcast": "📢",
+            "broadcast_filtered": "📢",
+            "create_plan": "📦",
+            "backup_db": "💾",
+            "create_promo": "🏷",
+            "maintenance_toggle": "🔧",
+            "2fa_backup_exported": "🔐",
+            "login": "🔑",
         }
         for e in entries:
             icon = action_icons.get(e.action, "📝")
@@ -1909,9 +1969,13 @@ async def admin_audit_log(callback: CallbackQuery) -> None:
     builder.row(InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back"))
 
     try:
-        await callback.message.edit_text(text, reply_markup=builder.as_markup(), parse_mode="HTML")
+        await callback.message.edit_text(
+            text, reply_markup=builder.as_markup(), parse_mode="HTML"
+        )
     except Exception:
-        await callback.message.answer(text, reply_markup=builder.as_markup(), parse_mode="HTML")
+        await callback.message.answer(
+            text, reply_markup=builder.as_markup(), parse_mode="HTML"
+        )
     await callback.answer()
 
 
@@ -1924,11 +1988,10 @@ async def admin_quick_plan_start(callback: CallbackQuery, state: FSMContext) -> 
         return
     await state.set_state(QuickPlanState.waiting_name)
     await callback.message.edit_text(
-        "📦 <b>Быстрое создание тарифа</b>\n\n"
-        "Введите название тарифа:",
-        reply_markup=InlineKeyboardBuilder().row(
-            InlineKeyboardButton(text="◀️ Отмена", callback_data="adm:back")
-        ).as_markup(),
+        "📦 <b>Быстрое создание тарифа</b>\n\nВведите название тарифа:",
+        reply_markup=InlineKeyboardBuilder()
+        .row(InlineKeyboardButton(text="◀️ Отмена", callback_data="adm:back"))
+        .as_markup(),
         parse_mode="HTML",
     )
     await callback.answer()
@@ -1965,6 +2028,7 @@ async def admin_quick_plan_price(message: Message, state: FSMContext) -> None:
         return
     try:
         from decimal import Decimal
+
         price = Decimal(message.text.strip())
         if price <= 0:
             raise ValueError
@@ -1986,6 +2050,7 @@ async def admin_quick_plan_price(message: Message, state: FSMContext) -> None:
         await session.commit()
 
         from app.services.audit import AuditService
+
         await AuditService(session).log(
             admin_id=message.from_user.id,
             action="create_plan",
@@ -1996,10 +2061,7 @@ async def admin_quick_plan_price(message: Message, state: FSMContext) -> None:
         await session.commit()
 
     await message.answer(
-        f"✅ Тариф создан!\n\n"
-        f"📦 <b>{name}</b>\n"
-        f"📅 {days} дней\n"
-        f"💰 {price} ₽",
+        f"✅ Тариф создан!\n\n📦 <b>{name}</b>\n📅 {days} дней\n💰 {price} ₽",
         parse_mode="HTML",
     )
     await state.clear()
@@ -2017,31 +2079,43 @@ async def admin_backup(callback: CallbackQuery) -> None:
 
     await callback.answer("💾 Создание бэкапа...")
 
-    import subprocess
     import os
+    import subprocess
+    import tempfile
     from datetime import datetime
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"backup_{timestamp}.sql"
-    filepath = f"/tmp/{filename}"
+    tmp_file = tempfile.NamedTemporaryFile(
+        prefix=f"backup_{timestamp}_", suffix=".sql", delete=False
+    )
+    filepath = tmp_file.name
+    tmp_file.close()
 
     try:
         db_url = os.environ.get("DATABASE_URL", "")
         if not db_url:
             from app.core.config import config as _cfg
+
             db_url = _cfg.database.sync_dsn
 
         if db_url.startswith("postgresql://"):
             from urllib.parse import urlparse
+
             parsed = urlparse(db_url)
             cmd = [
                 "pg_dump",
-                "-h", parsed.hostname or "db",
-                "-p", str(parsed.port or 5432),
-                "-U", parsed.username or "postgres",
-                "-d", parsed.path.lstrip("/"),
-                "-F", "c",
-                "-f", filepath,
+                "-h",
+                parsed.hostname or "db",
+                "-p",
+                str(parsed.port or 5432),
+                "-U",
+                parsed.username or "postgres",
+                "-d",
+                parsed.path.lstrip("/"),
+                "-F",
+                "c",
+                "-f",
+                filepath,
             ]
             env = os.environ.copy()
             env["PGPASSWORD"] = parsed.password or ""
@@ -2057,9 +2131,14 @@ async def admin_backup(callback: CallbackQuery) -> None:
 
             if result.returncode == 0 and os.path.exists(filepath):
                 file_size = os.path.getsize(filepath)
-                size_str = f"{file_size / 1024:.0f} KB" if file_size < 1024*1024 else f"{file_size / (1024*1024):.1f} MB"
+                size_str = (
+                    f"{file_size / 1024:.0f} KB"
+                    if file_size < 1024 * 1024
+                    else f"{file_size / (1024 * 1024):.1f} MB"
+                )
 
                 from aiogram.types import FSInputFile
+
                 await callback.message.answer_document(
                     document=FSInputFile(filepath),
                     caption=f"💾 <b>Бэкап создан!</b>\n\n📅 {timestamp}\n📦 Размер: {size_str}",
@@ -2067,8 +2146,10 @@ async def admin_backup(callback: CallbackQuery) -> None:
                 )
 
                 from app.core.database import AsyncSessionFactory as ASF
+
                 async with ASF() as session:
                     from app.services.audit import AuditService
+
                     await AuditService(session).log(
                         admin_id=callback.from_user.id,
                         action="backup_db",
@@ -2076,18 +2157,27 @@ async def admin_backup(callback: CallbackQuery) -> None:
                     )
                     await session.commit()
 
-                os.remove(filepath)
             else:
-                await callback.message.answer(f"❌ Ошибка бэкапа:\n{result.stderr[:500]}", parse_mode=None)
+                await callback.message.answer(
+                    f"❌ Ошибка бэкапа:\n{result.stderr[:500]}", parse_mode=None
+                )
         else:
             await callback.message.answer("❌ Поддерживается только PostgreSQL")
 
     except subprocess.TimeoutExpired:
         await callback.message.answer("❌ Таймаут бэкапа (>60с)")
     except FileNotFoundError:
-        await callback.message.answer("❌ pg_dump не найден. Установите postgresql-client.")
+        await callback.message.answer(
+            "❌ pg_dump не найден. Установите postgresql-client."
+        )
     except Exception as e:
         await callback.message.answer(f"❌ Ошибка: {e}", parse_mode=None)
+    finally:
+        if os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except OSError as cleanup_error:
+                log.warning(f"Failed to remove temporary backup file: {cleanup_error}")
 
     await callback.answer()
 
@@ -2095,7 +2185,9 @@ async def admin_backup(callback: CallbackQuery) -> None:
 # ── 8. Обновлённая админка с новыми кнопками ─────────────────────────────────
 
 
-def admin_kb_extended(panel_url: str = "", maintenance: bool = False) -> InlineKeyboardMarkup:
+def admin_kb_extended(
+    panel_url: str = "", maintenance: bool = False
+) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(text="📊 Сводка", callback_data="adm:summary"),
@@ -2134,6 +2226,7 @@ def admin_kb_extended(panel_url: str = "", maintenance: bool = False) -> InlineK
     )
     if panel_url:
         from aiogram.types import WebAppInfo
+
         builder.row(
             InlineKeyboardButton(
                 text="🖥 Открыть панель", web_app=WebAppInfo(url=panel_url)
@@ -2147,7 +2240,6 @@ async def _admin_main_text_extended() -> tuple[str, InlineKeyboardMarkup, str | 
     from sqlalchemy import select, func, cast, Numeric
     from app.models.payment import Payment, PaymentStatus, PaymentType
     from app.models.user import User
-    from app.models.vpn_key import VpnKey, VpnKeyStatus
     from app.services.bot_settings import BotSettingsService
 
     async with AsyncSessionFactory() as session:
@@ -2162,9 +2254,9 @@ async def _admin_main_text_extended() -> tuple[str, InlineKeyboardMarkup, str | 
         today = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
         online_1h_r = await session.execute(
-            select(func.count()).select_from(User).where(
-                User.last_seen >= now - timedelta(hours=1)
-            )
+            select(func.count())
+            .select_from(User)
+            .where(User.last_seen >= now - timedelta(hours=1))
         )
         online_1h = online_1h_r.scalar_one()
 
@@ -2228,7 +2320,9 @@ async def admin_extend_pick(callback: CallbackQuery, state: FSMContext) -> None:
             )
         )
     builder.row(
-        InlineKeyboardButton(text="Своё значение", callback_data=f"adm:extend:custom:{user_id}:{key_id}")
+        InlineKeyboardButton(
+            text="Своё значение", callback_data=f"adm:extend:custom:{user_id}:{key_id}"
+        )
     )
     builder.row(
         InlineKeyboardButton(text="Назад", callback_data=f"adm:extend:{user_id}")
@@ -2254,9 +2348,9 @@ async def admin_extend_custom(callback: CallbackQuery, state: FSMContext) -> Non
 
     await callback.message.edit_text(
         f"Введите количество дней для продления подписки #{key_id}:",
-        reply_markup=InlineKeyboardBuilder().row(
-            InlineKeyboardButton(text="Отмена", callback_data=f"adm:extend:{user_id}")
-        ).as_markup(),
+        reply_markup=InlineKeyboardBuilder()
+        .row(InlineKeyboardButton(text="Отмена", callback_data=f"adm:extend:{user_id}"))
+        .as_markup(),
     )
     await callback.answer()
 
@@ -2290,7 +2384,9 @@ async def admin_extend_days_input(message: Message, state: FSMContext) -> None:
         await session.commit()
 
     if extended:
-        new_exp = extended.expires_at.strftime("%d.%m.%Y") if extended.expires_at else "—"
+        new_exp = (
+            extended.expires_at.strftime("%d.%m.%Y") if extended.expires_at else "—"
+        )
         await message.answer(
             f"✅ Подписка #{key_id} продлена на {days} дней\n"
             f"Было: {old_exp} → Стало: {new_exp}",
@@ -2298,6 +2394,7 @@ async def admin_extend_days_input(message: Message, state: FSMContext) -> None:
         )
         try:
             from app.services.telegram_notify import TelegramNotifyService
+
             await TelegramNotifyService().send_message(
                 user_id,
                 f"🔄 Подписка продлена администратором!\n\n"
@@ -2327,15 +2424,17 @@ async def admin_extend_confirm(callback: CallbackQuery) -> None:
             await callback.answer("Подписка не найдена", show_alert=True)
             return
 
-        old_exp = key.expires_at.strftime("%d.%m.%Y") if key.expires_at else "—"
         extended = await VpnKeyService(session).extend(key_id, days)
         await session.commit()
 
     if extended:
-        new_exp = extended.expires_at.strftime("%d.%m.%Y") if extended.expires_at else "—"
+        new_exp = (
+            extended.expires_at.strftime("%d.%m.%Y") if extended.expires_at else "—"
+        )
         await callback.answer(f"Продлено до {new_exp}!", show_alert=True)
         try:
             from app.services.telegram_notify import TelegramNotifyService
+
             await TelegramNotifyService().send_message(
                 user_id,
                 f"🔄 Подписка продлена администратором!\n\n"
@@ -2646,6 +2745,7 @@ async def promo_got_max_uses(message: Message, state: FSMContext) -> None:
             max_uses=max_uses,
         )
         from app.services.audit import AuditService
+
         await AuditService(session).log(
             admin_id=message.from_user.id,
             action="create_promo",
@@ -2808,7 +2908,7 @@ async def admin_referrals(callback: CallbackQuery) -> None:
         photo = await BotSettingsService(session).get("photo_referrals") or None
 
     lines = [
-        f"👥 <b>Реферальная программа</b>\n",
+        "👥 <b>Реферальная программа</b>\n",
         f"Всего рефералов: <b>{stats['total_referrals']}</b>",
         f"Оплачено бонусов: <b>{stats['paid_referrals']}</b>",
         f"Бонусных дней выдано: <b>{stats['total_bonus_days']}</b>\n",
@@ -2828,7 +2928,10 @@ async def admin_referrals(callback: CallbackQuery) -> None:
         try:
             await callback.message.delete()
             await callback.message.answer_photo(
-                photo=photo, caption="\n".join(lines), reply_markup=_back_admin_kb(), parse_mode="HTML"
+                photo=photo,
+                caption="\n".join(lines),
+                reply_markup=_back_admin_kb(),
+                parse_mode="HTML",
             )
         except Exception:
             await callback.message.answer(
@@ -2918,6 +3021,7 @@ async def ban_user_cmd(message: Message) -> None:
     async with AsyncSessionFactory() as session:
         user = await UserService(session).ban(user_id)
         from app.services.audit import AuditService
+
         await AuditService(session).log(
             admin_id=message.from_user.id,
             action="ban",
@@ -2944,6 +3048,7 @@ async def unban_user_cmd(message: Message) -> None:
     async with AsyncSessionFactory() as session:
         user = await UserService(session).unban(user_id)
         from app.services.audit import AuditService
+
         await AuditService(session).log(
             admin_id=message.from_user.id,
             action="unban",
@@ -2983,6 +3088,7 @@ async def create_promo_cmd(message: Message) -> None:
                 max_uses=max_uses,
             )
             from app.services.audit import AuditService
+
             await AuditService(session).log(
                 admin_id=message.from_user.id,
                 action="create_promo",
@@ -3049,6 +3155,7 @@ async def givekey_cmd(message: Message) -> None:
             return
         key = await VpnKeyService(session).provision(user_id=user_id, plan=plan)
         from app.services.audit import AuditService
+
         await AuditService(session).log(
             admin_id=message.from_user.id,
             action="give_key",

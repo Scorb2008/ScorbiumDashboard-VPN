@@ -1,4 +1,5 @@
 """Notification settings & testing routes."""
+
 from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -35,17 +36,24 @@ async def update_notification_setting(
 ):
     _require_permission(request, "system")
     allowed_keys = {
-        "notify_monitoring_enabled", "notify_cooldown_seconds",
-        "notify_on_degraded", "notify_chat_ids",
-        "notify_svc_database", "notify_svc_telegram_bot",
-        "notify_svc_vpn_panel", "notify_svc_yookassa", "notify_svc_cryptobot",
-        "ps_platega_enabled", "ps_paypalych_enabled",
+        "notify_monitoring_enabled",
+        "notify_cooldown_seconds",
+        "notify_on_degraded",
+        "notify_chat_ids",
+        "notify_svc_database",
+        "notify_svc_telegram_bot",
+        "notify_svc_vpn_panel",
+        "notify_svc_yookassa",
+        "notify_svc_cryptobot",
+        "ps_platega_enabled",
+        "ps_paypalych_enabled",
     }
     if key not in allowed_keys:
         return JSONResponse({"error": "Invalid key"}, status_code=400)
     await BotSettingsService(db).set(key, value)
     await db.commit()
     from app.services.health import health_service
+
     health_service._alert_cooldowns.clear()
     return JSONResponse({"ok": True})
 

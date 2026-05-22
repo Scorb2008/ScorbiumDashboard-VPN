@@ -17,7 +17,10 @@ class TokenBlacklistService:
         message = f"{exc} {getattr(exc, 'orig', '')}".lower()
         if "blacklisted_tokens" not in message:
             return False
-        if not any(marker in message for marker in ("does not exist", "undefinedtable", "no such table")):
+        if not any(
+            marker in message
+            for marker in ("does not exist", "undefinedtable", "no such table")
+        ):
             return False
 
         try:
@@ -33,7 +36,9 @@ class TokenBlacklistService:
         )
         return True
 
-    async def blacklist_jti(self, jti: str, sub: str, expires_at: Optional[datetime] = None) -> None:
+    async def blacklist_jti(
+        self, jti: str, sub: str, expires_at: Optional[datetime] = None
+    ) -> None:
         """Blacklist a specific JWT by its jti."""
         try:
             entry = BlacklistedToken(
@@ -49,7 +54,9 @@ class TokenBlacklistService:
                 return
             raise
 
-    async def blacklist_all_for_user(self, sub: str, expires_at: Optional[datetime] = None) -> None:
+    async def blacklist_all_for_user(
+        self, sub: str, expires_at: Optional[datetime] = None
+    ) -> None:
         """Blacklist ALL tokens for a user (used on password change)."""
         if expires_at is None:
             expires_at = datetime.now(timezone.utc) + timedelta(days=7)
@@ -74,7 +81,8 @@ class TokenBlacklistService:
             result = await self.session.execute(
                 select(BlacklistedToken).where(
                     BlacklistedToken.sub == sub,
-                    (BlacklistedToken.expires_at > now) | (BlacklistedToken.expires_at.is_(None)),
+                    (BlacklistedToken.expires_at > now)
+                    | (BlacklistedToken.expires_at.is_(None)),
                 )
             )
         except (ProgrammingError, DBAPIError) as exc:
@@ -105,11 +113,16 @@ class TokenBlacklistService:
         return result.rowcount
 
     @staticmethod
-    async def get_jti_from_token(token: str, secret: str, algorithm: str = "HS256") -> Optional[str]:
+    async def get_jti_from_token(
+        token: str, secret: str, algorithm: str = "HS256"
+    ) -> Optional[str]:
         """Extract jti from a JWT without validating expiry (for logout)."""
         from jose import JWTError, jwt
+
         try:
-            payload = jwt.decode(token, secret, algorithms=[algorithm], options={"verify_exp": False})
+            payload = jwt.decode(
+                token, secret, algorithms=[algorithm], options={"verify_exp": False}
+            )
             return payload.get("jti")
         except JWTError:
             return None

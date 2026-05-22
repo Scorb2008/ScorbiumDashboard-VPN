@@ -3,6 +3,7 @@ PayPal'ych (pal24.pro) payment service integration.
 Docs: https://docs.paypalych.io/
 Auth: Bearer token in Authorization header
 """
+
 import json
 import http.client
 import os
@@ -35,6 +36,7 @@ class PayPalychService:
     ) -> Dict[str, Any]:
         """Make HTTP request to PayPal'ych API."""
         import asyncio
+
         conn = None
         try:
             conn = http.client.HTTPSConnection(self.base_url, timeout=15)
@@ -45,8 +47,7 @@ class PayPalychService:
             headers = self._get_headers(content_type)
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(
-                None,
-                lambda: conn.request(method, path, payload, headers) or None
+                None, lambda: conn.request(method, path, payload, headers) or None
             )
             response = await loop.run_in_executor(None, conn.getresponse)
             data = await loop.run_in_executor(None, response.read)
@@ -60,7 +61,9 @@ class PayPalychService:
             if response.status >= 400:
                 return {
                     "ok": False,
-                    "error": result.get("error") or result.get("message") or f"HTTP {response.status}",
+                    "error": result.get("error")
+                    or result.get("message")
+                    or f"HTTP {response.status}",
                     "error_key": result.get("error_key", ""),
                     "status_code": response.status,
                     "raw": result,
@@ -131,7 +134,7 @@ class PayPalychService:
         return {
             "ok": False,
             "error": result.get("error", "Unknown error"),
-            "error_key": result.get("error_key", "")
+            "error_key": result.get("error_key", ""),
         }
 
     async def get_bill_status(self, bill_id: str) -> Dict[str, Any]:
@@ -152,10 +155,7 @@ class PayPalychService:
 
     async def toggle_bill_activity(self, bill_id: str, active: bool) -> Dict[str, Any]:
         """Toggle bill activity via POST /api/v1/bill/toggle_activity"""
-        body = {
-            "id": bill_id,
-            "active": "1" if active else "0"
-        }
+        body = {"id": bill_id, "active": "1" if active else "0"}
         result = await self._make_request(
             "POST",
             "/api/v1/bill/toggle_activity",
@@ -181,7 +181,9 @@ class PayPalychService:
 
     async def get_payment_status(self, payment_id: str) -> Dict[str, Any]:
         """Get payment status via GET /api/v1/payment/status"""
-        result = await self._make_request("GET", f"/api/v1/payment/status?id={payment_id}")
+        result = await self._make_request(
+            "GET", f"/api/v1/payment/status?id={payment_id}"
+        )
         if result.get("success"):
             return {
                 "ok": True,
@@ -222,9 +224,20 @@ class PayPalychService:
             if result.get("ok"):
                 balances = result.get("balances", [])
                 rub_balance = next(
-                    (b.get("balance_available", 0) for b in balances if b.get("currency") == "RUB"), 0
+                    (
+                        b.get("balance_available", 0)
+                        for b in balances
+                        if b.get("currency") == "RUB"
+                    ),
+                    0,
                 )
-                return {"ok": True, "message": f"✅ PayPalych.io подключен. Баланс: {rub_balance} ₽"}
-            return {"ok": False, "message": f"Ошибка: {result.get('error', 'Неизвестно')}"}
+                return {
+                    "ok": True,
+                    "message": f"✅ PayPalych.io подключен. Баланс: {rub_balance} ₽",
+                }
+            return {
+                "ok": False,
+                "message": f"Ошибка: {result.get('error', 'Неизвестно')}",
+            }
         except Exception as e:
             return {"ok": False, "message": f"Ошибка подключения: {str(e)}"}

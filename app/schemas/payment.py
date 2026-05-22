@@ -1,7 +1,7 @@
 from decimal import Decimal
 from typing import Optional
 from pydantic import BaseModel, ConfigDict
-from app.models.payment import PaymentProvider, PaymentStatus, PaymentType
+from app.models.payment import PaymentProvider, PaymentStatus
 
 
 class PaymentCreate(BaseModel):

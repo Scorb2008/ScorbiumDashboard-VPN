@@ -1,4 +1,5 @@
 """Health JSON endpoint for panel monitoring widget."""
+
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Request
@@ -16,6 +17,7 @@ router = APIRouter()
 async def panel_health_json(request: Request, db: AsyncSession = Depends(get_db)):
     _require_permission(request, "system")
     from app.services.health import health_service
+
     entries = await health_service.check_all()
     result = {}
     for name, entry in entries.items():

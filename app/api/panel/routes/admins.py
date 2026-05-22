@@ -1,17 +1,12 @@
 """Admin management routes."""
-import html
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Form, Request, Response
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db
-from app.core.config import config
-from app.models.admin import Admin, AdminRole
 from app.services.admin import AdminService
-from app.services.bot_settings import BotSettingsService
 from typing import Optional
 from .shared import _require_permission, _get_admin_info, _toast, _base_ctx, templates
 
@@ -74,7 +69,12 @@ async def edit_admin(
         resp = Response(status_code=404)
         _toast(resp, "Администратор не найден", "error")
         return resp
-    if admin_info and target.username == admin_info["sub"] and role and role != "superadmin":
+    if (
+        admin_info
+        and target.username == admin_info["sub"]
+        and role
+        and role != "superadmin"
+    ):
         resp = Response(status_code=400)
         _toast(resp, "Нельзя понизить самого себя", "error")
         return resp
@@ -90,6 +90,7 @@ async def edit_admin(
     await AdminService(db).update(admin_id, **updates)
     if password is not None and password.strip():
         from app.services.token_blacklist import TokenBlacklistService
+
         await TokenBlacklistService(db).blacklist_all_for_user(target.username)
     await db.commit()
     admins = await AdminService(db).get_all()
@@ -102,7 +103,9 @@ async def edit_admin(
 
 
 @router.delete("/{admin_id}", response_class=HTMLResponse)
-async def delete_admin(admin_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+async def delete_admin(
+    admin_id: int, request: Request, db: AsyncSession = Depends(get_db)
+):
     _require_permission(request, "system")
     admin_info = _get_admin_info(request)
     target = await AdminService(db).get_by_id(admin_id)

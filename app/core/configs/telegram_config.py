@@ -17,8 +17,10 @@ class _TelegramConfig(BaseSettings):
     - TELEGRAM_ADMIN_IDS: List of admin user IDs
     - TELEGRAM_TYPE_PROTOCOL: Protocol type (long/webhook)
     """
-    
-    TELEGRAM_TOKEN_PATTERN: ClassVar[re.Pattern[str]] = re.compile(r"^\d+:[A-Za-z0-9_-]+$")
+
+    TELEGRAM_TOKEN_PATTERN: ClassVar[re.Pattern[str]] = re.compile(
+        r"^\d+:[A-Za-z0-9_-]+$"
+    )
 
     model_config = SettingsConfigDict(
         env_file=env_file,
@@ -94,7 +96,9 @@ class _TelegramConfig(BaseSettings):
 
         if isinstance(value, str):
             try:
-                return [int(id.strip()) for id in re.split(r"[,\s;]+", value) if id.strip()]
+                return [
+                    int(id.strip()) for id in re.split(r"[,\s;]+", value) if id.strip()
+                ]
             except ValueError:
                 raise TelegramException("Invalid TELEGRAM_ADMIN_IDS format")
 
@@ -122,15 +126,18 @@ class _TelegramConfig(BaseSettings):
         if value.startswith("@"):
             value = value[1:]
         return value
-    
-    
+
+
 @lru_cache()
 def get_telegram_config() -> _TelegramConfig:
     return _TelegramConfig()
+
 
 try:
     telegram = get_telegram_config()
     log.success("✅ Telegram config initialized successfully\n")
 except Exception as e:
-    log.error(f"❌ Failed to initialize Telegram config: {e} \n Error in {__file__}: {e}")
+    log.error(
+        f"❌ Failed to initialize Telegram config: {e} \n Error in {__file__}: {e}"
+    )
     raise

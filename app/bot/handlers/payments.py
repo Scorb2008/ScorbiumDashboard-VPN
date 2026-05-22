@@ -40,9 +40,9 @@ async def _provision_with_retry(session, user_id: int, plan, max_retries: int = 
             if key:
                 return key
         except Exception as e:
-            log.warning(f"[bot provision] attempt {attempt+1}/{max_retries}: {e}")
+            log.warning(f"[bot provision] attempt {attempt + 1}/{max_retries}: {e}")
             if attempt < max_retries - 1:
-                await asyncio.sleep(2 ** attempt)
+                await asyncio.sleep(2**attempt)
     return None
 
 
@@ -50,11 +50,11 @@ async def _provision_and_notify(
     user_id: int, payment_id: int, plan_id: int, bot: Bot, force_notify: bool = False
 ) -> bool:
     """Создаём VPN-подписку и уведомляем пользователя.
-    
+
     CRITICAL: Extract ALL ORM scalars before closing session to avoid DetachedInstanceError.
     """
     key_data = None
-    plan_data = None 
+    plan_data = None
     payment_amount = None
     payment_currency = "RUB"
     payment_provider = "—"
@@ -179,15 +179,18 @@ async def _provision_and_notify(
     if should_notify_admins:
         try:
             from app.services.notification import notification_manager
-            await notification_manager.broadcast({
-                "type": "new_payment",
-                "data": {
-                    "payment_id": payment_id,
-                    "user_id": user_id,
-                    "amount": payment_amount or plan_price,
-                    "currency": payment_currency,
-                },
-            })
+
+            await notification_manager.broadcast(
+                {
+                    "type": "new_payment",
+                    "data": {
+                        "payment_id": payment_id,
+                        "user_id": user_id,
+                        "amount": payment_amount or plan_price,
+                        "currency": payment_currency,
+                    },
+                }
+            )
         except Exception as e:
             log.warning(f"[bot] WebSocket broadcast failed: {e}")
     return True
@@ -391,9 +394,9 @@ async def handle_yookassa_check(callback: CallbackQuery, bot: Bot) -> None:
                 confirmation = await PaymentService(session).confirm_once(
                     payment_id, yk_payment.id
                 )
-                delivery = await PaymentFulfillmentService(session).provision_subscription_once(
-                    payment_id, callback.from_user.id, plan
-                )
+                delivery = await PaymentFulfillmentService(
+                    session
+                ).provision_subscription_once(payment_id, callback.from_user.id, plan)
                 await session.commit()
                 await callback.answer(t("payment_success", lang), show_alert=True)
                 await _provision_and_notify(
@@ -401,7 +404,8 @@ async def handle_yookassa_check(callback: CallbackQuery, bot: Bot) -> None:
                     payment_id,
                     plan_id,
                     bot,
-                    force_notify=not confirmation.just_confirmed or not delivery.just_processed,
+                    force_notify=not confirmation.just_confirmed
+                    or not delivery.just_processed,
                 )
             elif yk_payment.status == "canceled":
                 payment.status = PaymentStatus.FAILED.value
@@ -573,7 +577,7 @@ async def successful_payment(message: Message, bot: Bot) -> None:
     payload = message.successful_payment.invoice_payload
     charge_id = message.successful_payment.telegram_payment_charge_id
 
-# ── Пополнение баланса через Stars ───────────────────────────────────────
+    # ── Пополнение баланса через Stars ───────────────────────────────────────
     if payload.startswith("topup_stars:"):
         try:
             _, payment_id_str, _amount_str = payload.split(":")
@@ -602,13 +606,19 @@ async def successful_payment(message: Message, bot: Bot) -> None:
             if payment and plan and payment.user_id == message.from_user.id:
                 plan_days = plan.duration_days
                 await PaymentService(session).confirm_once(payment_id, charge_id)
-                result = await PaymentFulfillmentService(session).extend_subscription_once(
+                result = await PaymentFulfillmentService(
+                    session
+                ).extend_subscription_once(
                     payment_id, message.from_user.id, key_id, plan
                 )
                 extended_key = result.key
                 await session.commit()
         if extended_key:
-            exp = extended_key.expires_at.strftime("%d.%m.%Y") if extended_key.expires_at else "—"
+            exp = (
+                extended_key.expires_at.strftime("%d.%m.%Y")
+                if extended_key.expires_at
+                else "—"
+            )
             try:
                 await bot.send_message(
                     message.from_user.id,
@@ -770,9 +780,9 @@ async def handle_crypto_check(callback: CallbackQuery, bot: Bot) -> None:
                 confirmation = await PaymentService(session).confirm_once(
                     payment_id, str(invoice.get("invoice_id") or external_id)
                 )
-                delivery = await PaymentFulfillmentService(session).provision_subscription_once(
-                    payment_id, callback.from_user.id, plan
-                )
+                delivery = await PaymentFulfillmentService(
+                    session
+                ).provision_subscription_once(payment_id, callback.from_user.id, plan)
                 await session.commit()
             await callback.answer(t("payment_success", lang), show_alert=True)
             await _provision_and_notify(
@@ -780,7 +790,8 @@ async def handle_crypto_check(callback: CallbackQuery, bot: Bot) -> None:
                 payment_id,
                 plan_id,
                 bot,
-                force_notify=not confirmation.just_confirmed or not delivery.just_processed,
+                force_notify=not confirmation.just_confirmed
+                or not delivery.just_processed,
             )
         else:
             await callback.answer(t("payment_pending", lang), show_alert=True)
@@ -792,9 +803,7 @@ async def handle_crypto_check(callback: CallbackQuery, bot: Bot) -> None:
 # ── Пополнение баланса ────────────────────────────────────────────────────────
 
 
-async def _topup_confirm_balance(
-    payment_id: int, external_id: str, bot: Bot
-) -> bool:
+async def _topup_confirm_balance(payment_id: int, external_id: str, bot: Bot) -> bool:
     """Confirm a top-up exactly once, credit balance, and notify the user."""
     amount = 0
     balance = 0.0
@@ -820,7 +829,11 @@ async def _topup_confirm_balance(
         user_lang = u.language if u and u.language else None
         lang = get_lang(settings, user_lang)
         photo = await BotSettingsService(session).get("photo_status") or None
-        balance = float(result.balance if result.balance is not None else (u.balance if u else 0) or 0)
+        balance = float(
+            result.balance
+            if result.balance is not None
+            else (u.balance if u else 0) or 0
+        )
         await session.commit()
 
     if not should_notify:
@@ -1188,7 +1201,9 @@ async def handle_platega_payment(callback: CallbackQuery, bot: Bot) -> None:
             await session.commit()
 
             builder = InlineKeyboardBuilder()
-            builder.row(InlineKeyboardButton(text=t("payment_go", lang), url=transaction["url"]))
+            builder.row(
+                InlineKeyboardButton(text=t("payment_go", lang), url=transaction["url"])
+            )
             builder.row(
                 InlineKeyboardButton(
                     text=t("payment_check", lang),
@@ -1251,7 +1266,10 @@ async def handle_platega_check(callback: CallbackQuery, bot: Bot) -> None:
 
     try:
         transaction = await platega.get_transaction_status(payment.external_id)
-        if transaction.get("ok") and str(transaction.get("status", "")).upper() == "CONFIRMED":
+        if (
+            transaction.get("ok")
+            and str(transaction.get("status", "")).upper() == "CONFIRMED"
+        ):
             async with AsyncSessionFactory() as session:
                 payment = await PaymentService(session).get_by_id(payment_id)
                 plan = await PlanService(session).get_by_id(plan_id)
@@ -1259,11 +1277,12 @@ async def handle_platega_check(callback: CallbackQuery, bot: Bot) -> None:
                     await callback.answer(t("payment_error", lang), show_alert=True)
                     return
                 confirmation = await PaymentService(session).confirm_once(
-                    payment_id, str(transaction.get("transaction_id") or payment.external_id)
+                    payment_id,
+                    str(transaction.get("transaction_id") or payment.external_id),
                 )
-                delivery = await PaymentFulfillmentService(session).provision_subscription_once(
-                    payment_id, callback.from_user.id, plan
-                )
+                delivery = await PaymentFulfillmentService(
+                    session
+                ).provision_subscription_once(payment_id, callback.from_user.id, plan)
                 await session.commit()
             await callback.answer(t("payment_success", lang), show_alert=True)
             await _provision_and_notify(
@@ -1271,7 +1290,8 @@ async def handle_platega_check(callback: CallbackQuery, bot: Bot) -> None:
                 payment_id,
                 plan_id,
                 bot,
-                force_notify=not confirmation.just_confirmed or not delivery.just_processed,
+                force_notify=not confirmation.just_confirmed
+                or not delivery.just_processed,
             )
         else:
             await callback.answer(t("payment_pending", lang), show_alert=True)
@@ -1321,9 +1341,7 @@ async def handle_freekassa_payment(callback: CallbackQuery, bot: Bot) -> None:
             await session.commit()
 
             builder = InlineKeyboardBuilder()
-            builder.row(
-                InlineKeyboardButton(text=t("payment_go", lang), url=pay_url)
-            )
+            builder.row(InlineKeyboardButton(text=t("payment_go", lang), url=pay_url))
             builder.row(
                 InlineKeyboardButton(
                     text=t("payment_check", lang),
@@ -1397,13 +1415,19 @@ async def handle_freekassa_check(callback: CallbackQuery, bot: Bot) -> None:
                 async with AsyncSessionFactory() as sess2:
                     payment = await PaymentService(sess2).get_by_id(payment_id)
                     plan = await PlanService(sess2).get_by_id(plan_id)
-                    if not payment or not plan or payment.user_id != callback.from_user.id:
+                    if (
+                        not payment
+                        or not plan
+                        or payment.user_id != callback.from_user.id
+                    ):
                         await callback.answer(t("payment_error", lang), show_alert=True)
                         return
                     confirmation = await PaymentService(sess2).confirm_once(
                         payment_id, payment.external_id or f"fk_{payment_id}"
                     )
-                    delivery = await PaymentFulfillmentService(sess2).provision_subscription_once(
+                    delivery = await PaymentFulfillmentService(
+                        sess2
+                    ).provision_subscription_once(
                         payment_id, callback.from_user.id, plan
                     )
                     await sess2.commit()
@@ -1413,7 +1437,8 @@ async def handle_freekassa_check(callback: CallbackQuery, bot: Bot) -> None:
                     payment_id,
                     plan_id,
                     bot,
-                    force_notify=not confirmation.just_confirmed or not delivery.just_processed,
+                    force_notify=not confirmation.just_confirmed
+                    or not delivery.just_processed,
                 )
             else:
                 await callback.answer(t("payment_pending", lang), show_alert=True)
@@ -1579,7 +1604,9 @@ async def topup_platega(callback: CallbackQuery, bot: Bot) -> None:
             await session.commit()
 
             builder = InlineKeyboardBuilder()
-            builder.row(InlineKeyboardButton(text=t("payment_go", lang), url=transaction["url"]))
+            builder.row(
+                InlineKeyboardButton(text=t("payment_go", lang), url=transaction["url"])
+            )
             builder.row(
                 InlineKeyboardButton(
                     text=t("payment_check", lang),
@@ -1632,9 +1659,14 @@ async def topup_check_platega(callback: CallbackQuery, bot: Bot) -> None:
 
     try:
         transaction = await platega.get_transaction_status(existing.external_id)
-        if transaction.get("ok") and str(transaction.get("status", "")).upper() == "CONFIRMED":
+        if (
+            transaction.get("ok")
+            and str(transaction.get("status", "")).upper() == "CONFIRMED"
+        ):
             await _topup_confirm_balance(
-                payment_id, str(transaction.get("transaction_id") or existing.external_id), bot
+                payment_id,
+                str(transaction.get("transaction_id") or existing.external_id),
+                bot,
             )
             await callback.answer(
                 f"✅ {'Баланс пополнен!' if lang == 'ru' else 'Balance topped up!'}",
@@ -1654,20 +1686,20 @@ async def topup_check_platega(callback: CallbackQuery, bot: Bot) -> None:
 async def handle_payment_fallback(callback: CallbackQuery, bot: Bot) -> None:
     """Fallback for unhandled payment callbacks - shows helpful error."""
     user_id = callback.from_user.id
-    
+
     async with AsyncSessionFactory() as session:
         lang = await _get_user_lang(user_id, session)
-    
+
     error_messages = {
         "ru": "❌ Оплата недоступна. Попробуйте позже или выберите другой способ.",
         "en": "❌ Payment unavailable. Try later or choose another method.",
         "fa": "❌ پرداخت در دسترس نیست. بعداً امتحان کنید.",
     }
-    
+
     error_msg = error_messages.get(lang, error_messages["ru"])
-    
+
     log.warning(f"[payment_fallback] user={user_id} data={callback.data}")
-    
+
     try:
         await callback.answer(error_msg, show_alert=True)
     except Exception:

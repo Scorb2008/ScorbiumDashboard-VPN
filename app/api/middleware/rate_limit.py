@@ -68,7 +68,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             for key in stale_keys:
                 storage.pop(key, None)
 
-        expired_blocks = [ip for ip, blocked_until in self._blocked.items() if blocked_until <= now]
+        expired_blocks = [
+            ip for ip, blocked_until in self._blocked.items() if blocked_until <= now
+        ]
         for ip in expired_blocks:
             self._blocked.pop(ip, None)
 
@@ -79,7 +81,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 return True
             del self._blocked[ip]
 
-        if path in ("/panel/api/login", "/panel/login", "/cabinet/auth", "/cabinet/auth/") and method == "POST":
+        if (
+            path
+            in ("/panel/api/login", "/panel/login", "/cabinet/auth", "/cabinet/auth/")
+            and method == "POST"
+        ):
             return self._check(
                 self._login_hits[ip], LOGIN_WINDOW, LOGIN_MAX_ATTEMPTS, ip
             )
@@ -94,7 +100,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if not redis:
             return self._is_rate_limited(ip, path, method)
 
-        if path in ("/panel/api/login", "/panel/login", "/cabinet/auth", "/cabinet/auth/") and method == "POST":
+        if (
+            path
+            in ("/panel/api/login", "/panel/login", "/cabinet/auth", "/cabinet/auth/")
+            and method == "POST"
+        ):
             scope = "login"
             window = LOGIN_WINDOW
             max_requests = LOGIN_MAX_ATTEMPTS
@@ -129,7 +139,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         path = request.url.path
         self._cleanup()
-        if path in _WHITELIST_EXACT or any(path.startswith(p) for p in _WHITELIST_PREFIXES) or path.startswith("/static/"):
+        if (
+            path in _WHITELIST_EXACT
+            or any(path.startswith(p) for p in _WHITELIST_PREFIXES)
+            or path.startswith("/static/")
+        ):
             return await call_next(request)
 
         ip = self._get_ip(request)

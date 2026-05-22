@@ -10,7 +10,9 @@ class BrandingAsset(Base):
     key = Column(String(64), nullable=False, unique=True, index=True)
     mime_type = Column(String(128), nullable=False)
     data = Column(LargeBinary, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
     updated_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),

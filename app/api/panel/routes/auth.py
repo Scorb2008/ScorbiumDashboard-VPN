@@ -1,4 +1,5 @@
 """Authentication and 2FA routes."""
+
 import base64
 import hashlib
 import io
@@ -23,8 +24,13 @@ from app.services.token_blacklist import TokenBlacklistService
 from app.utils.security import create_access_token, decode_access_token_full
 
 from .shared import (
-    SESSION_COOKIE, _require_auth, _require_permission,
-    _base_ctx, templates, _set_cookie, _clear_cookie,
+    SESSION_COOKIE,
+    _require_auth,
+    _require_permission,
+    _base_ctx,
+    templates,
+    _set_cookie,
+    _clear_cookie,
 )
 
 router = APIRouter()
@@ -113,16 +119,20 @@ async def login_page(request: Request, db: AsyncSession = Depends(get_db)):
 @router.post("/login")
 async def login_submit(
     request: Request,
-    username: str = Form(...), password: str = Form(...),
+    username: str = Form(...),
+    password: str = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
-    error_ctx = await _login_template_context(request, db, error="Неверный логин или пароль")
+    error_ctx = await _login_template_context(
+        request, db, error="Неверный логин или пароль"
+    )
 
     admin = await authenticate_admin_credentials(db, username, password)
 
     if not admin:
         # Add delay to prevent timing attacks
         import asyncio
+
         await asyncio.sleep(1)
         return templates.TemplateResponse(request, "login.html", error_ctx)
 
@@ -189,7 +199,8 @@ async def twofa_page(request: Request, db: AsyncSession = Depends(get_db)):
 
 @router.post("/2fa-login")
 async def twofa_login_submit(
-    request: Request, code: str = Form(...),
+    request: Request,
+    code: str = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
     preauth = request.cookies.get(PREAUTH_COOKIE, "")
@@ -241,7 +252,9 @@ async def twofa_setup(request: Request, db: AsyncSession = Depends(get_db)):
     admin_info = _require_permission(request, "system")
     secret = pyotp.random_base32()
     totp = pyotp.TOTP(secret, interval=30, digits=6)
-    uri = totp.provisioning_uri(name=admin_info["sub"], issuer_name=config.web.app_name or "Scorbium")
+    uri = totp.provisioning_uri(
+        name=admin_info["sub"], issuer_name=config.web.app_name or "Scorbium"
+    )
     qr = qrcode.QRCode(version=1, box_size=10, border=2)
     qr.add_data(uri)
     qr.make(fit=True)
@@ -261,7 +274,9 @@ async def twofa_activate(request: Request, db: AsyncSession = Depends(get_db)):
     secret = body.get("secret", "")
     code = body.get("code", "")
     if len(code) != 6:
-        return JSONResponse({"ok": False, "message": "Код должен быть 6 знаков"}, status_code=400)
+        return JSONResponse(
+            {"ok": False, "message": "Код должен быть 6 знаков"}, status_code=400
+        )
     totp = pyotp.TOTP(secret, interval=30, digits=6)
     if not totp.verify(code):
         return JSONResponse({"ok": False, "message": "Неверный код"}, status_code=400)
@@ -274,7 +289,9 @@ async def twofa_activate(request: Request, db: AsyncSession = Depends(get_db)):
         await db.commit()
         await AuditService(db).log(admin.id, "2fa_enabled", "admin", admin.id)
         await db.commit()
-        return JSONResponse({"ok": True, "message": "2FA активирована", "backup_codes": raw_codes})
+        return JSONResponse(
+            {"ok": True, "message": "2FA активирована", "backup_codes": raw_codes}
+        )
     return JSONResponse({"ok": False, "message": "Админ не найден"}, status_code=404)
 
 
@@ -294,7 +311,9 @@ async def twofa_verify(request: Request, db: AsyncSession = Depends(get_db)):
     code = body.get("code", "")
     admin = await AdminService(db).get_by_username(payload["sub"])
     if not admin or not admin.totp_secret:
-        return JSONResponse({"ok": False, "message": "2FA не настроена"}, status_code=400)
+        return JSONResponse(
+            {"ok": False, "message": "2FA не настроена"}, status_code=400
+        )
 
     used_backup = bool(admin.backup_codes) and not pyotp.TOTP(
         admin.totp_secret,
@@ -320,7 +339,9 @@ async def twofa_disable(request: Request, db: AsyncSession = Depends(get_db)):
     code = body.get("code", "")
     admin = await AdminService(db).get_by_username(admin_info["sub"])
     if not admin or not admin.totp_secret:
-        return JSONResponse({"ok": False, "message": "2FA не включена"}, status_code=400)
+        return JSONResponse(
+            {"ok": False, "message": "2FA не включена"}, status_code=400
+        )
     totp = pyotp.TOTP(admin.totp_secret, interval=30, digits=6)
     if not totp.verify(code):
         return JSONResponse({"ok": False, "message": "Неверный код"}, status_code=400)
@@ -343,10 +364,13 @@ async def export_backup_codes(request: Request, db: AsyncSession = Depends(get_d
     """Generate fresh backup codes and export them as a downloadable text file."""
     from fastapi.responses import PlainTextResponse
     from app.services.audit import AuditService
+
     admin_info = _require_permission(request, "system")
     admin = await AdminService(db).get_by_username(admin_info["sub"])
     if not admin or not admin.totp_secret:
-        return JSONResponse({"ok": False, "message": "2FA не настроена"}, status_code=400)
+        return JSONResponse(
+            {"ok": False, "message": "2FA не настроена"}, status_code=400
+        )
     raw_codes = [secrets.token_hex(4).upper() for _ in range(8)]
     hashed_codes = [hashlib.sha256(c.encode()).hexdigest() for c in raw_codes]
     admin.backup_codes = json.dumps(hashed_codes)
@@ -363,14 +387,16 @@ async def export_backup_codes(request: Request, db: AsyncSession = Depends(get_d
         "",
     ]
     for i, code in enumerate(raw_codes, 1):
-        formatted = "-".join([code[j:j+4] for j in range(0, len(code), 4)])
+        formatted = "-".join([code[j : j + 4] for j in range(0, len(code), 4)])
         lines.append(f"{i}. {formatted}")
     lines.append("")
     lines.append("⚠️ Эти коды больше не отображаются в панели.")
     return PlainTextResponse(
         "\n".join(lines),
         media_type="text/plain",
-        headers={"Content-Disposition": f'attachment; filename="backup_codes_{admin.username}.txt"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="backup_codes_{admin.username}.txt"'
+        },
     )
 
 
@@ -381,11 +407,15 @@ async def twofa_regenerate_backup(request: Request, db: AsyncSession = Depends(g
     admin_info = _require_permission(request, "system")
     admin = await AdminService(db).get_by_username(admin_info["sub"])
     if not admin or not admin.totp_secret:
-        return JSONResponse({"ok": False, "message": "2FA не включена"}, status_code=400)
+        return JSONResponse(
+            {"ok": False, "message": "2FA не включена"}, status_code=400
+        )
     raw_codes = [secrets.token_hex(4).upper() for _ in range(8)]
     hashed_codes = [hashlib.sha256(c.encode()).hexdigest() for c in raw_codes]
     admin.backup_codes = json.dumps(hashed_codes)
     await db.commit()
     await AuditService(db).log(admin.id, "2fa_backup_regenerated", "admin", admin.id)
     await db.commit()
-    return JSONResponse({"ok": True, "message": "Резервные коды обновлены", "backup_codes": raw_codes})
+    return JSONResponse(
+        {"ok": True, "message": "Резервные коды обновлены", "backup_codes": raw_codes}
+    )

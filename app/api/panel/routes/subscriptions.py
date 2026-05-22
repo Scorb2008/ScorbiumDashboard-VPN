@@ -1,4 +1,5 @@
 """Subscriptions (VPN Keys) routes."""
+
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Request, Response
@@ -60,7 +61,7 @@ async def create_subscription(
     plan = await PlanService(db).get_by_id(plan_id)
     if not plan:
         resp = Response(status_code=404)
-        _toast(resp, 'Тариф не найден', 'error')
+        _toast(resp, "Тариф не найден", "error")
         return resp
     key = await VpnKeyService(db).provision(user_id=user_id, plan=plan)
     await db.commit()
@@ -90,15 +91,19 @@ async def create_subscription_days(
         _toast(resp, "Количество дней должно быть от 1 до 3650", "error")
         return resp
     key_name = name.strip() if name else f"Подписка — {days} дн."
-    key = await VpnKeyService(db).provision_days(user_id=user_id, days=days, name=key_name)
+    key = await VpnKeyService(db).provision_days(
+        user_id=user_id, days=days, name=key_name
+    )
     await db.commit()
     if key:
-        exp_str = key.expires_at.strftime("%d.%m.%Y") if key.expires_at is not None else "—"
+        exp_str = (
+            key.expires_at.strftime("%d.%m.%Y") if key.expires_at is not None else "—"
+        )
         await TelegramNotifyService().send_message(
             user_id,
             f"🔑 <b>Ваш VPN-ключ готов!</b>\n\nДлительность: <b>{days} дней</b>\n"
             f"📅 Действует до: <b>{exp_str}</b>\n\n<code>{key.access_url}</code>\n\n"
-            "<i> 🔥 Приятного пользования! </i>"
+            "<i> 🔥 Приятного пользования! </i>",
         )
     resp = Response(status_code=200)
     _toast(resp, "Подписка выдана" if key else "Ошибка создания ключа")
@@ -107,16 +112,19 @@ async def create_subscription_days(
 
 @router.post("/{key_id}/extend", response_class=HTMLResponse)
 async def extend_subscription(
-    key_id: int, request: Request, db: AsyncSession = Depends(get_db),
+    key_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
 ):
     _require_permission(request, "subscriptions.write")
     from app.models.vpn_key import VpnKey
     from sqlalchemy import select
+
     result = await db.execute(select(VpnKey).where(VpnKey.id == key_id))
     key = result.scalar_one_or_none()
     if not key:
         resp = Response(status_code=404)
-        _toast(resp, 'Ключ не найден', 'error')
+        _toast(resp, "Ключ не найден", "error")
         return resp
     days = 30
     if key.plan:
@@ -136,16 +144,19 @@ async def extend_subscription(
 
 @router.post("/{key_id}/cancel", response_class=HTMLResponse)
 async def cancel_subscription(
-    key_id: int, request: Request, db: AsyncSession = Depends(get_db),
+    key_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
 ):
     _require_permission(request, "subscriptions.write")
     from app.models.vpn_key import VpnKey, VpnKeyStatus
     from sqlalchemy import select
+
     result = await db.execute(select(VpnKey).where(VpnKey.id == key_id))
     key = result.scalar_one_or_none()
     if not key:
         resp = Response(status_code=404)
-        _toast(resp, 'Ключ не найден', 'error')
+        _toast(resp, "Ключ не найден", "error")
         return resp
     if key:
         key.status = VpnKeyStatus.EXPIRED.value
@@ -162,7 +173,8 @@ async def cancel_subscription(
 
 @router.post("/expire-outdated", response_class=HTMLResponse)
 async def expire_outdated_subscriptions(
-    request: Request, db: AsyncSession = Depends(get_db),
+    request: Request,
+    db: AsyncSession = Depends(get_db),
 ):
     _require_permission(request, "subscriptions.write")
     count = await VpnKeyService(db).expire_outdated()

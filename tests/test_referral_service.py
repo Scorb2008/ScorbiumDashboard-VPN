@@ -1,11 +1,12 @@
 """Tests for ReferralService: creation, limits, fraud prevention."""
+
 import pytest
 from decimal import Decimal
 from types import SimpleNamespace
 
 from app.bot.handlers import start as start_handler
 from app.models.bot_settings import BotSettings
-from app.models.referral import Referral, ReferralBonusType
+from app.models.referral import ReferralBonusType
 from app.models.user import User
 from app.services.bot_settings import reset_bot_settings_cache
 from app.services.referral import ReferralService
@@ -114,6 +115,7 @@ class TestReferralService:
 
         # Check balance increased
         from app.services.user import UserService
+
         user = await UserService(session).get_by_id(sample_user.id)
         assert user.balance == Decimal("125.00")
 

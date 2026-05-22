@@ -8,15 +8,14 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/bootstrap-icons.min.css">
-<link rel="stylesheet" href="/static/css/cabinet.css?v=miniapp-20260515b">
+<link rel="stylesheet" href="/static/css/cabinet.css?v=miniapp-20260522a">
 <script src="https://telegram.org/js/telegram-web-app.js?62"></script>
 <script>
 try {
   var hashParams = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
   if (
     (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) ||
-    hashParams.has('tgWebAppData') ||
-    hashParams.has('tgWebAppPlatform')
+    hashParams.has('tgWebAppData')
   )
     document.documentElement.classList.add('tg-miniapp-client');
 } catch (e) {}
@@ -110,10 +109,7 @@ function hasMiniAppQueryHint() {
 
 function hasMiniAppHashHint() {
   return !!(
-    getTelegramHashParam('tgWebAppData') ||
-    getTelegramHashParam('tgWebAppPlatform') ||
-    getTelegramHashParam('tgWebAppVersion') ||
-    getTelegramHashParam('tgWebAppThemeParams')
+    getTelegramHashParam('tgWebAppData')
   );
 }
 

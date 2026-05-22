@@ -1,4 +1,5 @@
 """Logo upload/clear endpoints for panel settings."""
+
 from fastapi import APIRouter, Depends, File, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,7 +11,7 @@ from .shared import _require_permission
 
 router = APIRouter()
 
-MAX_LOGO_SIZE = 2 * 1024 * 1024  
+MAX_LOGO_SIZE = 2 * 1024 * 1024
 
 _IMAGE_MAGIC: dict[bytes, tuple[str, str]] = {
     b"\x89PNG\r\n\x1a\n": ("png", "image/png"),
@@ -38,11 +39,15 @@ async def logo_upload(
 
     raw = await logo.read()
     if len(raw) > MAX_LOGO_SIZE:
-        return JSONResponse({"ok": False, "message": "Файл больше 2MB"}, status_code=400)
+        return JSONResponse(
+            {"ok": False, "message": "Файл больше 2MB"}, status_code=400
+        )
 
     detected = _detect_image(raw)
     if not detected:
-        return JSONResponse({"ok": False, "message": "Допустимы: PNG, JPG, WebP, GIF"}, status_code=400)
+        return JSONResponse(
+            {"ok": False, "message": "Допустимы: PNG, JPG, WebP, GIF"}, status_code=400
+        )
 
     _ext, mime = detected
     svc = BrandingAssetService(db)

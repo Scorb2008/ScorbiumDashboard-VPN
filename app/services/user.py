@@ -94,7 +94,9 @@ class UserService:
         return result.scalar_one_or_none()
 
     async def get_by_referral_code(self, code: str) -> Optional[User]:
-        result = await self.session.execute(select(User).where(User.referral_code == code))
+        result = await self.session.execute(
+            select(User).where(User.referral_code == code)
+        )
         return result.scalar_one_or_none()
 
     async def set_autorenew(self, user_id: int, enabled: bool) -> Optional[User]:

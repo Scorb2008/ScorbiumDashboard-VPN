@@ -21,7 +21,9 @@ async def test_platega_service_awaits_request(monkeypatch):
     assert result["url"] == "https://pay"
 
 
-async def test_platega_service_uses_direct_method_endpoint_when_payment_method_selected(monkeypatch):
+async def test_platega_service_uses_direct_method_endpoint_when_payment_method_selected(
+    monkeypatch,
+):
     service = PlategaService("merchant", "secret")
 
     async def fake_request(method, path, body=None):
@@ -56,11 +58,20 @@ async def test_platega_status_and_balance_paths_match_docs(monkeypatch):
     async def fake_request(method, path, body=None):
         calls.append((method, path, body))
         if path == "/transaction/tx-123":
-            return {"id": "tx-123", "status": "CONFIRMED", "paymentDetails": {"amount": 100}}
+            return {
+                "id": "tx-123",
+                "status": "CONFIRMED",
+                "paymentDetails": {"amount": 100},
+            }
         if path == "/h2h/tx-123":
             return {"amount": 100, "qr": "https://qr"}
         if path.startswith("/rates/payment_method_rate?"):
-            return {"paymentMethod": 2, "currencyFrom": "RUB", "currencyTo": "USDT", "rate": 0.01}
+            return {
+                "paymentMethod": 2,
+                "currencyFrom": "RUB",
+                "currencyTo": "USDT",
+                "rate": 0.01,
+            }
         if path == "/balance/all":
             return [{"amount": 10, "currency": "RUB"}]
         raise AssertionError(path)
@@ -103,7 +114,12 @@ async def test_paypalych_service_awaits_request(monkeypatch):
         assert path == "/api/v1/bill/create"
         assert body["amount"] == 299
         assert content_type == "application/x-www-form-urlencoded"
-        return {"success": True, "bill_id": "bill_1", "link_url": "https://pay", "link_page_url": "https://page"}
+        return {
+            "success": True,
+            "bill_id": "bill_1",
+            "link_url": "https://pay",
+            "link_page_url": "https://page",
+        }
 
     monkeypatch.setattr(service, "_make_request", fake_request)
 

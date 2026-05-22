@@ -33,7 +33,9 @@ class PromoService:
             self._usage_table_available = True
         except ProgrammingError as exc:
             if self._is_missing_promo_usage_table(exc):
-                log.warning("promo_usages table is missing; promo usage tracking is temporarily disabled")
+                log.warning(
+                    "promo_usages table is missing; promo usage tracking is temporarily disabled"
+                )
                 await self.session.rollback()
                 self._usage_table_available = False
             else:
@@ -47,7 +49,9 @@ class PromoService:
         return list(result.scalars().all())
 
     async def get_by_id(self, promo_id: int) -> Optional[PromoCode]:
-        result = await self.session.execute(select(PromoCode).where(PromoCode.id == promo_id))
+        result = await self.session.execute(
+            select(PromoCode).where(PromoCode.id == promo_id)
+        )
         return result.scalar_one_or_none()
 
     async def get_by_code(self, code: str) -> Optional[PromoCode]:
@@ -102,15 +106,21 @@ class PromoService:
             return PromoValidationResult(None, "Промокод не найден или отключён")
 
         if promo_type and str(promo.promo_type) != promo_type:
-            return PromoValidationResult(None, "Этот промокод нельзя применить в данном сценарии")
+            return PromoValidationResult(
+                None, "Этот промокод нельзя применить в данном сценарии"
+            )
 
         if promo.current_uses is None:
             promo.current_uses = 0
         if promo.max_uses > 0 and promo.current_uses >= promo.max_uses:
-            return PromoValidationResult(None, "Лимит использований этого промокода исчерпан")
+            return PromoValidationResult(
+                None, "Лимит использований этого промокода исчерпан"
+            )
 
         if plan_id and promo.plan_id and promo.plan_id != plan_id:
-            return PromoValidationResult(None, "Промокод действует только для другого тарифа")
+            return PromoValidationResult(
+                None, "Промокод действует только для другого тарифа"
+            )
 
         if user_id and await self._can_use_usage_tracking():
             result = await self.session.execute(
@@ -139,9 +149,7 @@ class PromoService:
         """
         usage_tracking = await self._can_use_usage_tracking() if user_id else False
         result = await self.session.execute(
-            select(PromoCode)
-            .where(PromoCode.id == promo.id)
-            .with_for_update()
+            select(PromoCode).where(PromoCode.id == promo.id).with_for_update()
         )
         locked_promo = result.scalar_one_or_none()
         if not locked_promo:
@@ -168,11 +176,15 @@ class PromoService:
                 await self.session.flush()
             except IntegrityError:
                 await self.session.rollback()
-                log.warning(f"Promo {stored_promo.code} duplicate usage blocked for user {user_id}")
+                log.warning(
+                    f"Promo {stored_promo.code} duplicate usage blocked for user {user_id}"
+                )
                 return None
         return stored_promo
 
-    async def apply(self, code: str, user_id: Optional[int] = None) -> Optional[PromoCode]:
+    async def apply(
+        self, code: str, user_id: Optional[int] = None
+    ) -> Optional[PromoCode]:
         validation = await self.validate_for_user(code, user_id=user_id)
         if not validation.promo:
             return None

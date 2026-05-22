@@ -1,4 +1,5 @@
 """Shared utilities and template setup for panel routes."""
+
 import html
 import json
 from datetime import datetime, timedelta, timezone
@@ -184,9 +185,11 @@ def _require_auth(request: Request) -> dict:
 
         if is_api or is_json:
             from fastapi import HTTPException
+
             raise HTTPException(status_code=401, detail="Not authenticated")
         if is_htmx:
             from fastapi import HTTPException
+
             raise HTTPException(
                 status_code=200,
                 headers={"HX-Redirect": "/panel/login"},
@@ -211,6 +214,7 @@ def _require_permission(request: Request, permission: str) -> dict:
 
         is_htmx = request.headers.get("HX-Request") == "true"
         from fastapi import HTTPException
+
         if is_htmx:
             raise HTTPException(
                 status_code=200,
@@ -226,6 +230,7 @@ def _require_permission(request: Request, permission: str) -> dict:
 
 def _redirect(url: str):
     from fastapi import HTTPException
+
     raise HTTPException(status_code=302, headers={"Location": url})
 
 

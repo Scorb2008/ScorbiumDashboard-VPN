@@ -27,12 +27,12 @@ router = Router()
 
 
 def _fmt_traffic(bytes_val: int) -> str:
-    gb = bytes_val / (1024 ** 3)
+    gb = bytes_val / (1024**3)
     if gb >= 1000:
         return f"{gb / 1024:.2f} TB"
     if gb >= 1:
         return f"{gb:.2f} GB"
-    mb = bytes_val / (1024 ** 2)
+    mb = bytes_val / (1024**2)
     if mb >= 1:
         return f"{mb:.0f} MB"
     return f"{bytes_val} B"
@@ -41,6 +41,7 @@ def _fmt_traffic(bytes_val: int) -> str:
 async def _get_traffic_for_key(pasarguard_key_id: str) -> dict | None:
     try:
         from app.services.pasarguard.pasarguard import PasarguardService
+
         panel = PasarguardService()
         user_data = await panel.get_user(pasarguard_key_id)
         if user_data:
@@ -67,7 +68,12 @@ async def cmd_status(message: Message) -> None:
 
     if not keys:
         await message.answer(
-            t("status_title", lang) + "\n\n" + t("status_no_subs", lang) + "\n\n" + t("btn_buy", lang) + ": /buy",
+            t("status_title", lang)
+            + "\n\n"
+            + t("status_no_subs", lang)
+            + "\n\n"
+            + t("btn_buy", lang)
+            + ": /buy",
             parse_mode="HTML",
         )
         return
@@ -93,18 +99,24 @@ async def cmd_status(message: Message) -> None:
                 time_str = t("status_hours_left", lang, hours=hours)
                 icon = "🔴"
             exp_str = k.expires_at.strftime("%d.%m.%Y")
-            lines.append(f"   {icon} {t('status_expires', lang, date=exp_str, time_left=time_str)}")
+            lines.append(
+                f"   {icon} {t('status_expires', lang, date=exp_str, time_left=time_str)}"
+            )
         else:
             lines.append(f"   🟢 {t('status_lifetime', lang)}")
 
         if k.pasarguard_key_id:
             traffic = await _get_traffic_for_key(k.pasarguard_key_id)
             if traffic:
-                lines.append(f"   {t('status_traffic_used', lang)}: <b>{traffic['used']}</b>")
+                lines.append(
+                    f"   {t('status_traffic_used', lang)}: <b>{traffic['used']}</b>"
+                )
         lines.append("")
 
     builder = InlineKeyboardBuilder()
-    builder.row(InlineKeyboardButton(text=t("btn_my_keys", lang), callback_data="my_keys"))
+    builder.row(
+        InlineKeyboardButton(text=t("btn_my_keys", lang), callback_data="my_keys")
+    )
     builder.row(InlineKeyboardButton(text=t("btn_buy", lang), callback_data="buy"))
 
     await message.answer(
@@ -183,8 +195,12 @@ async def cmd_payments(message: Message) -> None:
         )
 
     builder = InlineKeyboardBuilder()
-    builder.row(InlineKeyboardButton(text=t("btn_balance", lang), callback_data="balance"))
-    builder.row(InlineKeyboardButton(text=t("back_main", lang), callback_data="back_main"))
+    builder.row(
+        InlineKeyboardButton(text=t("btn_balance", lang), callback_data="balance")
+    )
+    builder.row(
+        InlineKeyboardButton(text=t("back_main", lang), callback_data="back_main")
+    )
 
     await message.answer(
         "\n".join(lines), reply_markup=builder.as_markup(), parse_mode="HTML"
@@ -230,7 +246,7 @@ async def cmd_ping(message: Message) -> None:
             _pg = config.pasarguard
             base = str(_pg.pasarguard_admin_panel).rstrip("/") if _pg else ""
             start = asyncio.get_event_loop().time()
-            async with httpx.AsyncClient(timeout=5, verify=False) as client:
+            async with httpx.AsyncClient(timeout=5, verify=True) as client:
                 await client.get(f"{base}/api/system")
             ms = int((asyncio.get_event_loop().time() - start) * 1000)
             status_icon = "🟢" if ms < 100 else "🟡" if ms < 300 else "🔴"

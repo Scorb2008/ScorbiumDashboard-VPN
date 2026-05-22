@@ -1,5 +1,4 @@
 from typing import Optional
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.vpn_key import VpnKey
@@ -15,12 +14,11 @@ class SubscriptionService:
         self._key_svc = VpnKeyService(session)
 
     async def get_user_subscription(self, user_id: int) -> Optional[VpnKey]:
-        """Get active subscription for user."""
-        return await self._key_svc.get_active_for_user(user_id)
+        """Get the newest active subscription for user."""
+        keys = await self._key_svc.get_active_for_user(user_id)
+        return keys[0] if keys else None
 
-    async def extend_subscription(
-        self, user_id: int, plan: Plan
-    ) -> Optional[VpnKey]:
+    async def extend_subscription(self, user_id: int, plan: Plan) -> Optional[VpnKey]:
         """Extend user subscription by plan duration."""
         keys = await self._key_svc.get_active_for_user(user_id)
         if not keys:

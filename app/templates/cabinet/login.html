@@ -348,11 +348,11 @@ function showWebLoginFallback() {
   setMiniAppControls({ retry:false, home:false });
 }
 function showMiniAppFailure(m) {
+  showWebLoginFallback();
   document.getElementById('miniapp-status').style.display = '';
   setMiniAppControls({ retry:true, home:true });
   document.getElementById('login-hint').style.display = '';
-  document.getElementById('login-hint').textContent = 'Если кабинет не загрузился, попробуйте ещё раз или откройте mini app заново из Telegram';
-  setLoginState(m || 'Ошибка');
+  document.getElementById('login-hint').textContent = 'Telegram не передал данные mini app. Можно повторить попытку или войти обычным Telegram Login ниже';
 }
 async function startMiniAppLogin(force) {
   document.getElementById('miniapp-status').style.display = '';
@@ -377,7 +377,7 @@ async function bootMiniAppLogin() {
 
   while (attempts < 25) {
     var tg = getTelegramWebApp();
-    var initData = (tg && tg.initData) || getTelegramHashParam('tgWebAppData');
+    var initData = getMiniAppInitData();
     if (initData) {
       var hasInitDataInUrl = false;
       try {
@@ -400,7 +400,10 @@ async function bootMiniAppLogin() {
 }
 
 (function() {
-  var hasMiniAppInitData = !!getMiniAppInitData();
+  var hasMiniAppInitData = hasTelegramMiniAppInitData();
+  try {
+    hasMiniAppInitData = hasMiniAppInitData || new URL(window.location.href).searchParams.has(window.CABINET_BOOT.initDataParam);
+  } catch (e) {}
   {% if oidc_enabled %}
   loadTelegramOidcSdk().catch(function() {});
   if (!isMiniAppRuntime() && !hasLegacyTelegramLogin) {

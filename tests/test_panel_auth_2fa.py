@@ -3,7 +3,12 @@ from http.cookies import SimpleCookie
 import pyotp
 from fastapi import Request
 
-from app.api.panel.routes.auth import PREAUTH_COOKIE, logout, twofa_login_submit, login_submit
+from app.api.panel.routes.auth import (
+    PREAUTH_COOKIE,
+    logout,
+    twofa_login_submit,
+    login_submit,
+)
 from app.api.panel.routes.shared import SESSION_COOKIE, _get_admin_info
 from app.models.admin import Admin, AdminRole
 from app.models.token_blacklist import BlacklistedToken
@@ -93,7 +98,9 @@ async def test_login_submit_sets_preauth_and_twofa_completes_login(session):
     assert _read_cookie(second_response, SESSION_COOKIE)
 
 
-async def test_env_superadmin_login_upgrades_existing_operator_role(session, monkeypatch):
+async def test_env_superadmin_login_upgrades_existing_operator_role(
+    session, monkeypatch
+):
     admin = Admin(
         username="root-admin",
         password_hash=hash_password("SomeOtherPass123"),

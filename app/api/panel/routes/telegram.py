@@ -1,4 +1,5 @@
 """Telegram bot settings and payment system configuration routes."""
+
 import json as _json
 import re
 
@@ -14,7 +15,12 @@ from app.services.bot_settings import BotSettingsService
 from app.services.telegram_notify import TelegramNotifyService
 
 from .shared import (
-    _require_permission, _toast, _base_ctx, templates, _ALL_BUTTONS, _DEFAULT_LAYOUT,
+    _require_permission,
+    _toast,
+    _base_ctx,
+    templates,
+    _ALL_BUTTONS,
+    _DEFAULT_LAYOUT,
 )
 
 router = APIRouter()
@@ -115,7 +121,10 @@ async def ps_save_yookassa(request: Request, db: AsyncSession = Depends(get_db))
     if secret_key_raw:
         if len(secret_key_raw) < 10:
             return JSONResponse(
-                {"ok": False, "message": "Secret Key слишком короткий (мин. 10 символов)"},
+                {
+                    "ok": False,
+                    "message": "Secret Key слишком короткий (мин. 10 символов)",
+                },
                 status_code=400,
             )
         if not re.fullmatch(r"[A-Za-z0-9_\-]+", secret_key_raw):
@@ -132,7 +141,14 @@ async def ps_save_yookassa(request: Request, db: AsyncSession = Depends(get_db))
     configured = bool(saved_shop and saved_key)
     enabled = (await svc.get("ps_yookassa_enabled")) == "1"
 
-    return JSONResponse({"ok": True, "message": "ЮКасса сохранена", "configured": configured, "enabled": enabled})
+    return JSONResponse(
+        {
+            "ok": True,
+            "message": "ЮКасса сохранена",
+            "configured": configured,
+            "enabled": enabled,
+        }
+    )
 
 
 @router.post("/payment-systems/yookassa/test")
@@ -149,9 +165,11 @@ async def ps_test_yookassa(request: Request, db: AsyncSession = Depends(get_db))
 
     try:
         import yookassa as _yk
+
         _yk.Configuration.account_id = int(shop_id_str)
         _yk.Configuration.secret_key = secret_key
         import httpx
+
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(
                 "https://api.yookassa.ru/v3/payments",
@@ -175,6 +193,7 @@ async def ps_test_yookassa(request: Request, db: AsyncSession = Depends(get_db))
         )
     except Exception as e:
         from app.utils.log import log
+
         log.error("YooKassa test error: %s", e)
         return JSONResponse(
             {"ok": False, "message": "Ошибка подключения к ЮКассе"}, status_code=400
@@ -208,7 +227,12 @@ async def ps_save_cryptobot(request: Request, db: AsyncSession = Depends(get_db)
     enabled = (await svc.get("ps_cryptobot_enabled")) == "1"
 
     return JSONResponse(
-        {"ok": True, "message": "CryptoBot токен сохранён", "configured": True, "enabled": enabled}
+        {
+            "ok": True,
+            "message": "CryptoBot токен сохранён",
+            "configured": True,
+            "enabled": enabled,
+        }
     )
 
 
@@ -225,6 +249,7 @@ async def ps_test_cryptobot(request: Request, db: AsyncSession = Depends(get_db)
 
     try:
         from app.services.cryptobot import CryptoBotService
+
         crypto = CryptoBotService(token)
         info = await crypto.get_me()
         if info:
@@ -242,6 +267,7 @@ async def ps_test_cryptobot(request: Request, db: AsyncSession = Depends(get_db)
         )
     except Exception as e:
         from app.utils.log import log
+
         log.error("CryptoBot test error: %s", e)
         return JSONResponse(
             {"ok": False, "message": "Ошибка подключения к CryptoBot"}, status_code=400
@@ -275,18 +301,40 @@ async def ps_toggle(request: Request, db: AsyncSession = Depends(get_db)):
     if value == "1":
         svc = BotSettingsService(db)
         config_checks = {
-            "ps_yookassa_enabled": bool((await svc.get("yookassa_shop_id_override") or "").strip() and (await svc.get("yookassa_secret_key_override") or "").strip()),
-            "ps_cryptobot_enabled": bool((await svc.get("cryptobot_token") or "").strip()),
-            "ps_freekassa_enabled": bool((await svc.get("freekassa_shop_id") or "").strip() and (await svc.get("freekassa_api_key") or "").strip()),
-            "ps_aikassa_enabled": bool((await svc.get("aikassa_shop_id") or "").strip() and (await svc.get("aikassa_token") or "").strip()),
-            "ps_platega_enabled": bool((await svc.get("platega_merchant_id") or "").strip() and (await svc.get("platega_secret") or "").strip()),
-            "ps_paypalych_enabled": bool((await svc.get("paypalych_api_token") or "").strip()),
-            "ps_sbp_enabled": bool((await svc.get("yookassa_shop_id_override") or "").strip() and (await svc.get("yookassa_secret_key_override") or "").strip()),
+            "ps_yookassa_enabled": bool(
+                (await svc.get("yookassa_shop_id_override") or "").strip()
+                and (await svc.get("yookassa_secret_key_override") or "").strip()
+            ),
+            "ps_cryptobot_enabled": bool(
+                (await svc.get("cryptobot_token") or "").strip()
+            ),
+            "ps_freekassa_enabled": bool(
+                (await svc.get("freekassa_shop_id") or "").strip()
+                and (await svc.get("freekassa_api_key") or "").strip()
+            ),
+            "ps_aikassa_enabled": bool(
+                (await svc.get("aikassa_shop_id") or "").strip()
+                and (await svc.get("aikassa_token") or "").strip()
+            ),
+            "ps_platega_enabled": bool(
+                (await svc.get("platega_merchant_id") or "").strip()
+                and (await svc.get("platega_secret") or "").strip()
+            ),
+            "ps_paypalych_enabled": bool(
+                (await svc.get("paypalych_api_token") or "").strip()
+            ),
+            "ps_sbp_enabled": bool(
+                (await svc.get("yookassa_shop_id_override") or "").strip()
+                and (await svc.get("yookassa_secret_key_override") or "").strip()
+            ),
             "ps_stars_enabled": True,
         }
         if not config_checks.get(key, False):
             return JSONResponse(
-                {"ok": False, "message": "Сначала сохраните и настройте платёжную систему"},
+                {
+                    "ok": False,
+                    "message": "Сначала сохраните и настройте платёжную систему",
+                },
                 status_code=400,
             )
 
@@ -294,6 +342,7 @@ async def ps_toggle(request: Request, db: AsyncSession = Depends(get_db)):
     await db.commit()
 
     from app.services.health import health_service
+
     health_service._alert_cooldowns.clear()
 
     return JSONResponse({"ok": True, "message": "Настройка обновлена"})
@@ -345,6 +394,7 @@ async def ps_test_freekassa(request: Request, db: AsyncSession = Depends(get_db)
 
     try:
         from app.services.freekassa import FreeKassaService
+
         word1 = (await svc.get("freekassa_secret_word_1") or "").strip()
         word2 = (await svc.get("freekassa_secret_word_2") or "").strip()
         fk = FreeKassaService(shop_id, api_key, word1, word2)
@@ -400,6 +450,7 @@ async def ps_test_aikassa(request: Request, db: AsyncSession = Depends(get_db)):
 
     try:
         from app.services.aikassa import AiKassaService
+
         ak = AiKassaService(shop_id, token)
         info = await ak.get_shop_info()
         if info:
@@ -434,13 +485,15 @@ async def ps_save_paypalych(request: Request, db: AsyncSession = Depends(get_db)
     mid = (await svc.get("paypalych_merchant_id") or "").strip()
     msec = (await svc.get("paypalych_merchant_secret") or "").strip()
     enabled = (await svc.get("ps_paypalych_enabled")) == "1"
-    return JSONResponse({
-        "ok": True,
-        "message": "PayPalych сохранён",
-        "configured": bool(api_token),
-        "merchant_configured": bool(mid and msec),
-        "enabled": enabled,
-    })
+    return JSONResponse(
+        {
+            "ok": True,
+            "message": "PayPalych сохранён",
+            "configured": bool(api_token),
+            "merchant_configured": bool(mid and msec),
+            "enabled": enabled,
+        }
+    )
 
 
 @router.post("/payment-systems/paypalych/test")
@@ -457,6 +510,7 @@ async def ps_test_paypalych(request: Request, db: AsyncSession = Depends(get_db)
     if token:
         try:
             from app.services.paypalych import PayPalychService
+
             pp = PayPalychService(token)
             result = await pp.test_connection()
             if result.get("ok"):
@@ -474,7 +528,9 @@ async def ps_test_paypalych(request: Request, db: AsyncSession = Depends(get_db)
         messages.append("❌ Merchant: заполните оба поля (ID + Secret)")
 
     if not messages:
-        return JSONResponse({"ok": False, "message": "Ничего не настроено"}, status_code=400)
+        return JSONResponse(
+            {"ok": False, "message": "Ничего не настроено"}, status_code=400
+        )
 
     return JSONResponse({"ok": any_ok, "message": " | ".join(messages)})
 
@@ -519,6 +575,7 @@ async def ps_test_platega(request: Request, db: AsyncSession = Depends(get_db)):
 
     try:
         from app.services.platega import PlategaService
+
         pl = PlategaService(merchant_id, secret)
         result = await pl.test_connection()
         if result.get("ok"):
@@ -542,9 +599,7 @@ async def ps_save_stars_rate(request: Request, db: AsyncSession = Depends(get_db
         if rate_val <= 0:
             raise ValueError
     except ValueError:
-        return JSONResponse(
-            {"ok": False, "message": "Неверный курс"}, status_code=400
-        )
+        return JSONResponse({"ok": False, "message": "Неверный курс"}, status_code=400)
     await BotSettingsService(db).set("stars_rate", rate)
     await db.commit()
     return JSONResponse({"ok": True, "message": "Курс Stars сохранён"})
@@ -555,6 +610,7 @@ async def test_marzban(request: Request, db: AsyncSession = Depends(get_db)):
     _require_permission(request, "system")
     try:
         from app.services.pasarguard.pasarguard import get_vpn_panel
+
         ok = await get_vpn_panel().validate_connection()
         if ok:
             _toast(Response(), "✅ Подключение к Marzban/Pasarguard успешно")
@@ -572,6 +628,7 @@ async def telegram_groups_page(request: Request, db: AsyncSession = Depends(get_
     ctx["bot_settings"] = await BotSettingsService(db).get_all()
     try:
         from app.services.pasarguard.pasarguard import get_vpn_panel
+
         groups = await get_vpn_panel().get_groups()
         ctx["groups"] = groups
     except Exception:
@@ -604,17 +661,33 @@ async def upload_photo(
     db: AsyncSession = Depends(get_db),
 ):
     _require_permission(request, "system")
-    allowed = {"photo_welcome", "photo_buy", "photo_my_keys", "photo_balance",
-               "photo_about", "photo_support", "photo_profile", "photo_language",
-               "photo_trial", "photo_connect", "photo_referrals", "photo_status"}
+    allowed = {
+        "photo_welcome",
+        "photo_buy",
+        "photo_my_keys",
+        "photo_balance",
+        "photo_about",
+        "photo_support",
+        "photo_profile",
+        "photo_language",
+        "photo_trial",
+        "photo_connect",
+        "photo_referrals",
+        "photo_status",
+    }
     if photo_type not in allowed:
-        return JSONResponse({"ok": False, "message": "Invalid photo type"}, status_code=400)
+        return JSONResponse(
+            {"ok": False, "message": "Invalid photo type"}, status_code=400
+        )
 
     content = await file.read()
     if len(content) > 5 * 1024 * 1024:
-        return JSONResponse({"ok": False, "message": "File too large (max 5MB)"}, status_code=400)
+        return JSONResponse(
+            {"ok": False, "message": "File too large (max 5MB)"}, status_code=400
+        )
 
     import base64
+
     b64 = base64.b64encode(content).decode()
     await BotSettingsService(db).set(photo_type, b64)
     await db.commit()
@@ -628,11 +701,24 @@ async def clear_photo(
     db: AsyncSession = Depends(get_db),
 ):
     _require_permission(request, "system")
-    allowed = {"photo_welcome", "photo_buy", "photo_my_keys", "photo_balance",
-               "photo_about", "photo_support", "photo_profile", "photo_language",
-               "photo_trial", "photo_connect", "photo_referrals", "photo_status"}
+    allowed = {
+        "photo_welcome",
+        "photo_buy",
+        "photo_my_keys",
+        "photo_balance",
+        "photo_about",
+        "photo_support",
+        "photo_profile",
+        "photo_language",
+        "photo_trial",
+        "photo_connect",
+        "photo_referrals",
+        "photo_status",
+    }
     if photo_type not in allowed:
-        return JSONResponse({"ok": False, "message": "Invalid photo type"}, status_code=400)
+        return JSONResponse(
+            {"ok": False, "message": "Invalid photo type"}, status_code=400
+        )
     await BotSettingsService(db).set(photo_type, "")
     await db.commit()
     return JSONResponse({"ok": True})

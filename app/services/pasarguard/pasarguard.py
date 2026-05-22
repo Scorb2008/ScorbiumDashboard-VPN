@@ -41,7 +41,6 @@ class MarzbanClient:
             MarzbanClient._session = AsyncClient(timeout=self._timeout, verify=True)
         return MarzbanClient._session
 
-
     async def _get_token(self) -> str:
         async with self._lock:
             now = datetime.now(timezone.utc)
@@ -128,6 +127,41 @@ class PasarguardService(VpnPanelInterface):
         except (TypeError, ValueError):
             return 0
 
+    @staticmethod
+    def _expire_timestamp(expire_at: datetime | None) -> int | None:
+        if expire_at is None:
+            return None
+        if expire_at.tzinfo is None:
+            expire_at = expire_at.replace(tzinfo=timezone.utc)
+        return int(expire_at.timestamp())
+
+    @staticmethod
+    def _parse_expire_datetime(raw_expire: object, now: datetime) -> datetime | None:
+        if raw_expire is None:
+            return None
+
+        try:
+            value = str(raw_expire).strip()
+            if not value or value.lower() == "none":
+                return None
+
+            if value.isdigit():
+                ts = int(value)
+                return datetime.fromtimestamp(ts, tz=timezone.utc) if ts > 0 else now
+
+            try:
+                parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError:
+                ts = float(value)
+                parsed = datetime.fromtimestamp(ts, tz=timezone.utc) if ts > 0 else now
+
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed.astimezone(timezone.utc)
+        except Exception as e:
+            log.warning(f"[parse_expire_datetime] parse expire error: {e}")
+            return now
+
     def _normalize_user_payload(self, user: dict | None) -> dict | None:
         if not isinstance(user, dict):
             return user
@@ -158,9 +192,7 @@ class PasarguardService(VpnPanelInterface):
         normalized = dict(payload)
         users = normalized.get("users")
         if isinstance(users, list):
-            normalized["users"] = [
-                self._normalize_user_payload(user) for user in users
-            ]
+            normalized["users"] = [self._normalize_user_payload(user) for user in users]
         return normalized
 
     # ── System ──────────────────────────────────────────────────────────────
@@ -209,9 +241,9 @@ class PasarguardService(VpnPanelInterface):
 
         expire_ts = None
         if expire_days > 0:
-            expire_ts = (
+            expire_ts = self._expire_timestamp(
                 datetime.now(timezone.utc) + timedelta(days=expire_days)
-            ).isoformat()
+            )
 
         uid = str(uuid.uuid4())
         proxy_settings = proxies or {
@@ -259,39 +291,8 @@ class PasarguardService(VpnPanelInterface):
         if not user:
             raise PasarguardRequestError(f"User {username} not found")
 
-        raw_expire = user.get("expire")
-
         now = datetime.now(timezone.utc)
-
-        current_expire = None
-        if raw_expire is not None:
-            try:
-                s = str(raw_expire).strip()
-                if not s or s.lower() == "none":
-                    current_expire = None
-                elif s.isdigit():
-                    ts = int(s)
-                    current_expire = (
-                        datetime.fromtimestamp(ts, tz=timezone.utc) if ts > 0 else now
-                    )
-                else:
-                    try:
-                        current_expire = datetime.fromisoformat(
-                            s.replace("Z", "+00:00")
-                        )
-                    except ValueError:
-                        try:
-                            ts = float(s)
-                            current_expire = (
-                                datetime.fromtimestamp(ts, tz=timezone.utc)
-                                if ts > 0
-                                else now
-                            )
-                        except ValueError:
-                            current_expire = now
-            except Exception as e:
-                log.warning(f"[extend_user] parse expire error: {e}")
-                current_expire = now
+        current_expire = self._parse_expire_datetime(user.get("expire"), now)
 
         if current_expire is None:
             base = now
@@ -301,7 +302,7 @@ class PasarguardService(VpnPanelInterface):
         if base < now:
             base = now
 
-        new_expire = (base + timedelta(days=extra_days)).isoformat()
+        new_expire = self._expire_timestamp(base + timedelta(days=extra_days))
         log.info(f"[extend_user] base={base} new_expire={new_expire}")
         return await self.modify_user(username, expire=new_expire)
 

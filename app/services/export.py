@@ -49,24 +49,33 @@ class ExportService:
         users = result.all()
 
         headers = [
-            "Telegram ID", "Full Name", "Username", "Language",
-            "Balance", "Banned", "Auto Renew",
-            "Created At", "Subscriptions Count", "Payments Count",
+            "Telegram ID",
+            "Full Name",
+            "Username",
+            "Language",
+            "Balance",
+            "Banned",
+            "Auto Renew",
+            "Created At",
+            "Subscriptions Count",
+            "Payments Count",
         ]
         rows = []
         for u in users:
-            rows.append([
-                u[0],
-                u[1] or "",
-                u[2] or "",
-                u[3] or "",
-                float(u[4] or 0),
-                "Yes" if u[5] else "No",
-                "Yes" if u[6] else "No",
-                u[7].strftime("%Y-%m-%d %H:%M") if u[7] else "",
-                u[8],
-                u[9],
-            ])
+            rows.append(
+                [
+                    u[0],
+                    u[1] or "",
+                    u[2] or "",
+                    u[3] or "",
+                    float(u[4] or 0),
+                    "Yes" if u[5] else "No",
+                    "Yes" if u[6] else "No",
+                    u[7].strftime("%Y-%m-%d %H:%M") if u[7] else "",
+                    u[8],
+                    u[9],
+                ]
+            )
         return self._to_bytes(headers, rows, fmt, "users")
 
     async def export_payments(
@@ -100,48 +109,62 @@ class ExportService:
         payments = list(result.scalars().all())
 
         headers = [
-            "ID", "User ID", "Provider", "Type", "Amount",
-            "Currency", "Status", "External ID", "Created At",
+            "ID",
+            "User ID",
+            "Provider",
+            "Type",
+            "Amount",
+            "Currency",
+            "Status",
+            "External ID",
+            "Created At",
         ]
         rows = []
         for p in payments:
-            rows.append([
-                p.id,
-                p.user_id,
-                p.provider or "",
-                str(p.payment_type) if p.payment_type else "",
-                float(p.amount or 0),
-                p.currency or "",
-                p.status or "",
-                p.external_id or "",
-                p.created_at.strftime("%Y-%m-%d %H:%M") if p.created_at else "",
-            ])
+            rows.append(
+                [
+                    p.id,
+                    p.user_id,
+                    p.provider or "",
+                    str(p.payment_type) if p.payment_type else "",
+                    float(p.amount or 0),
+                    p.currency or "",
+                    p.status or "",
+                    p.external_id or "",
+                    p.created_at.strftime("%Y-%m-%d %H:%M") if p.created_at else "",
+                ]
+            )
         return self._to_bytes(headers, rows, fmt, "payments")
 
     async def export_subscriptions(self, fmt: str = "csv") -> bytes:
         """Export VPN keys (subscriptions) with plan info."""
         result = await self.session.execute(
-            select(VpnKey)
-            .options(selectinload(VpnKey.plan))
-            .order_by(VpnKey.id.desc())
+            select(VpnKey).options(selectinload(VpnKey.plan)).order_by(VpnKey.id.desc())
         )
         keys = list(result.scalars().all())
 
         headers = [
-            "ID", "User ID", "Status", "Plan ID",
-            "Expires At", "Access URL", "Created At",
+            "ID",
+            "User ID",
+            "Status",
+            "Plan ID",
+            "Expires At",
+            "Access URL",
+            "Created At",
         ]
         rows = []
         for k in keys:
-            rows.append([
-                k.id,
-                k.user_id,
-                k.status or "",
-                k.plan_id or "",
-                k.expires_at.strftime("%Y-%m-%d %H:%M") if k.expires_at else "",
-                k.access_url or "",
-                k.created_at.strftime("%Y-%m-%d %H:%M") if k.created_at else "",
-            ])
+            rows.append(
+                [
+                    k.id,
+                    k.user_id,
+                    k.status or "",
+                    k.plan_id or "",
+                    k.expires_at.strftime("%Y-%m-%d %H:%M") if k.expires_at else "",
+                    k.access_url or "",
+                    k.created_at.strftime("%Y-%m-%d %H:%M") if k.created_at else "",
+                ]
+            )
         return self._to_bytes(headers, rows, fmt, "subscriptions")
 
     def _to_bytes(self, headers: list, rows: list, fmt: str, name: str) -> bytes:
@@ -166,7 +189,9 @@ class ExportService:
             ws.title = sheet_name[:31]
 
             header_font = Font(bold=True, color="FFFFFF")
-            header_fill = PatternFill(start_color="00d4aa", end_color="00d4aa", fill_type="solid")
+            header_fill = PatternFill(
+                start_color="00d4aa", end_color="00d4aa", fill_type="solid"
+            )
             thin_border = Border(
                 left=Side(style="thin"),
                 right=Side(style="thin"),
@@ -193,7 +218,9 @@ class ExportService:
                     cell_val = ws.cell(row=row, column=col).value
                     if cell_val:
                         max_length = max(max_length, len(str(cell_val)))
-                ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = min(max_length + 2, 50)
+                ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = min(
+                    max_length + 2, 50
+                )
 
             buf = io.BytesIO()
             wb.save(buf)

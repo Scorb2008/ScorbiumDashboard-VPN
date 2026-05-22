@@ -18,7 +18,10 @@ async def bot_info(_: str = Depends(get_current_admin)) -> dict:
     notify = TelegramNotifyService()
     info = await notify.get_bot_info()
     if not info:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to reach Telegram API")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to reach Telegram API",
+        )
     return info
 
 
@@ -30,5 +33,7 @@ async def send_direct(
     notify = TelegramNotifyService()
     ok = await notify.send_message(body.chat_id, body.text, body.parse_mode)
     if not ok:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to send message")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to send message"
+        )
     return {"detail": "sent"}

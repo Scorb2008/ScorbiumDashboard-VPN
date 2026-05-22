@@ -3,6 +3,7 @@ Anti-spam / rate-limit middleware for the Telegram bot.
 Uses a simple in-memory token bucket: each user gets N tokens,
 refilled every REFILL_INTERVAL seconds.
 """
+
 import time
 from collections import defaultdict
 from typing import Any, Awaitable, Callable
@@ -11,12 +12,12 @@ from aiogram import BaseMiddleware
 from aiogram.types import Message, CallbackQuery, TelegramObject
 
 # ── Config ────────────────────────────────────────────────────────────────────
-MAX_TOKENS = 10          # max burst
-REFILL_RATE = 5          # tokens per second
-REFILL_INTERVAL = 1.0    # check interval
-CALLBACK_COST = 1        # tokens per callback
-MESSAGE_COST = 2         # tokens per message (heavier)
-BLOCK_DURATION = 30      # seconds to block after exhaustion
+MAX_TOKENS = 10  # max burst
+REFILL_RATE = 5  # tokens per second
+REFILL_INTERVAL = 1.0  # check interval
+CALLBACK_COST = 1  # tokens per callback
+MESSAGE_COST = 2  # tokens per message (heavier)
+BLOCK_DURATION = 30  # seconds to block after exhaustion
 
 # ── Admin command flood protection ───────────────────────────────────────────
 ADMIN_COMMANDS = {"/ban", "/unban", "/promo", "/addbalance", "/givekey", "/admin"}
@@ -79,8 +80,12 @@ class ThrottleMiddleware(BaseMiddleware):
 
     def __init__(self) -> None:
         self._buckets: dict[int, _Bucket] = defaultdict(_Bucket)
-        self._admin_counts: dict[int, list[float]] = defaultdict(list)  # user_id -> [timestamps]
-        self._command_counts: dict[int, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
+        self._admin_counts: dict[int, list[float]] = defaultdict(
+            list
+        )  # user_id -> [timestamps]
+        self._command_counts: dict[int, dict[str, list[float]]] = defaultdict(
+            lambda: defaultdict(list)
+        )
 
     def _get_user_id(self, event: TelegramObject) -> int | None:
         if isinstance(event, (Message, CallbackQuery)):
@@ -129,12 +134,16 @@ class ThrottleMiddleware(BaseMiddleware):
         # Admin command flood protection
         if cmd and cmd in ADMIN_COMMANDS:
             from app.core.config import config
+
             if user_id in config.telegram.telegram_admin_ids:
                 now = time.monotonic()
                 admin_window = [t for t in self._admin_counts[user_id] if t > now - 60]
                 if len(admin_window) >= ADMIN_RATE_PER_MINUTE:
                     try:
-                        await event.answer("⏳ Подождите — слишком много админ-команд подряд.", disable_notification=True)
+                        await event.answer(
+                            "⏳ Подождите — слишком много админ-команд подряд.",
+                            disable_notification=True,
+                        )
                     except Exception:
                         pass
                     return
@@ -158,7 +167,9 @@ class ThrottleMiddleware(BaseMiddleware):
                         pass
                 elif isinstance(event, CallbackQuery):
                     try:
-                        await event.answer("⏳ Слишком быстро! Подождите.", show_alert=True)
+                        await event.answer(
+                            "⏳ Слишком быстро! Подождите.", show_alert=True
+                        )
                     except Exception:
                         pass
             return  # drop the update

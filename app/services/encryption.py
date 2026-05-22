@@ -2,6 +2,7 @@
 Fernet-based encryption for sensitive values stored in the database.
 Uses a master key from the ENCRYPTION_KEY env var.
 """
+
 import os
 import base64
 

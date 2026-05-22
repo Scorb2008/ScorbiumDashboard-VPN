@@ -7,6 +7,7 @@ from app.utils.path import env_file
 from app.core.exceptions import EnvException, PasarguardAuthError
 from app.utils.log import log
 
+
 class _PasarGuardConfig(BaseSettings):
     """
     Configuration for Pasarguard API
@@ -55,7 +56,11 @@ class _PasarGuardConfig(BaseSettings):
     def validate_admin_panel_url(cls, value: HttpUrl) -> HttpUrl:
         """Validate URL Admin panel"""
 
-        if value.host in ["localhost", "127.0.0.1", "0.0.0.0"]:
+        # Reject bind-address values; Pasarguard panel URL must be dialable.
+        if value.host == "0.0.0.0":  # nosec B104
+            raise EnvException("⚠ PASARGUARD_ADMIN_PANEL cannot point to 0.0.0.0")
+
+        if value.host in ["localhost", "127.0.0.1"]:
             log.warning(f"⚠️ Using localhost for admin panel: {value}")
 
         if value.scheme == "http" and value.host not in ["localhost", "127.0.0.1"]:
@@ -118,9 +123,9 @@ class _PasarGuardConfig(BaseSettings):
     def has_password_auth(self) -> bool:
         """Check if password authentication is available"""
         return bool(
-            self.pasarguard_admin_login and
-            self.pasarguard_admin_password and
-            self.pasarguard_admin_password.get_secret_value().strip()
+            self.pasarguard_admin_login
+            and self.pasarguard_admin_password
+            and self.pasarguard_admin_password.get_secret_value().strip()
         )
 
     @property
@@ -128,14 +133,17 @@ class _PasarGuardConfig(BaseSettings):
         """Check if API key authentication is available"""
         try:
             return bool(
-                self.pasarguard_api_key and
-                self.pasarguard_api_key.get_secret_value().strip()
+                self.pasarguard_api_key
+                and self.pasarguard_api_key.get_secret_value().strip()
             )
         except Exception:
             return False
 
     def assert_login_credentials(self) -> Tuple[str, SecretStr]:
-        if self.pasarguard_admin_login is None or self.pasarguard_admin_password is None:
+        if (
+            self.pasarguard_admin_login is None
+            or self.pasarguard_admin_password is None
+        ):
             raise EnvException("❌ Login credentials are not properly configured!")
 
         return self.pasarguard_admin_login, self.pasarguard_admin_password
@@ -174,6 +182,7 @@ class _PasarGuardConfig(BaseSettings):
             f"  Auth: {', '.join(auth_methods) if auth_methods else '❌ None'}\n"
             f")"
         )
+
 
 @lru_cache()
 def get_pasarguard_config() -> Optional["_PasarGuardConfig"]:

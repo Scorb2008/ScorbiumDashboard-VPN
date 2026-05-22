@@ -1,4 +1,5 @@
 """VPN keys management routes (revoke, extend, delete, sync)."""
+
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import HTMLResponse
 
@@ -30,7 +31,9 @@ async def vpn_page(request: Request, db: AsyncSession = Depends(get_db)):
 
 @router.post("/{key_id}/revoke", response_class=HTMLResponse)
 async def revoke_key(
-    key_id: int, request: Request, db: AsyncSession = Depends(get_db),
+    key_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
 ):
     _require_permission(request, "vpn.write")
     try:
@@ -45,14 +48,16 @@ async def revoke_key(
 
 @router.post("/{key_id}/extend", response_class=HTMLResponse)
 async def extend_key(
-    key_id: int, request: Request, db: AsyncSession = Depends(get_db),
+    key_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
 ):
     _require_permission(request, "vpn.write")
     result = await db.execute(select(VpnKey).where(VpnKey.id == key_id))
     key = result.scalar_one_or_none()
     if not key:
         resp = Response(status_code=404)
-        _toast(resp, 'Ключ не найден', 'error')
+        _toast(resp, "Ключ не найден", "error")
         return resp
     days = 30
     key = await VpnKeyService(db).extend(key_id, days)
@@ -70,14 +75,16 @@ async def extend_key(
 
 @router.post("/{key_id}/delete", response_class=HTMLResponse)
 async def delete_key(
-    key_id: int, request: Request, db: AsyncSession = Depends(get_db),
+    key_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
 ):
     _require_permission(request, "vpn.write")
     result = await db.execute(select(VpnKey).where(VpnKey.id == key_id))
     key = result.scalar_one_or_none()
     if not key:
         resp = Response(status_code=404)
-        _toast(resp, 'Ключ не найден', 'error')
+        _toast(resp, "Ключ не найден", "error")
         return resp
     await db.delete(key)
     await db.commit()

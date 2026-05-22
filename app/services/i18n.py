@@ -235,8 +235,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "connect_not_found": "Guide not found",
         "archive_empty_alert": "Archive is empty",
         "sub_not_found": "Subscription not found",
-
-       "profile_not_found": "❌ Profile not found.",
+        "profile_not_found": "❌ Profile not found.",
         "btn_my_subs": "🔑 My subscriptions",
         "btn_all_subs": "📦 All subscriptions",
     },

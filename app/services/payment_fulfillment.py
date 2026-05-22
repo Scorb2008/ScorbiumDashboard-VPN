@@ -36,10 +36,14 @@ class PaymentFulfillmentService:
     async def confirm_topup_and_credit_once(
         self, payment_id: int, external_id: str
     ) -> TopupFulfillmentResult:
-        confirmation = await self._payment_svc.confirm_topup_once(payment_id, external_id)
+        confirmation = await self._payment_svc.confirm_topup_once(
+            payment_id, external_id
+        )
         payment = confirmation.payment
         if not payment or payment.payment_type != PaymentType.TOPUP.value:
-            return TopupFulfillmentResult(payment=payment, just_processed=False, balance=None)
+            return TopupFulfillmentResult(
+                payment=payment, just_processed=False, balance=None
+            )
 
         user = None
         if confirmation.just_confirmed:
@@ -49,7 +53,9 @@ class PaymentFulfillmentService:
         else:
             user = await self._user_svc.get_by_id(payment.user_id)
 
-        balance = Decimal(str(user.balance)) if user and user.balance is not None else None
+        balance = (
+            Decimal(str(user.balance)) if user and user.balance is not None else None
+        )
         return TopupFulfillmentResult(
             payment=payment,
             just_processed=confirmation.just_confirmed,
@@ -69,7 +75,9 @@ class PaymentFulfillmentService:
 
         existing_key = await self._resolve_linked_key(payment)
         if existing_key:
-            return KeyFulfillmentResult(payment=payment, key=existing_key, just_processed=False)
+            return KeyFulfillmentResult(
+                payment=payment, key=existing_key, just_processed=False
+            )
 
         key = await self._key_svc.provision(user_id=user_id, plan=plan)
         if key:
@@ -90,7 +98,9 @@ class PaymentFulfillmentService:
 
         existing_key = await self._resolve_linked_key(payment)
         if existing_key:
-            return KeyFulfillmentResult(payment=payment, key=existing_key, just_processed=False)
+            return KeyFulfillmentResult(
+                payment=payment, key=existing_key, just_processed=False
+            )
 
         target_key = await self._key_svc.get_by_id(key_id)
         if not target_key or target_key.user_id != user_id:

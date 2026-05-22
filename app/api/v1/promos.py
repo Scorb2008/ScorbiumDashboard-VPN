@@ -14,20 +14,26 @@ async def list_promos(db: AsyncSession = Depends(get_db), _=Depends(get_current_
 
 
 @router.post("/", response_model=PromoRead, status_code=201)
-async def create_promo(data: PromoCreate, db: AsyncSession = Depends(get_db), _=Depends(get_current_admin)):
+async def create_promo(
+    data: PromoCreate, db: AsyncSession = Depends(get_db), _=Depends(get_current_admin)
+):
     promo = await PromoService(db).create(**data.model_dump())
     await db.commit()
     return promo
 
 
 @router.delete("/{promo_id}", status_code=204)
-async def delete_promo(promo_id: int, db: AsyncSession = Depends(get_db), _=Depends(get_current_admin)):
+async def delete_promo(
+    promo_id: int, db: AsyncSession = Depends(get_db), _=Depends(get_current_admin)
+):
     await PromoService(db).delete(promo_id)
     await db.commit()
 
 
 @router.post("/{promo_id}/toggle", response_model=PromoRead)
-async def toggle_promo(promo_id: int, db: AsyncSession = Depends(get_db), _=Depends(get_current_admin)):
+async def toggle_promo(
+    promo_id: int, db: AsyncSession = Depends(get_db), _=Depends(get_current_admin)
+):
     promo = await PromoService(db).toggle_active(promo_id)
     if not promo:
         raise HTTPException(status_code=404, detail="Promo not found")
@@ -43,7 +49,9 @@ async def apply_promo(
 ):
     promo = await PromoService(db).apply(data.code)
     if not promo:
-        return PromoApplyResult(valid=False, message="Промокод недействителен или исчерпан")
+        return PromoApplyResult(
+            valid=False, message="Промокод недействителен или исчерпан"
+        )
     await db.commit()
     return PromoApplyResult(
         valid=True,
