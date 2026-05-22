@@ -30,7 +30,7 @@ def _parse_payment_status(value: Optional[str]) -> Optional[PaymentStatus]:
 
 def _render_payments_rows(request: Request, payments):
     return templates.TemplateResponse(
-        "partials/payments_rows.html",
+        "partials/payments_table_rows.html",
         {"request": request, "payments": payments},
     )
 

@@ -115,7 +115,6 @@
       <div style="padding:.75rem 1rem;border-top:1px solid var(--border)">
         <form id="support-reply-form" hx-post="/panel/support/{{ ticket.id }}/reply"
           hx-target="#messages-box" hx-swap="innerHTML"
-          hx-on::after-request="handleSupportReplyAfterRequest(event)"
           class="d-flex gap-2 align-items-center">
           <input type="text" name="text" class="form-control form-control-sm"
             placeholder="Написать ответ..." required style="flex:1"/>
@@ -168,19 +167,25 @@
       : '<i class="bi bi-send-fill"></i>';
   }
 
-  function handleSupportReplyAfterRequest(event) {
-    setSupportReplyPending(false);
-    if (event.detail.successful) {
-      const form = document.getElementById('support-reply-form');
-      const input = form?.querySelector('input[name="text"]');
-      if (form) form.reset();
-      if (input) input.value = '';
+  function clearSupportReplyForm() {
+    const form = document.getElementById('support-reply-form');
+    const input = form?.querySelector('input[name="text"]');
+    if (form) form.reset();
+    if (input) {
+      input.value = '';
+      input.focus();
     }
   }
 
+  function finishSupportReply(successful) {
+    setSupportReplyPending(false);
+    if (successful) clearSupportReplyForm();
+  }
+
   document.body.addEventListener('htmx:beforeRequest', (e) => {
-    if (e.target?.id === 'support-reply-form') {
-      if (e.target.dataset.pending === '1') {
+    const form = e.detail?.elt;
+    if (form?.id === 'support-reply-form') {
+      if (form.dataset.pending === '1') {
         e.preventDefault();
         return;
       }
@@ -188,8 +193,23 @@
     }
   });
 
+  document.body.addEventListener('htmx:afterRequest', (e) => {
+    const form = e.detail?.elt;
+    if (form?.id === 'support-reply-form') {
+      finishSupportReply(Boolean(e.detail?.successful));
+    }
+  });
+
   document.body.addEventListener('htmx:responseError', (e) => {
-    if (e.target?.id === 'support-reply-form') {
+    const form = e.detail?.elt;
+    if (form?.id === 'support-reply-form') {
+      setSupportReplyPending(false);
+    }
+  });
+
+  document.body.addEventListener('htmx:sendError', (e) => {
+    const form = e.detail?.elt;
+    if (form?.id === 'support-reply-form') {
       setSupportReplyPending(false);
     }
   });

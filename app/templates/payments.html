@@ -37,7 +37,9 @@
           <th>Сумма</th><th>Статус</th><th>Дата</th><th></th>
         </tr>
       </thead>
-      {% include "partials/payments_rows.html" %}
+      <tbody id="payments-tbody">
+        {% include "partials/payments_table_rows.html" %}
+      </tbody>
     </table>
   </div>
 </div>

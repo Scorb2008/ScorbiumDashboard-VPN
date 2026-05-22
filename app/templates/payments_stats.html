@@ -112,7 +112,7 @@ const providerLabels = {
 
 async function loadStats(days) {
   try {
-    const r = await fetch(`/panel/payments/stats?days=${days}`);
+    const r = await fetch(`/panel/payments/stats/json?days=${days}`);
     if (!r.ok) return;
     const data = await r.json();
 
@@ -141,12 +141,17 @@ async function loadStats(days) {
 }
 
 function renderBarChart(daily) {
-  if (!daily || !daily.length) return;
-  const max = Math.max(...daily.map(d => d.amount), 1);
   const chart = document.getElementById('barChart');
   const labels = document.getElementById('barLabels');
   chart.innerHTML = '';
   labels.innerHTML = '';
+
+  if (!daily || !daily.length) {
+    chart.innerHTML = '<div style="width:100%;display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:.85rem">Нет успешных платежей за выбранный период</div>';
+    return;
+  }
+
+  const max = Math.max(...daily.map(d => d.amount), 1);
 
   daily.forEach(d => {
     const h = Math.max((d.amount / max) * 160, 2);

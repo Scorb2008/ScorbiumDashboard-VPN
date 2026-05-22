@@ -123,7 +123,7 @@ async def test_payments_page_htmx_returns_rows_and_ignores_invalid_status(
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
-    assert "<tbody" in body
+    assert "<tr>" in body
     assert "История платежей" not in body
     assert f"#{sample_payment.id}" in body
 
