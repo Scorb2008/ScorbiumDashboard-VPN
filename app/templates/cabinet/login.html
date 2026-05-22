@@ -45,15 +45,28 @@
         {% set oidc_enabled = telegram_client_id|int > 0 %}
         {% set legacy_enabled = bu|length > 0 %}
         <div id="web-login" class="s" {% if is_mini_app %}style="display:none"{% endif %}>
-          {% if legacy_enabled %}
-          <div id="telegram-login-legacy" style="display:flex;justify-content:center;min-height:40px"></div>
-          <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="{{ bu }}" data-size="large" data-radius="14" data-request-access="write" data-userpic="false" data-onauth="onTelegramAuth(user)"></script>
-          {% elif oidc_enabled %}
+          {% if oidc_enabled %}
           <div id="telegram-login-oidc" style="display:flex;justify-content:center;min-height:40px">
-            <button id="telegram-oidc-button" type="button" class="btn btn-p" style="min-width:238px" onclick="openTelegramOidc()">
-              <i class="bi bi-telegram"></i> Войти через Telegram
+            <button id="telegram-oidc-button" type="button" class="btn btn-p" style="min-width:238px" onclick="openTelegramOidc()" disabled>
+              <i class="bi bi-telegram"></i> Подключаем Telegram...
             </button>
           </div>
+          {% if legacy_enabled %}
+          <div class="ib" style="margin-top:12px;justify-content:center;text-align:center">
+            <div>
+              <div><strong>Нужен запасной вход?</strong></div>
+              <div class="muted" style="margin-top:4px">Если новый Telegram Login не откроется, можно переключиться на классический виджет.</div>
+              <button type="button" class="btn btn-o" style="margin-top:10px" onclick="showLegacyTelegramLogin()">
+                <i class="bi bi-arrow-left-right"></i> Открыть классический вход
+              </button>
+            </div>
+          </div>
+          <div id="telegram-login-legacy" style="display:none;justify-content:center;min-height:40px;margin-top:12px"></div>
+          <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="{{ bu }}" data-size="large" data-radius="14" data-request-access="write" data-userpic="false" data-onauth="onTelegramAuth(user)"></script>
+          {% endif %}
+          {% elif legacy_enabled %}
+          <div id="telegram-login-legacy" style="display:flex;justify-content:center;min-height:40px"></div>
+          <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="{{ bu }}" data-size="large" data-radius="14" data-request-access="write" data-userpic="false" data-onauth="onTelegramAuth(user)"></script>
           {% else %}
           <div class="ib"><i class="bi bi-exclamation-triangle cr"></i><span>Вход через Telegram не настроен: нет ни `TELEGRAM_BOT_USERNAME`, ни `TELEGRAM_CLIENT_ID`</span></div>
           {% endif %}
@@ -73,6 +86,8 @@
 
 {% block scripts %}
 var telegramOidcReady = false;
+var telegramOidcLoading = false;
+var telegramOidcScriptPromise = null;
 var hasLegacyTelegramLogin = {{ 'true' if legacy_enabled else 'false' }};
 
 function showLegacyTelegramLogin() {
@@ -82,51 +97,111 @@ function showLegacyTelegramLogin() {
   if (legacyRoot) legacyRoot.style.display = 'flex';
 }
 
-function initTelegramOidc() {
-  try {
-    if (!window.Telegram || !window.Telegram.Login || typeof window.Telegram.Login.init !== 'function')
-      throw new Error('Telegram Login SDK unavailable');
-    window.Telegram.Login.init({
-      client_id: {{ telegram_client_id|int }},
-      request_access: ['write'],
-      lang: 'ru'
-    }, onTelegramOidcAuth);
-    telegramOidcReady = true;
-  } catch (e) {
-    telegramOidcReady = false;
-    showLegacyTelegramLogin();
-  }
+function setOidcButtonState(text, disabled) {
+  var btn = document.getElementById('telegram-oidc-button');
+  if (!btn) return;
+  btn.disabled = !!disabled;
+  btn.innerHTML = '<i class="bi bi-telegram"></i> ' + text;
 }
 
-function openTelegramOidc() {
-  if (!telegramOidcReady) {
+function initTelegramOidc() {
+  if (!window.Telegram || !window.Telegram.Login || typeof window.Telegram.Login.init !== 'function') {
+    telegramOidcReady = false;
+    throw new Error('Telegram Login SDK unavailable');
+  }
+  window.Telegram.Login.init({
+    client_id: {{ telegram_client_id|int }},
+    request_access: ['write'],
+    lang: 'ru'
+  }, onTelegramOidcAuth);
+  telegramOidcReady = true;
+  telegramOidcLoading = false;
+  setOidcButtonState('Войти через Telegram', false);
+}
+
+function loadTelegramOidcSdk() {
+  if (telegramOidcScriptPromise) return telegramOidcScriptPromise;
+  telegramOidcLoading = true;
+  setOidcButtonState('Подключаем Telegram...', true);
+  telegramOidcScriptPromise = new Promise(function(resolve, reject) {
+    if (window.Telegram && window.Telegram.Login && typeof window.Telegram.Login.init === 'function') {
+      try {
+        initTelegramOidc();
+        resolve();
+      } catch (e) {
+        reject(e);
+      }
+      return;
+    }
+
+    var oidcScript = document.createElement('script');
+    oidcScript.async = true;
+    oidcScript.src = 'https://oauth.telegram.org/js/telegram-login.js?1';
+    oidcScript.onload = function() {
+      try {
+        initTelegramOidc();
+        resolve();
+      } catch (e) {
+        reject(e);
+      }
+    };
+    oidcScript.onerror = function() {
+      telegramOidcLoading = false;
+      telegramOidcReady = false;
+      setOidcButtonState('Войти через Telegram', false);
+      reject(new Error('Failed to load Telegram OIDC SDK'));
+    };
+    document.head.appendChild(oidcScript);
+  });
+  return telegramOidcScriptPromise;
+}
+
+async function openTelegramOidc() {
+  try {
+    await loadTelegramOidcSdk();
+  } catch (e) {
     if (hasLegacyTelegramLogin) {
       showLegacyTelegramLogin();
-      showToast('Новый вход недоступен, используйте обычный Telegram Login', 'info');
+      showToast('Не удалось загрузить новый Telegram Login, используйте классический вход', 'error');
     } else {
-      showToast('OIDC недоступен', 'error');
+      showToast('Не удалось загрузить Telegram Login', 'error');
     }
     return;
   }
+
   setLoginState('Открываем Telegram...');
   try {
-    window.Telegram.Login.open(onTelegramOidcAuth);
+    if (window.Telegram && window.Telegram.Login && typeof window.Telegram.Login.open === 'function') {
+      window.Telegram.Login.open(onTelegramOidcAuth);
+    } else if (window.Telegram && window.Telegram.Login && typeof window.Telegram.Login.auth === 'function') {
+      window.Telegram.Login.auth({
+        client_id: {{ telegram_client_id|int }},
+        request_access: ['write'],
+        lang: 'ru'
+      }, onTelegramOidcAuth);
+    } else {
+      throw new Error('Telegram Login methods unavailable');
+    }
   } catch (e) {
-    showLegacyTelegramLogin();
-    showToast('Не удалось открыть новый Telegram Login, используйте резервный вход', 'error');
+    if (hasLegacyTelegramLogin) {
+      showLegacyTelegramLogin();
+      showToast('Не удалось открыть новый Telegram Login, используйте классический вход', 'error');
+    } else {
+      showToast('Не удалось открыть Telegram Login', 'error');
+    }
   }
 }
 
 function onTelegramOidcAuth(result) {
   if (!result || result.error) {
-    showLegacyTelegramLogin();
+    if (hasLegacyTelegramLogin) showLegacyTelegramLogin();
     if (result && result.error)
       showToast(result.error, 'error');
     return;
   }
   if (!result.id_token) {
-    showLegacyTelegramLogin();
-    showToast('Telegram не вернул id_token, используйте резервный вход', 'error');
+    if (hasLegacyTelegramLogin) showLegacyTelegramLogin();
+    showToast('Telegram не вернул id_token', 'error');
     return;
   }
   setLoginState('Проверка...');
@@ -220,15 +295,10 @@ async function bootMiniAppLogin() {
 }
 
 (function() {
-  {% if oidc_enabled and not legacy_enabled %}
-  var oidcScript = document.createElement('script');
-  oidcScript.async = true;
-  oidcScript.src = 'https://oauth.telegram.org/js/telegram-login.js?1';
-  oidcScript.onload = initTelegramOidc;
-  oidcScript.onerror = function() {
+  {% if oidc_enabled %}
+  loadTelegramOidcSdk().catch(function() {
     if (hasLegacyTelegramLogin) showLegacyTelegramLogin();
-  };
-  document.head.appendChild(oidcScript);
+  });
   if (!isMiniAppRuntime() && !hasLegacyTelegramLogin) {
     document.getElementById('login-status').style.display = 'none';
   }
