@@ -47,8 +47,8 @@
         <div id="web-login" class="s" {% if is_mini_app %}style="display:none"{% endif %}>
           {% if oidc_enabled %}
           <div id="telegram-login-oidc" style="display:flex;justify-content:center;min-height:40px">
-            <button id="telegram-oidc-button" type="button" class="btn btn-p" style="min-width:238px" onclick="openTelegramOidc()" disabled>
-              <i class="bi bi-telegram"></i> Подключаем Telegram...
+            <button id="telegram-oidc-button" type="button" class="btn btn-p" style="min-width:238px" onclick="openTelegramOidc()">
+              <i class="bi bi-telegram"></i> Войти через Telegram
             </button>
           </div>
           {% if legacy_enabled %}
@@ -88,6 +88,8 @@
 var telegramOidcReady = false;
 var telegramOidcLoading = false;
 var telegramOidcScriptPromise = null;
+var telegramOidcDirectPopup = null;
+var telegramOidcDirectHandler = null;
 var hasLegacyTelegramLogin = {{ 'true' if legacy_enabled else 'false' }};
 
 function showLegacyTelegramLogin() {
@@ -122,7 +124,6 @@ function initTelegramOidc() {
 function loadTelegramOidcSdk() {
   if (telegramOidcScriptPromise) return telegramOidcScriptPromise;
   telegramOidcLoading = true;
-  setOidcButtonState('Подключаем Telegram...', true);
   telegramOidcScriptPromise = new Promise(function(resolve, reject) {
     if (window.Telegram && window.Telegram.Login && typeof window.Telegram.Login.init === 'function') {
       try {
@@ -156,15 +157,109 @@ function loadTelegramOidcSdk() {
   return telegramOidcScriptPromise;
 }
 
+function oidcTimeout(ms) {
+  return new Promise(function(_, reject) {
+    setTimeout(function() { reject(new Error('Telegram OIDC SDK timeout')); }, ms);
+  });
+}
+
+function cleanupTelegramOidcDirectHandler() {
+  if (telegramOidcDirectHandler) {
+    window.removeEventListener('message', telegramOidcDirectHandler);
+    telegramOidcDirectHandler = null;
+  }
+}
+
+function buildTelegramOidcUrl() {
+  var params = new URLSearchParams();
+  params.set('response_type', 'post_message');
+  params.set('client_id', String({{ telegram_client_id|int }}));
+  params.set('redirect_uri', window.location.origin + window.location.pathname);
+  params.set('scope', 'openid profile telegram:bot_access');
+  params.set('lang', 'ru');
+  return 'https://oauth.telegram.org/auth?' + params.toString();
+}
+
+function openTelegramOidcDirect() {
+  var width = 550;
+  var height = 650;
+  var left = Math.max(0, (screen.width - width) / 2) + (screen.availLeft || 0);
+  var top = Math.max(0, (screen.height - height) / 2) + (screen.availTop || 0);
+  var features = [
+    'width=' + width,
+    'height=' + height,
+    'left=' + left,
+    'top=' + top,
+    'status=0',
+    'location=0',
+    'menubar=0',
+    'toolbar=0'
+  ].join(',');
+
+  cleanupTelegramOidcDirectHandler();
+  telegramOidcDirectHandler = function(event) {
+    if (event.origin !== 'https://oauth.telegram.org') return;
+    if (telegramOidcDirectPopup && event.source !== telegramOidcDirectPopup) return;
+
+    var data = event.data;
+    try {
+      data = typeof data === 'string' ? JSON.parse(data) : data;
+    } catch (e) {
+      return;
+    }
+    if (!data || data.event !== 'auth_result') return;
+
+    cleanupTelegramOidcDirectHandler();
+    if (telegramOidcDirectPopup && !telegramOidcDirectPopup.closed)
+      telegramOidcDirectPopup.close();
+
+    if (data.error) {
+      onTelegramOidcAuth({error: data.error});
+      return;
+    }
+    onTelegramOidcAuth({id_token: data.result});
+  };
+  window.addEventListener('message', telegramOidcDirectHandler);
+
+  telegramOidcDirectPopup = window.open(
+    buildTelegramOidcUrl(),
+    'telegram_oidc_login',
+    features
+  );
+  if (!telegramOidcDirectPopup) {
+    cleanupTelegramOidcDirectHandler();
+    throw new Error('Telegram OIDC popup blocked');
+  }
+  telegramOidcDirectPopup.focus();
+  setLoginState('Ожидаем подтверждение...');
+
+  var closeCheck = function() {
+    if (!telegramOidcDirectPopup || telegramOidcDirectPopup.closed) {
+      cleanupTelegramOidcDirectHandler();
+      setOidcButtonState('Войти через Telegram', false);
+      return;
+    }
+    setTimeout(closeCheck, 250);
+  };
+  closeCheck();
+}
+
 async function openTelegramOidc() {
+  setOidcButtonState('Открываем Telegram...', true);
   try {
-    await loadTelegramOidcSdk();
+    await Promise.race([loadTelegramOidcSdk(), oidcTimeout(2500)]);
   } catch (e) {
+    try {
+      openTelegramOidcDirect();
+      return;
+    } catch (directError) {
+      setOidcButtonState('Войти через Telegram', false);
+    }
     if (hasLegacyTelegramLogin) {
       showLegacyTelegramLogin();
-      showToast('Не удалось загрузить новый Telegram Login, используйте классический вход', 'error');
+      showToast('Не удалось открыть новый Telegram Login, используйте классический вход', 'error');
     } else {
-      showToast('Не удалось загрузить Telegram Login', 'error');
+      showToast('Не удалось открыть Telegram Login', 'error');
     }
     return;
   }
@@ -183,6 +278,12 @@ async function openTelegramOidc() {
       throw new Error('Telegram Login methods unavailable');
     }
   } catch (e) {
+    try {
+      openTelegramOidcDirect();
+      return;
+    } catch (directError) {
+      setOidcButtonState('Войти через Telegram', false);
+    }
     if (hasLegacyTelegramLogin) {
       showLegacyTelegramLogin();
       showToast('Не удалось открыть новый Telegram Login, используйте классический вход', 'error');
@@ -194,12 +295,14 @@ async function openTelegramOidc() {
 
 function onTelegramOidcAuth(result) {
   if (!result || result.error) {
+    setOidcButtonState('Войти через Telegram', false);
     if (hasLegacyTelegramLogin) showLegacyTelegramLogin();
     if (result && result.error)
       showToast(result.error, 'error');
     return;
   }
   if (!result.id_token) {
+    setOidcButtonState('Войти через Telegram', false);
     if (hasLegacyTelegramLogin) showLegacyTelegramLogin();
     showToast('Telegram не вернул id_token', 'error');
     return;
@@ -209,12 +312,14 @@ function onTelegramOidcAuth(result) {
     .then(function(r) {
       if (r.data.ok) window.location.replace(cabinetUrl(r.data.redirect || '/cabinet/'));
       else {
+        setOidcButtonState('Войти через Telegram', false);
         showToast(r.data.message || 'Ошибка', 'error');
         if (hasLegacyTelegramLogin) showLegacyTelegramLogin();
         showWebLoginFallback();
       }
     })
     .catch(function() {
+      setOidcButtonState('Войти через Telegram', false);
       showToast('Ошибка сети', 'error');
       if (hasLegacyTelegramLogin) showLegacyTelegramLogin();
       showWebLoginFallback();
@@ -297,9 +402,7 @@ async function bootMiniAppLogin() {
 (function() {
   var hasMiniAppInitData = !!getMiniAppInitData();
   {% if oidc_enabled %}
-  loadTelegramOidcSdk().catch(function() {
-    if (hasLegacyTelegramLogin) showLegacyTelegramLogin();
-  });
+  loadTelegramOidcSdk().catch(function() {});
   if (!isMiniAppRuntime() && !hasLegacyTelegramLogin) {
     document.getElementById('login-status').style.display = 'none';
   }
