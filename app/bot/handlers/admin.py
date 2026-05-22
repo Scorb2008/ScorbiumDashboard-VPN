@@ -1,3 +1,5 @@
+import asyncio
+
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import (
@@ -2044,7 +2046,14 @@ async def admin_backup(callback: CallbackQuery) -> None:
             env = os.environ.copy()
             env["PGPASSWORD"] = parsed.password or ""
 
-            result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=60)
+            result = await asyncio.to_thread(
+                subprocess.run,
+                cmd,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
 
             if result.returncode == 0 and os.path.exists(filepath):
                 file_size = os.path.getsize(filepath)

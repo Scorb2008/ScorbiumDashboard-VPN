@@ -1,5 +1,5 @@
 """Payments management routes."""
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 import html
 
@@ -17,6 +17,43 @@ from app.services.payment import PaymentService
 from .shared import _require_permission, _toast, _base_ctx, templates
 
 router = APIRouter()
+
+
+def _build_daily_series(
+    rows: list[tuple[date | datetime | str, float]],
+    *,
+    days: int,
+) -> list[dict[str, float | str]]:
+    if not rows:
+        points = min(max(days, 1), 30)
+        today = datetime.now(timezone.utc).date()
+        start = today - timedelta(days=points - 1)
+        return [
+            {
+                "date": (start + timedelta(days=offset)).isoformat(),
+                "amount": 0.0,
+            }
+            for offset in range(points)
+        ]
+
+    normalized: dict[date, float] = {}
+    for bucket, amount in rows:
+        if isinstance(bucket, datetime):
+            bucket_date = bucket.date()
+        elif isinstance(bucket, date):
+            bucket_date = bucket
+        else:
+            bucket_date = date.fromisoformat(str(bucket)[:10])
+        normalized[bucket_date] = float(amount)
+
+    start = min(normalized)
+    end = max(normalized)
+    cursor = start
+    daily: list[dict[str, float | str]] = []
+    while cursor <= end:
+        daily.append({"date": cursor.isoformat(), "amount": normalized.get(cursor, 0.0)})
+        cursor += timedelta(days=1)
+    return daily
 
 
 def _parse_payment_status(value: Optional[str]) -> Optional[PaymentStatus]:
@@ -106,7 +143,8 @@ async def payments_stats_page(request: Request, db: AsyncSession = Depends(get_d
 
     provider_names = {
         'yookassa': 'YooKassa', 'yookassa_sbp': 'YooKassa СБП', 'cryptobot': 'CryptoBot',
-        'telegram_stars': 'Telegram Stars', 'freekassa': 'FreeKassa', 'balance': 'Баланс', 'topup': 'Пополнение'
+        'telegram_stars': 'Telegram Stars', 'freekassa': 'FreeKassa', 'aikassa': 'AiKassa',
+        'platega': 'Platega', 'paypalych': 'PayPalych', 'balance': 'Баланс', 'topup': 'Пополнение'
     }
     result = await db.execute(
         select(
@@ -164,11 +202,13 @@ async def payments_stats_json(request: Request, days: int = 30, db: AsyncSession
 
     provider_names = {
         'yookassa': 'YooKassa', 'yookassa_sbp': 'YooKassa СБП', 'cryptobot': 'CryptoBot',
-        'telegram_stars': 'Telegram Stars', 'freekassa': 'FreeKassa', 'balance': 'Баланс', 'topup': 'Пополнение'
+        'telegram_stars': 'Telegram Stars', 'freekassa': 'FreeKassa', 'aikassa': 'AiKassa',
+        'platega': 'Platega', 'paypalych': 'PayPalych', 'balance': 'Баланс', 'topup': 'Пополнение'
     }
     provider_icons = {
         'yookassa': 'credit-card', 'yookassa_sbp': 'bank', 'cryptobot': 'currency-bitcoin',
-        'telegram_stars': 'star', 'freekassa': 'lightning', 'balance': 'wallet2', 'topup': 'plus-circle'
+        'telegram_stars': 'star', 'freekassa': 'lightning', 'aikassa': 'wallet',
+        'platega': 'qr-code', 'paypalych': 'cash-stack', 'balance': 'wallet2', 'topup': 'plus-circle'
     }
     result = await db.execute(
         select(
@@ -207,7 +247,10 @@ async def payments_stats_json(request: Request, days: int = 30, db: AsyncSession
             Payment.created_at >= cutoff
         ).group_by(day_bucket).order_by(day_bucket)
     )
-    daily = [{"date": str(r.day)[:10], "amount": float(r.amount)} for r in result.all()]
+    daily = _build_daily_series(
+        [(r.day, float(r.amount)) for r in result.all()],
+        days=days,
+    )
 
     return JSONResponse({
         "total_revenue": f"{total_rev:.2f}",

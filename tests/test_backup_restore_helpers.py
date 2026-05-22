@@ -12,6 +12,8 @@ import app.api.panel.routes.backup as backup_routes
 from app.api.panel.routes.backup import (
     _PUBLIC_SCHEMA_RESET_SQL,
     _format_subprocess_error,
+    _run_post_restore_migrations,
+    backup_export,
     backup_import,
     _prepare_restore_sql,
 )
@@ -87,6 +89,8 @@ def _make_request() -> Request:
 async def test_backup_import_success_without_request_db_session(monkeypatch):
     reset_cache = AsyncMock()
     sync_urls = AsyncMock(return_value={})
+    run_subprocess = AsyncMock(return_value=CompletedProcess(args=["psql"], returncode=0, stdout=b"", stderr=b""))
+    run_migrations = AsyncMock(return_value=(True, None))
 
     monkeypatch.setattr(backup_routes, "_require_permission", lambda request, permission: None)
     monkeypatch.setattr(
@@ -94,12 +98,8 @@ async def test_backup_import_success_without_request_db_session(monkeypatch):
         "config",
         SimpleNamespace(database=SimpleNamespace(sync_dsn="postgresql://restore-target")),
     )
-    monkeypatch.setattr(
-        backup_routes.subprocess,
-        "run",
-        lambda *args, **kwargs: CompletedProcess(args=args[0], returncode=0, stdout=b"", stderr=b""),
-    )
-    monkeypatch.setattr(backup_routes, "_run_post_restore_migrations", lambda: (True, None))
+    monkeypatch.setattr(backup_routes, "_run_subprocess", run_subprocess)
+    monkeypatch.setattr(backup_routes, "_run_post_restore_migrations", run_migrations)
     monkeypatch.setattr(backup_routes, "_sync_deployment_settings_after_restore", sync_urls)
     monkeypatch.setattr(backup_routes, "reset_bot_settings_cache", reset_cache)
 
@@ -113,6 +113,8 @@ async def test_backup_import_success_without_request_db_session(monkeypatch):
 
     assert response.status_code == 200
     sync_urls.assert_awaited_once()
+    run_subprocess.assert_awaited_once()
+    run_migrations.assert_awaited_once()
     assert payload["showToast"]["type"] == "success"
     reset_cache.assert_awaited_once()
 
@@ -131,6 +133,47 @@ async def test_backup_import_rejects_empty_file(monkeypatch):
     assert response.status_code == 400
     assert payload["showToast"]["type"] == "error"
     assert "пустой" in payload["showToast"]["msg"].lower()
+
+
+async def test_backup_export_uses_async_subprocess_runner(monkeypatch):
+    sql_bytes = b"CREATE TABLE demo(id int);\n"
+    run_subprocess = AsyncMock(
+        return_value=CompletedProcess(args=["pg_dump"], returncode=0, stdout=sql_bytes, stderr=b"")
+    )
+
+    monkeypatch.setattr(backup_routes, "_require_permission", lambda request, permission: None)
+    monkeypatch.setattr(
+        backup_routes,
+        "config",
+        SimpleNamespace(database=SimpleNamespace(sync_dsn="postgresql://backup-target")),
+    )
+    monkeypatch.setattr(backup_routes, "_run_subprocess", run_subprocess)
+
+    response = await backup_export(_make_request(), format="sql")
+    body = b"".join([chunk async for chunk in response.body_iterator])
+
+    assert response.status_code == 200
+    assert body == sql_bytes
+    run_subprocess.assert_awaited_once()
+
+
+async def test_run_post_restore_migrations_runs_fix_and_upgrade(monkeypatch):
+    calls: list[list[str]] = []
+
+    async def fake_run_subprocess(cmd, *, timeout, cwd=None, input_bytes=None):
+        calls.append(cmd)
+        return CompletedProcess(args=cmd, returncode=0, stdout=b"", stderr=b"")
+
+    monkeypatch.setattr(backup_routes, "_run_subprocess", fake_run_subprocess)
+
+    ok, error = await _run_post_restore_migrations()
+
+    assert ok is True
+    assert error is None
+    assert calls == [
+        ["uv", "run", "python", "fix_alembic.py"],
+        ["uv", "run", "alembic", "upgrade", "head"],
+    ]
 
 
 async def test_sync_deployment_url_settings_overwrites_stale_restore_urls(session, monkeypatch):

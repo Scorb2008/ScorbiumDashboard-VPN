@@ -21,6 +21,8 @@ _BG_SEM = asyncio.Semaphore(50)
 
 _EXPIRED_COOLDOWN = 86400   # 24 часа между уведомлениями о просрочке
 _PENDING_COOLDOWN = 300     # 5 минут между уведомлениями о pending
+_NOTIFY_CACHE_PRUNE_THRESHOLD = 2048
+_NOTIFY_CACHE_STALE_MULTIPLIER = 4
 
 
 class UserNotifyMiddleware(BaseMiddleware):
@@ -58,6 +60,16 @@ async def _coro_wrapper(coro):
             pass
 
 
+def _prune_notification_cache(cache: dict[int, float], now: float, cooldown: int) -> None:
+    if len(cache) < _NOTIFY_CACHE_PRUNE_THRESHOLD:
+        return
+
+    stale_before = now - (cooldown * _NOTIFY_CACHE_STALE_MULTIPLIER)
+    for user_id, ts in tuple(cache.items()):
+        if ts < stale_before:
+            cache.pop(user_id, None)
+
+
 async def _update_last_seen(user_id: int) -> None:
     from datetime import datetime, timezone
     from sqlalchemy import update
@@ -86,6 +98,7 @@ async def _notify_expired_keys(user_id: int) -> None:
     """Уведомляет о просроченных подписках (раз в 24 часа)."""
     import time
     now = time.time()
+    _prune_notification_cache(_notified_expired, now, _EXPIRED_COOLDOWN)
     last = _notified_expired.get(user_id, 0)
     if now - last < _EXPIRED_COOLDOWN:
         return
@@ -95,7 +108,7 @@ async def _notify_expired_keys(user_id: int) -> None:
     from app.services.telegram_notify import TelegramNotifyService
     from app.services.user import UserService
     from app.services.bot_settings import BotSettingsService
-    from app.services.i18n import t, get_lang
+    from app.services.i18n import get_lang
 
     async with AsyncSessionFactory() as session:
         result = await session.execute(
@@ -129,6 +142,7 @@ async def _notify_pending_payments(user_id: int) -> None:
     """Уведомляет о зависших pending платежах (раз в 5 минут)."""
     import time
     now = time.time()
+    _prune_notification_cache(_notified_pending, now, _PENDING_COOLDOWN)
     last = _notified_pending.get(user_id, 0)
     if now - last < _PENDING_COOLDOWN:
         return

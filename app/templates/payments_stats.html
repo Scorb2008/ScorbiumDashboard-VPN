@@ -70,7 +70,7 @@
         {% for p in providers %}
         <tr>
           <td>
-            {% set icons = {'yookassa': 'bi-credit-card', 'yookassa_sbp': 'bi-bank', 'cryptobot': 'bi-currency-bitcoin', 'telegram_stars': 'bi-star', 'freekassa': 'bi-lightning', 'balance': 'bi-wallet2', 'topup': 'bi-plus-circle'} %}
+            {% set icons = {'yookassa': 'bi-credit-card', 'yookassa_sbp': 'bi-bank', 'cryptobot': 'bi-currency-bitcoin', 'telegram_stars': 'bi-star', 'freekassa': 'bi-lightning', 'aikassa': 'bi-wallet', 'platega': 'bi-qr-code', 'paypalych': 'bi-cash-stack', 'balance': 'bi-wallet2', 'topup': 'bi-plus-circle'} %}
             <i class="bi {{ icons.get(p.provider, 'bi-question-circle') }} me-2" style="color:var(--accent)"></i>
             <span style="text-transform:capitalize">{{ p.label }}</span>
           </td>
@@ -85,6 +85,12 @@
             <div class="progress" style="height:8px;background:rgba(255,255,255,.05)">
               <div class="progress-bar" style="width:{{ p.share }}%;background:linear-gradient(90deg,#00d4aa,#0ea5e9)"></div>
             </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" class="text-center py-4" style="color:var(--text-muted)">
+            Нет платежей за выбранный период
           </td>
         </tr>
         {% endfor %}
@@ -123,17 +129,19 @@ async function loadStats(days) {
 
     // Update provider rows
     const tbody = document.getElementById('provider-tbody');
-    tbody.innerHTML = data.providers.map(p => `
-      <tr>
-        <td><i class="bi bi-${p.icon || 'credit-card'} me-2" style="color:var(--accent)"></i>${p.label}</td>
-        <td>${p.count}</td>
-        <td style="color:var(--success)">${p.success_count}</td>
-        <td class="fw-semibold" style="color:var(--text)">${p.revenue.toFixed(2)} ₽</td>
-        <td style="color:var(--text-muted)">${p.avg_amount.toFixed(2)} ₽</td>
-        <td><span class="badge badge-custom" style="background:rgba(0,212,170,.12);color:#00d4aa">${p.share}%</span></td>
-        <td style="min-width:150px"><div class="progress" style="height:8px;background:rgba(255,255,255,.05)"><div class="progress-bar" style="width:${p.share}%;background:linear-gradient(90deg,#00d4aa,#0ea5e9)"></div></div></td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = data.providers.length
+      ? data.providers.map(p => `
+        <tr>
+          <td><i class="bi bi-${p.icon || 'credit-card'} me-2" style="color:var(--accent)"></i>${p.label}</td>
+          <td>${p.count}</td>
+          <td style="color:var(--success)">${p.success_count}</td>
+          <td class="fw-semibold" style="color:var(--text)">${p.revenue.toFixed(2)} ₽</td>
+          <td style="color:var(--text-muted)">${p.avg_amount.toFixed(2)} ₽</td>
+          <td><span class="badge badge-custom" style="background:rgba(0,212,170,.12);color:#00d4aa">${p.share}%</span></td>
+          <td style="min-width:150px"><div class="progress" style="height:8px;background:rgba(255,255,255,.05)"><div class="progress-bar" style="width:${p.share}%;background:linear-gradient(90deg,#00d4aa,#0ea5e9)"></div></div></td>
+        </tr>
+      `).join('')
+      : '<tr><td colspan="7" class="text-center py-4" style="color:var(--text-muted)">Нет платежей за выбранный период</td></tr>';
 
     // Render bar chart
     renderBarChart(data.daily);

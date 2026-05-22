@@ -154,8 +154,9 @@ async def _lifespan(app: FastAPI):
         except Exception as e:
             log.warning("Failed to delete Telegram webhook (non-critical): %s", e)
         try:
-            asyncio.create_task(
-                _dp.start_polling(_bot, allowed_updates=_dp.resolve_used_update_types())
+            _start_bg_task(
+                _dp.start_polling(_bot, allowed_updates=_dp.resolve_used_update_types()),
+                name="bot_polling",
             )
             log.info("Bot polling started")
         except Exception as e:

@@ -1,4 +1,5 @@
 """Backup & restore routes."""
+import asyncio
 import gzip
 import io
 import subprocess
@@ -134,16 +135,32 @@ def _prepare_restore_sql(content: bytes) -> bytes:
     return f"{_PUBLIC_SCHEMA_RESET_SQL}\n{normalized}\n".encode("utf-8")
 
 
-def _run_post_restore_migrations() -> tuple[bool, str | None]:
+async def _run_subprocess(
+    cmd: list[str],
+    *,
+    timeout: int,
+    cwd: Path | None = None,
+    input_bytes: bytes | None = None,
+) -> subprocess.CompletedProcess[bytes]:
+    return await asyncio.to_thread(
+        subprocess.run,
+        cmd,
+        input=input_bytes,
+        capture_output=True,
+        timeout=timeout,
+        cwd=cwd,
+    )
+
+
+async def _run_post_restore_migrations() -> tuple[bool, str | None]:
     commands = [
         ["uv", "run", "python", "fix_alembic.py"],
         ["uv", "run", "alembic", "upgrade", "head"],
     ]
     for cmd in commands:
         try:
-            result = subprocess.run(
+            result = await _run_subprocess(
                 cmd,
-                capture_output=True,
                 timeout=_RESTORE_TIMEOUT,
                 cwd=_REPO_ROOT,
             )
@@ -193,7 +210,7 @@ async def backup_export(request: Request, format: str = "sql"):
     cmd = _portable_dump_command(pg_uri)
 
     try:
-        result = subprocess.run(cmd, capture_output=True, timeout=120)
+        result = await _run_subprocess(cmd, timeout=120)
         if result.returncode != 0:
             err = result.stderr.decode(errors="replace")[:300]
             return Response(content=f"pg_dump error: {err}", status_code=500)
@@ -259,12 +276,11 @@ async def backup_import(
         restore_sql = _prepare_restore_sql(content)
         cmd = ["psql", "--no-password", "-X", "-v", "ON_ERROR_STOP=1", "-1", "-f", "-", pg_uri]
 
-        result = subprocess.run(
+        result = await _run_subprocess(
             cmd,
-            input=restore_sql,
-            capture_output=True,
             timeout=_RESTORE_TIMEOUT,
             cwd=_REPO_ROOT,
+            input_bytes=restore_sql,
         )
         if result.returncode != 0:
             err = _format_subprocess_error(result)
@@ -272,7 +288,7 @@ async def backup_import(
             _toast(resp, f"Ошибка импорта: {err}", "error")
             return resp
 
-        migrations_ok, migrations_error = _run_post_restore_migrations()
+        migrations_ok, migrations_error = await _run_post_restore_migrations()
         if not migrations_ok:
             resp = Response(status_code=500)
             _toast(resp, f"Импорт выполнен, но миграции не применились: {migrations_error}", "error")

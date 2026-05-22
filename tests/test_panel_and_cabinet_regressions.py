@@ -1,4 +1,5 @@
 import json
+import time
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from types import SimpleNamespace
@@ -14,6 +15,7 @@ from app.api.panel.routes import payments as payments_routes
 from app.api.panel.routes import subscriptions as subscriptions_routes
 from app.api.panel.routes import support as support_routes
 from app.bot.handlers import payments as bot_payments
+from app.bot.middlewares import user_notify as user_notify_middleware
 from app.models.payment import Payment, PaymentProvider, PaymentStatus, PaymentType
 from app.models.promo import PromoCode, PromoType
 from app.models.promo_usage import PromoUsage
@@ -156,6 +158,25 @@ async def test_payments_stats_json_returns_daily_buckets_without_grouping_errors
 
 
 @pytest.mark.asyncio
+async def test_payments_stats_json_returns_zero_filled_daily_series_without_sales(
+    session, monkeypatch
+):
+    monkeypatch.setattr(payments_routes, "_require_permission", lambda request, permission: {"sub": "admin", "role": "superadmin"})
+
+    response = await payments_routes.payments_stats_json(
+        request=_make_request("/panel/payments/stats/json"),
+        days=30,
+        db=session,
+    )
+
+    payload = json.loads(response.body)
+    assert response.status_code == 200
+    assert payload["total_payments"] == 0
+    assert len(payload["daily"]) == 30
+    assert all(point["amount"] == 0.0 for point in payload["daily"])
+
+
+@pytest.mark.asyncio
 async def test_support_reply_deduplicates_double_submit(session, sample_user, monkeypatch):
     ticket = SupportTicket(
         user_id=sample_user.id,
@@ -234,6 +255,24 @@ def test_encryption_falls_back_without_crashing_on_invalid_key(monkeypatch):
 
     assert encryption_service.decrypt_value(encrypted) == "safe-fallback"
     assert encryption_service.get_encryption_key_info().startswith("Auto-generated")
+
+
+def test_user_notify_prunes_stale_cache_entries():
+    now = time.time()
+    cache = {
+        user_id: now - (user_notify_middleware._EXPIRED_COOLDOWN * 10)
+        for user_id in range(user_notify_middleware._NOTIFY_CACHE_PRUNE_THRESHOLD)
+    }
+    cache[user_notify_middleware._NOTIFY_CACHE_PRUNE_THRESHOLD + 1] = now - 60
+
+    user_notify_middleware._prune_notification_cache(
+        cache,
+        now,
+        user_notify_middleware._EXPIRED_COOLDOWN,
+    )
+
+    assert 1 not in cache
+    assert user_notify_middleware._NOTIFY_CACHE_PRUNE_THRESHOLD + 1 in cache
 
 
 @pytest.mark.asyncio
