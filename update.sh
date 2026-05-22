@@ -349,6 +349,7 @@ maybe_update_from_github() {
     fi
 
     info "Проверяю обновления GitHub для ветки ${branch}..."
+    info "Текущий commit: $(git rev-parse --short HEAD)"
     git fetch --prune origin || error "Не удалось выполнить git fetch origin"
 
     upstream="origin/${branch}"
@@ -357,6 +358,7 @@ maybe_update_from_github() {
         return 0
     fi
 
+    info "Remote commit: $(git rev-parse --short "${upstream}")"
     behind="$(git rev-list --count HEAD.."${upstream}")"
     ahead="$(git rev-list --count "${upstream}"..HEAD)"
     info "Git status: ahead=${ahead}, behind=${behind}"
@@ -364,6 +366,8 @@ maybe_update_from_github() {
     if prompt_yes_no "Подтянуть свежие изменения из GitHub? [Y/n]:" "Y"; then
         git pull --ff-only origin "${branch}" || error "git pull --ff-only failed. Проверьте ветку и локальные изменения."
         success "Код обновлён из GitHub"
+        success "Активная ветка: $(git rev-parse --abbrev-ref HEAD)"
+        success "Текущий commit после pull: $(git rev-parse --short HEAD)"
     else
         warn "GitHub update пропущен. Продолжаю с текущим локальным кодом."
     fi
