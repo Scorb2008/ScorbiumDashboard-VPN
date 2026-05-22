@@ -41,6 +41,7 @@ class MarzbanClient:
             MarzbanClient._session = AsyncClient(timeout=self._timeout, verify=True)
         return MarzbanClient._session
 
+
     async def _get_token(self) -> str:
         async with self._lock:
             now = datetime.now(timezone.utc)

@@ -17,22 +17,22 @@ _bot = None
 _dp = None
 _bg_tasks = []
 _OPENAPI_TAGS = [
-    {"name": "Health", "description": "Проверка доступности API и состояния сервиса."},
-    {"name": "Auth", "description": "Аутентификация и выпуск токенов доступа."},
-    {"name": "Dashboard", "description": "Сводная статистика и данные главного дашборда."},
-    {"name": "Users", "description": "Управление пользователями и их профилями."},
-    {"name": "Plans", "description": "CRUD-операции для тарифов и планов подписки."},
-    {"name": "Subscriptions", "description": "Управление VPN-подписками и ключами доступа."},
-    {"name": "Payments", "description": "Платежи, проверки статусов и платёжные операции."},
-    {"name": "VPN", "description": "Операции, связанные с VPN-панелью и ключами."},
-    {"name": "Support", "description": "Тикеты поддержки и сообщения пользователей."},
-    {"name": "Broadcasts", "description": "Рассылки и массовые уведомления."},
-    {"name": "Telegram", "description": "Настройки Telegram и интеграционные API-методы."},
-    {"name": "Promos", "description": "Промокоды, скидки и бонусная логика."},
-    {"name": "Referrals", "description": "Реферальная программа и статистика приглашений."},
-    {"name": "Admin Panel", "description": "HTML/HTMX-маршруты административной панели."},
-    {"name": "Cabinet Auth", "description": "Авторизация пользовательского кабинета и Telegram Login Widget."},
-    {"name": "Cabinet", "description": "Пользовательский кабинет, платежи и подписки клиента."},
+    {"name": "Health", "description": "Checking API availability and service status."},
+    {"name": "Auth", "description": "Authentication and issuance of access tokens."},
+    {"name": "Dashboard", "description": "Summary statistics and data from the main dashboard."},
+    {"name": "Users", "description": "Managing users and their profiles."},
+    {"name": "Plans", "description": "CRUD operations for tariffs and subscription plans."},
+    {"name": "Subscriptions", "description": "CRUD operations for tariffs and subscription plans."},
+    {"name": "Payments", "description": "Payments, status checks and payment transactions."},
+    {"name": "VPN", "description": "Operations related to the VPN panel and keys."},
+    {"name": "Support", "description": "Support tickets and user messages."},
+    {"name": "Broadcasts", "description": "Mailings and mass notifications."},
+    {"name": "Telegram", "description": "Telegram settings and integration API methods."},
+    {"name": "Promos", "description": "Promo codes, discounts and bonus logic."},
+    {"name": "Referrals", "description": "Referral program and invitation statistics."},
+    {"name": "Admin Panel", "description": "HTML/HTMX routes of the admin panel."},
+    {"name": "Cabinet Auth", "description": "Authorization of the user account and Telegram Login Widget."},
+    {"name": "Cabinet", "description": "User account, payments and client subscriptions."},
 ]
 
 
@@ -218,7 +218,6 @@ async def _lifespan(app: FastAPI):
                 await _s.commit()
                 log.info("✅ CryptoBot token seeded from .env")
 
-    # Seed bot_username from Telegram API
     try:
         import httpx as _httpx
         _token = config.telegram.telegram_bot_token.get_secret_value()
@@ -437,7 +436,6 @@ def create_app() -> FastAPI:
             )
 
             if is_docs:
-                # Swagger/Redoc need inline scripts/styles
                 resp.headers["Content-Security-Policy"] = (
                     "default-src 'self'; "
                     "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; "
@@ -465,7 +463,6 @@ def create_app() -> FastAPI:
                     "form-action 'self'"
                 )
             elif is_panel:
-                # Panel uses HTMX + Bootstrap CDN
                 resp.headers["Content-Security-Policy"] = (
                     "default-src 'self'; "
                     "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; "

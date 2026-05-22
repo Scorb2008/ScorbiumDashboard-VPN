@@ -47,7 +47,6 @@ async def get_current_admin(token: str = Depends(oauth2_scheme)) -> dict:
                 )
     return info
 
-
 async def get_current_admin_username(token: str = Depends(oauth2_scheme)) -> str:
     """Backward-compatible: returns just the username string."""
     info = decode_access_token_full(token)
