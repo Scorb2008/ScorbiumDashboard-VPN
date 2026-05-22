@@ -4,5 +4,5 @@ from .routes import router as routes_router
 
 def get_panel_router() -> APIRouter:
     panel = APIRouter(prefix="/panel")
-    panel.include_router(routes_router)
+    panel.include_router(routes_router, tags=["Admin Panel"])
     return panel

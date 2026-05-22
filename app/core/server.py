@@ -16,6 +16,24 @@ from app.utils.log import log
 _bot = None
 _dp = None
 _bg_tasks = []
+_OPENAPI_TAGS = [
+    {"name": "Health", "description": "Проверка доступности API и состояния сервиса."},
+    {"name": "Auth", "description": "Аутентификация и выпуск токенов доступа."},
+    {"name": "Dashboard", "description": "Сводная статистика и данные главного дашборда."},
+    {"name": "Users", "description": "Управление пользователями и их профилями."},
+    {"name": "Plans", "description": "CRUD-операции для тарифов и планов подписки."},
+    {"name": "Subscriptions", "description": "Управление VPN-подписками и ключами доступа."},
+    {"name": "Payments", "description": "Платежи, проверки статусов и платёжные операции."},
+    {"name": "VPN", "description": "Операции, связанные с VPN-панелью и ключами."},
+    {"name": "Support", "description": "Тикеты поддержки и сообщения пользователей."},
+    {"name": "Broadcasts", "description": "Рассылки и массовые уведомления."},
+    {"name": "Telegram", "description": "Настройки Telegram и интеграционные API-методы."},
+    {"name": "Promos", "description": "Промокоды, скидки и бонусная логика."},
+    {"name": "Referrals", "description": "Реферальная программа и статистика приглашений."},
+    {"name": "Admin Panel", "description": "HTML/HTMX-маршруты административной панели."},
+    {"name": "Cabinet Auth", "description": "Авторизация пользовательского кабинета и Telegram Login Widget."},
+    {"name": "Cabinet", "description": "Пользовательский кабинет, платежи и подписки клиента."},
+]
 
 
 def get_bot():
@@ -284,6 +302,7 @@ def create_app() -> FastAPI:
         docs_url="/docs",
         redoc_url="/redoc",
         redirect_slashes=False,
+        openapi_tags=_OPENAPI_TAGS,
     )
 
     origins = [str(o) for o in config.web.allowed_origins] or ["*"]
