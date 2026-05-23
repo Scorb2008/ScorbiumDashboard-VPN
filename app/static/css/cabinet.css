@@ -651,14 +651,43 @@ textarea.inp { resize: vertical; }
 
 .lp {
   min-height: calc(100vh - 56px);
+  position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: -6px -12px 0;
   padding: 18px 0 24px;
+  overflow: hidden;
+}
+.lp::before {
+  content: "";
+  position: absolute;
+  inset: 24px 18px;
+  border-radius: 40px;
+  background-image:
+    linear-gradient(rgba(159, 193, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(159, 193, 255, 0.06) 1px, transparent 1px);
+  background-size: 84px 84px;
+  opacity: 0.34;
+  mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.92) 28%, transparent 88%);
+  -webkit-mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.92) 28%, transparent 88%);
+  pointer-events: none;
+  z-index: 0;
+}
+.lp::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(88, 242, 200, 0.06), transparent 22%),
+    radial-gradient(circle at 82% 18%, rgba(109, 168, 255, 0.05), transparent 24%);
+  pointer-events: none;
+  z-index: 0;
 }
 .lc {
   position: relative;
+  z-index: 1;
   overflow: hidden;
   width: min(980px, 100%);
   padding: 24px;
@@ -702,11 +731,11 @@ textarea.inp { resize: vertical; }
   display: grid;
   grid-template-columns: minmax(0, 1.16fr) minmax(320px, 0.84fr);
   gap: 20px;
-  align-items: stretch;
+  align-items: center;
 }
 .lb2 {
   border-radius: 22px;
-  padding: 28px;
+  padding: clamp(22px, 3vw, 28px);
   background:
     linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03)),
     rgba(255,255,255,.02);
@@ -974,14 +1003,14 @@ textarea.inp { resize: vertical; }
 }
 .lp2 {
   border-radius: 22px;
-  padding: 28px;
+  padding: clamp(22px, 3vw, 28px);
   background:
     linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.03)),
     rgba(255,255,255,.028);
   border: 1px solid rgba(255,255,255,.09);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   justify-content: center;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
@@ -990,6 +1019,7 @@ textarea.inp { resize: vertical; }
 .lp2 h2 { margin: 0; font-size: 1.2rem; letter-spacing: -.03em; }
 .lauth {
   position: relative;
+  align-items: center;
 }
 .lauth::before {
   content: "";
@@ -1005,21 +1035,28 @@ textarea.inp { resize: vertical; }
 .lauth-head {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: center;
 }
 .lauth-surface {
   display: grid;
   gap: 14px;
-  padding: 16px;
+  width: min(100%, 420px);
+  margin: 0 auto;
+  padding: 18px;
   border-radius: 20px;
   background:
     linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.018)),
     rgba(5,15,27,.16);
   border: 1px solid rgba(255,255,255,.07);
+  justify-items: stretch;
 }
 .lauth-kicker {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   width: fit-content;
   padding: 6px 11px;
@@ -1034,36 +1071,47 @@ textarea.inp { resize: vertical; }
 }
 .lauth-steps {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(84px, 1fr));
+  gap: 12px;
+  align-items: stretch;
 }
 .lauth-step {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 11px 12px;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 88px;
+  padding: 14px 10px;
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,.07);
   background: rgba(255,255,255,.03);
   color: var(--text-muted);
+  text-align: center;
+  overflow: hidden;
 }
 .lauth-step span {
-  width: 24px;
-  height: 24px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: .74rem;
+  font-size: .78rem;
   font-weight: 800;
   background: rgba(255,255,255,.08);
   color: var(--text);
   flex-shrink: 0;
 }
 .lauth-step small {
-  font-size: .76rem;
+  display: block;
+  max-width: 100%;
+  font-size: .74rem;
   font-weight: 700;
   letter-spacing: .02em;
+  line-height: 1.35;
+  white-space: normal;
 }
 .lauth-step.on {
   border-color: rgba(88,242,200,.18);
@@ -1079,7 +1127,8 @@ textarea.inp { resize: vertical; }
   text-align: center;
 }
 .login-panel-note {
-  margin: 0;
+  margin: 0 auto;
+  max-width: 34ch;
   color: var(--text-secondary);
   font-size: .84rem;
   line-height: 1.6;
@@ -1104,6 +1153,8 @@ textarea.inp { resize: vertical; }
   flex-wrap: wrap;
 }
 .lwidget-shell {
+  width: min(100%, 420px);
+  margin: 0 auto;
   gap: 14px;
   padding: 16px;
   border-radius: 18px;
@@ -1157,19 +1208,25 @@ textarea.inp { resize: vertical; }
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+  width: min(100%, 420px);
+  margin: 0 auto;
 }
 .lauth-foot-item {
   min-width: 0;
+  min-height: 84px;
   padding: 12px;
   border-radius: 16px;
   background: rgba(255,255,255,.03);
   border: 1px solid rgba(255,255,255,.06);
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 8px;
   color: var(--text-secondary);
   font-size: .77rem;
   line-height: 1.45;
+  text-align: center;
 }
 .lauth-foot-item i {
   color: var(--accent);
@@ -1252,6 +1309,7 @@ textarea.inp { resize: vertical; }
 
 @media (max-width: 640px) {
   .lp { min-height: auto; padding: 10px 0 18px; }
+  .lp::before { inset: 18px 8px; background-size: 72px 72px; opacity: 0.28; }
   .lc, .lb2, .lp2 { padding: 18px; border-radius: 20px; }
   .lt { font-size: 1.65rem; }
   .lscene { min-height: 0; padding: 14px; }
@@ -1309,6 +1367,7 @@ textarea.inp { resize: vertical; }
   .lhero-band,
   .lf2,
   .lauth-foot { grid-template-columns: 1fr; }
+  .lauth-step { min-height: 0; }
   .lwidget-shell,
   .lstatus,
   .lauth-step { border-radius: 16px; }
