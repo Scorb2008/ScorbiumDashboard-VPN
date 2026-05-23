@@ -1,61 +1,711 @@
 {% extends "cabinet/base.html" %}
+{% macro format_bytes(value) -%}
+{% set bytes = value or 0 %}
+{% if bytes >= 1073741824 %}
+{{ "%.1f"|format(bytes / 1073741824) }} GB
+{% elif bytes >= 1048576 %}
+{{ "%.0f"|format(bytes / 1048576) }} MB
+{% elif bytes >= 1024 %}
+{{ "%.0f"|format(bytes / 1024) }} KB
+{% else %}
+{{ bytes }} B
+{% endif %}
+{%- endmacro %}
 {% block title %}Подписки - {{ app_name }}{% endblock %}
+
+{% block head %}
+<style>{% include "cabinet/_premium_section_styles.html" %}</style>
+<style>
+  .keys-premium {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .keys-premium .btn,
+  .keys-premium .btn-p {
+    background: linear-gradient(135deg, rgba(88, 242, 200, 0.96), rgba(138, 198, 255, 0.92));
+    color: #051118;
+    border: 1px solid rgba(88, 242, 200, 0.28);
+    box-shadow: 0 16px 28px rgba(88, 242, 200, 0.16);
+  }
+
+  .keys-premium .btn:hover,
+  .keys-premium .btn-p:hover {
+    filter: brightness(1.03);
+    transform: translateY(-1px);
+  }
+
+  .keys-hero-card,
+  .keys-summary-card,
+  .keys-card {
+    background:
+      radial-gradient(circle at top right, rgba(88, 242, 200, 0.08), transparent 42%),
+      linear-gradient(145deg, rgba(10, 25, 43, 0.96), rgba(7, 18, 33, 0.92));
+  }
+
+  .keys-hero-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    min-height: 100%;
+  }
+
+  .keys-hero-icon,
+  .keys-summary-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 1.15rem;
+    color: #04121d;
+    background: linear-gradient(135deg, rgba(88, 242, 200, 0.98), rgba(255, 209, 102, 0.9));
+    box-shadow: 0 18px 34px rgba(88, 242, 200, 0.18);
+  }
+
+  .keys-hero-card h2,
+  .keys-summary-card h2 {
+    margin: 0;
+    font-family: "Space Grotesk", "Manrope", sans-serif;
+    font-size: 1.34rem;
+    letter-spacing: -.04em;
+  }
+
+  .keys-hero-card p,
+  .keys-summary-card p {
+    margin: 8px 0 0;
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+
+  .keys-summary-card {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    justify-content: space-between;
+  }
+
+  .keys-summary-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
+  .keys-summary-label {
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: rgba(138, 198, 255, 0.78);
+  }
+
+  .keys-summary-value {
+    margin-top: 8px;
+    font-family: "Space Grotesk", "Manrope", sans-serif;
+    font-size: clamp(2.2rem, 5vw, 3rem);
+    line-height: 1;
+    letter-spacing: -.08em;
+  }
+
+  .keys-summary-points {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .keys-summary-point {
+    padding: 14px 16px;
+    border-radius: 18px;
+    border: 1px solid rgba(159, 193, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .keys-summary-point strong {
+    display: block;
+    margin-top: 4px;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .keys-summary-point span {
+    font-size: .78rem;
+    color: var(--text-muted);
+  }
+
+  .keys-success {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 18px 20px;
+    border-radius: 22px;
+    border: 1px solid rgba(102, 240, 174, 0.2);
+    background:
+      linear-gradient(135deg, rgba(102, 240, 174, 0.14), rgba(88, 242, 200, 0.08)),
+      rgba(255, 255, 255, 0.03);
+    box-shadow:
+      0 20px 38px rgba(0, 0, 0, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .keys-success-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #04121d;
+    background: linear-gradient(135deg, var(--good), var(--accent));
+    font-size: 1rem;
+    box-shadow: 0 14px 28px rgba(102, 240, 174, 0.18);
+  }
+
+  .keys-success h3 {
+    margin: 0;
+    font-family: "Space Grotesk", "Manrope", sans-serif;
+    font-size: 1.08rem;
+    letter-spacing: -.03em;
+  }
+
+  .keys-success p {
+    margin: 4px 0 0;
+    color: var(--text-secondary);
+    font-size: .9rem;
+    line-height: 1.6;
+  }
+
+  .keys-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+
+  .keys-card {
+    position: relative;
+    overflow: hidden;
+    border-color: rgba(159, 193, 255, 0.14);
+    box-shadow:
+      0 26px 52px rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  .keys-card::before {
+    content: "";
+    position: absolute;
+    inset: auto -10% -60% auto;
+    width: 180px;
+    height: 180px;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(88, 242, 200, 0.12), transparent 70%);
+    pointer-events: none;
+  }
+
+  .keys-card.is-new {
+    border-color: rgba(102, 240, 174, 0.28);
+    box-shadow:
+      0 28px 58px rgba(0, 0, 0, 0.22),
+      0 0 0 1px rgba(102, 240, 174, 0.14);
+    animation: keyPulse 2.6s ease-out 1;
+  }
+
+  .keys-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
+  .keys-card-copy {
+    min-width: 0;
+  }
+
+  .keys-card-topline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .keys-card-id {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 30px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-secondary);
+    font-size: .74rem;
+    font-weight: 700;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .keys-fresh-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 30px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    color: var(--good);
+    background: rgba(102, 240, 174, 0.12);
+    border: 1px solid rgba(102, 240, 174, 0.18);
+    font-size: .72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+
+  .keys-card-title {
+    margin: 0;
+    font-family: "Space Grotesk", "Manrope", sans-serif;
+    font-size: 1.28rem;
+    letter-spacing: -.04em;
+    overflow-wrap: anywhere;
+  }
+
+  .keys-card-subtitle {
+    margin: 8px 0 0;
+    font-size: .84rem;
+    color: var(--text-muted);
+    overflow-wrap: anywhere;
+  }
+
+  .keys-card-grid {
+    margin-top: 18px;
+  }
+
+  .keys-card-grid strong {
+    font-size: .96rem;
+  }
+
+  .keys-link-box {
+    margin-top: 18px;
+  }
+
+  .keys-link-label {
+    display: block;
+    margin-bottom: 10px;
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: rgba(138, 198, 255, 0.78);
+  }
+
+  .keys-link-panel {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 20px;
+    border: 1px solid rgba(159, 193, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .keys-link-input {
+    min-height: 48px;
+    font-size: .8rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .keys-link-panel .cp-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .keys-link-panel .btn {
+    border-radius: 16px;
+  }
+
+  .keys-pending-note {
+    margin-top: 18px;
+  }
+
+  .keys-steps {
+    display: grid;
+    gap: 14px;
+  }
+
+  .keys-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 18px;
+    border-radius: 20px;
+    border: 1px solid rgba(159, 193, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .keys-step-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: rgba(88, 242, 200, 0.12);
+    color: var(--accent);
+  }
+
+  .keys-step strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: .98rem;
+  }
+
+  .keys-step p {
+    margin: 0;
+    color: var(--text-secondary);
+    line-height: 1.65;
+  }
+
+  .keys-empty {
+    padding: 10px 0;
+  }
+
+  @keyframes keyPulse {
+    0% {
+      transform: translateY(8px);
+      box-shadow:
+        0 12px 24px rgba(0, 0, 0, 0.12),
+        0 0 0 0 rgba(102, 240, 174, 0.24);
+    }
+    45% {
+      transform: translateY(0);
+      box-shadow:
+        0 28px 58px rgba(0, 0, 0, 0.22),
+        0 0 0 14px rgba(102, 240, 174, 0);
+    }
+    100% {
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 980px) {
+    .keys-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .keys-hero-card,
+    .keys-summary-top,
+    .keys-card-head {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .keys-summary-points {
+      grid-template-columns: 1fr;
+    }
+
+    .keys-link-panel .cp-actions {
+      flex-direction: column;
+    }
+
+    .keys-link-panel .btn {
+      width: 100%;
+    }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="sl">
-  <div class="ttl">
-    <h2>Подписки</h2>
-    <div class="r">
-      <a href="/cabinet/plans" class="btn btn-p"><i class="bi bi-stars"></i> Купить</a>
-      <a href="/cabinet/guides" class="btn btn-p"><i class="bi bi-phone"></i> Инструкции</a>
+{% set payment_success = request.query_params.get('payment_success', '') %}
+{% set new_key_id = request.query_params.get('new_key_id', '0')|int %}
+{% set active_keys = keys|selectattr('status', 'equalto', 'active')|list %}
+{% set expired_keys = keys|selectattr('status', 'equalto', 'expired')|list %}
+{% set stats = namespace(total_traffic=0, ready_links=0) %}
+{% for key in keys %}
+  {% set stats.total_traffic = stats.total_traffic + (key.download or 0) + (key.upload or 0) %}
+  {% if key.access_url and key.access_url != 'pending' %}
+    {% set stats.ready_links = stats.ready_links + 1 %}
+  {% endif %}
+{% endfor %}
+
+<div class="cab-premium keys-premium">
+  <section class="cab-premium-shell keys-shell">
+    <div class="cab-premium-top">
+      <div class="cab-premium-copy">
+        <div class="cab-premium-kicker">Подписки</div>
+        <h1 class="cab-premium-title">Управляйте VPN-подписками красиво и без лишних шагов</h1>
+        <p class="cab-premium-subtitle">Все ключи, статусы, сроки и ссылки для подключения собраны в одном месте. Новые покупки сразу подсвечиваются, а ссылка на подключение всегда под рукой.</p>
+        <div class="cab-premium-actions">
+          <a href="/cabinet/plans" class="btn btn-p"><i class="bi bi-stars"></i> Купить подписку</a>
+          <a href="/cabinet/guides" class="btn btn-p"><i class="bi bi-phone"></i> Инструкции</a>
+        </div>
+      </div>
+      <span class="cab-premium-badge">{{ active_keys|length }} активных</span>
     </div>
-  </div>
+
+    <div class="cab-premium-hero" style="margin-top:24px">
+      <article class="cab-premium-card keys-hero-card">
+        <div class="keys-hero-icon"><i class="bi bi-shield-check"></i></div>
+        <div>
+          <h2>{% if payment_success == '1' %}Покупка завершена{% else %}Все подключения под контролем{% endif %}</h2>
+          <p>{% if payment_success == '1' %}Оплата прошла успешно. Новая подписка уже отображается ниже, её можно сразу открыть или скопировать в приложение.{% else %}Следите за статусом каждой подписки, сроком действия и быстро открывайте ссылку на подключение прямо из кабинета.{% endif %}</p>
+        </div>
+      </article>
+
+      <article class="cab-premium-card keys-summary-card">
+        <div class="keys-summary-top">
+          <div>
+            <div class="keys-summary-label">Сейчас в кабинете</div>
+            <div class="keys-summary-value">{{ keys|length }}</div>
+          </div>
+          <div class="keys-summary-icon"><i class="bi bi-key"></i></div>
+        </div>
+        <p>Подписок всего. Из них {{ stats.ready_links }} готов{{ 'ых ссылок' if stats.ready_links != 1 else 'ая ссылка' }} для быстрого подключения.</p>
+        <div class="keys-summary-points">
+          <div class="keys-summary-point">
+            <span>Активные</span>
+            <strong>{{ active_keys|length }}</strong>
+          </div>
+          <div class="keys-summary-point">
+            <span>Истекшие</span>
+            <strong>{{ expired_keys|length }}</strong>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <div class="cab-premium-grid-4" style="margin-top:18px">
+      <article class="cab-premium-stat" data-tone="mint">
+        <div class="cab-premium-stat-top">
+          <div class="cab-premium-stat-icon"><i class="bi bi-lightning-charge"></i></div>
+          <div class="cab-premium-stat-label">Активных сейчас</div>
+        </div>
+        <p class="cab-premium-stat-value">{{ active_keys|length }}</p>
+        <div class="cab-premium-stat-meta">Готовы к использованию без дополнительных действий.</div>
+      </article>
+
+      <article class="cab-premium-stat" data-tone="blue">
+        <div class="cab-premium-stat-top">
+          <div class="cab-premium-stat-icon"><i class="bi bi-box-arrow-up-right"></i></div>
+          <div class="cab-premium-stat-label">Ссылок готово</div>
+        </div>
+        <p class="cab-premium-stat-value">{{ stats.ready_links }}</p>
+        <div class="cab-premium-stat-meta">Можно сразу копировать или открыть в приложении.</div>
+      </article>
+
+      <article class="cab-premium-stat" data-tone="gold">
+        <div class="cab-premium-stat-top">
+          <div class="cab-premium-stat-icon"><i class="bi bi-hdd-network"></i></div>
+          <div class="cab-premium-stat-label">Трафик всего</div>
+        </div>
+        <p class="cab-premium-stat-value">{{ format_bytes(stats.total_traffic)|trim }}</p>
+        <div class="cab-premium-stat-meta">Суммарный расход по всем отображаемым подпискам.</div>
+      </article>
+
+      <article class="cab-premium-stat" data-tone="violet">
+        <div class="cab-premium-stat-top">
+          <div class="cab-premium-stat-icon"><i class="bi bi-collection"></i></div>
+          <div class="cab-premium-stat-label">Всего подписок</div>
+        </div>
+        <p class="cab-premium-stat-value">{{ keys|length }}</p>
+        <div class="cab-premium-stat-meta">История ключей и текущие подключения в одном разделе.</div>
+      </article>
+    </div>
+
+    {% if payment_success == '1' %}
+    <div class="keys-success" style="margin-top:18px">
+      <div class="keys-success-icon"><i class="bi bi-check2-circle"></i></div>
+      <div>
+        <h3>Оплата прошла успешно</h3>
+        <p>Новая подписка уже готова и выделена в списке ниже, чтобы вы могли быстро найти её и подключиться.</p>
+      </div>
+    </div>
+    {% endif %}
+  </section>
 
   {% if keys %}
-  <div class="rf">
-    {% for key in keys %}
-    {% set t = (key.download or 0) + (key.upload or 0) %}
-    {% if key.status == 'active' %}
-    {% set status_label = 'Активна' %}
-    {% set status_class = 'bdg-g' %}
-    {% elif key.status == 'expired' %}
-    {% set status_label = 'Истекла' %}
-    {% set status_class = 'bdg-b' %}
-    {% else %}
-    {% set status_label = 'Откл.' %}
-    {% set status_class = 'bdg-w' %}
-    {% endif %}
-    <div class="kc">
-      <div class="kh">
-        <div class="kh-copy">
-          <div class="kn">{{ key.name or 'VPN подписка' }}</div>
-          <div class="ks">{{ key.pasarguard_key_id or '' }}</div>
+  <section class="cab-premium-panel">
+    <div class="cab-premium-panel-head">
+      <div>
+        <h2>Все подписки</h2>
+        <p>Каждая карточка показывает статус, даты, стоимость и ссылку для подключения. Новая покупка подсвечивается автоматически.</p>
+      </div>
+      <span class="cab-premium-badge">{{ keys|length }} в списке</span>
+    </div>
+
+    <div class="keys-grid">
+      {% for key in keys %}
+      {% set total_traffic = (key.download or 0) + (key.upload or 0) %}
+      {% if key.status == 'active' %}
+      {% set status_label = 'Активна' %}
+      {% set status_class = 'is-active' %}
+      {% elif key.status == 'expired' %}
+      {% set status_label = 'Истекла' %}
+      {% set status_class = 'is-expired' %}
+      {% else %}
+      {% set status_label = 'Подготовка' %}
+      {% set status_class = 'is-pending' %}
+      {% endif %}
+      <article
+        class="cab-premium-row keys-card{% if new_key_id and key.id == new_key_id %} is-new{% endif %}"
+        {% if new_key_id and key.id == new_key_id %}data-new-key-card="1"{% endif %}
+      >
+        <div class="keys-card-head">
+          <div class="keys-card-copy">
+            <div class="keys-card-topline">
+              <span class="keys-card-id"><i class="bi bi-hash"></i> {{ key.pasarguard_key_id or 'ID появится после синхронизации' }}</span>
+              {% if new_key_id and key.id == new_key_id %}
+              <span class="keys-fresh-pill"><i class="bi bi-stars"></i> Новая подписка</span>
+              {% endif %}
+            </div>
+            <h3 class="keys-card-title">{{ key.name or 'VPN подписка' }}</h3>
+            <div class="keys-card-subtitle">Подключение доступно на телефоне, планшете и компьютере через ссылку ниже.</div>
+          </div>
+          <span class="cab-premium-pill {{ status_class }}">{{ status_label }}</span>
         </div>
-        <span class="bdg {{ status_class }}">{{ status_label }}</span>
-      </div>
-      <div class="kb">
-        <div class="kr"><span class="kl">Создан</span><span class="kv">{{ key.created_at.strftime('%d.%m.%Y') if key.created_at else '—' }}</span></div>
-        <div class="kr"><span class="kl">Действует до</span><span class="kv">{{ key.expires_at.strftime('%d.%m.%Y %H:%M') if key.expires_at else '∞' }}</span></div>
-        <div class="kr"><span class="kl">Цена</span><span class="kv">{{ "%.2f"|format(key.price) }} ₽</span></div>
-        <div class="kr"><span class="kl">Трафик</span><span class="kv">{% if t >= 1073741824 %}{{ "%.1f"|format(t / 1073741824) }} GB{% elif t >= 1048576 %}{{ "%.0f"|format(t / 1048576) }} MB{% else %}{{ "%.0f"|format(t / 1024) }} KB{% endif %}</span></div>
-      </div>
-      <div class="kf">
+
+        <div class="cab-premium-row-grid keys-card-grid">
+          <div>
+            <span>Создана</span>
+            <strong>{{ key.created_at.strftime('%d.%m.%Y') if key.created_at else '—' }}</strong>
+          </div>
+          <div>
+            <span>Действует до</span>
+            <strong>{{ key.expires_at.strftime('%d.%m.%Y %H:%M') if key.expires_at else '∞' }}</strong>
+          </div>
+          <div>
+            <span>Стоимость</span>
+            <strong>{{ "%.2f"|format(key.price) }} ₽</strong>
+          </div>
+          <div>
+            <span>Трафик</span>
+            <strong>{{ format_bytes(total_traffic)|trim }}</strong>
+          </div>
+        </div>
+
         {% if key.access_url and key.access_url != 'pending' %}
-        <div class="cp">
-          <div class="cp-url" title="{{ key.access_url }}">{{ key.access_url }}</div>
-          <div class="cp-actions">
-            <button class="btn btn-p btn-sm" type="button" data-copy-url="{{ key.access_url }}" data-copy-success="Ссылка скопирована" onclick="copyText(this.dataset.copyUrl || '', this.dataset.copySuccess || 'Ссылка скопирована'); return false;"><i class="bi bi-copy"></i><span>Копировать</span></button>
-            <a class="btn btn-p btn-sm" href="{{ key.access_url }}" data-open-url="{{ key.access_url }}" onclick="return openInputValue(this, this.dataset.openUrl || this.href)"><i class="bi bi-box-arrow-up-right"></i><span>Открыть</span></a>
+        <div class="keys-link-box">
+          <label class="keys-link-label">Ссылка для подключения</label>
+          <div class="cp keys-link-panel">
+            <input class="inp keys-link-input" type="text" value="{{ key.access_url }}" readonly title="{{ key.access_url }}">
+            <div class="cp-actions">
+              <button class="btn btn-p" type="button" onclick="return copyInputValue(this, 'Ссылка скопирована');"><i class="bi bi-copy"></i><span>Копировать</span></button>
+              <a class="btn btn-p" href="{{ key.access_url }}" data-open-url="{{ key.access_url }}" onclick="return openInputValue(this, this.dataset.openUrl || this.href)"><i class="bi bi-box-arrow-up-right"></i><span>Открыть</span></a>
+            </div>
           </div>
         </div>
         {% else %}
-        <div class="ib"><i class="bi bi-hourglass-split cg"></i><div><strong>Подготовка</strong><span class="muted">Ключ появится автоматически</span></div></div>
+        <div class="cab-premium-note keys-pending-note">
+          <i class="bi bi-hourglass-split"></i>
+          <div>
+            <strong>Подготовка ключа</strong>
+            <span>Ссылка появится автоматически сразу после завершения настройки подписки.</span>
+          </div>
+        </div>
         {% endif %}
-      </div>
+      </article>
+      {% endfor %}
     </div>
-    {% endfor %}
-  </div>
+  </section>
   {% else %}
-  <div class="ep"><div class="ei"><i class="bi bi-key"></i></div><p>Нет подписок</p><a href="/cabinet/plans" class="btn btn-p" style="margin-top:12px">Выбрать тариф</a></div>
+  <section class="cab-premium-panel">
+    <div class="cab-premium-empty keys-empty">
+      <div class="cab-premium-empty-icon"><i class="bi bi-key"></i></div>
+      <p>Подписок пока нет. После первой покупки здесь появится красивая карточка с готовой ссылкой на подключение.</p>
+      <a href="/cabinet/plans" class="btn btn-p">Выбрать тариф</a>
+    </div>
+  </section>
   {% endif %}
+
+  <section class="cab-premium-grid-2">
+    <article class="cab-premium-panel">
+      <div class="cab-premium-panel-head">
+        <div>
+          <h2>Быстрый старт</h2>
+          <p>Три коротких шага, чтобы сразу начать пользоваться подпиской.</p>
+        </div>
+      </div>
+      <div class="keys-steps">
+        <div class="keys-step">
+          <div class="keys-step-icon"><i class="bi bi-copy"></i></div>
+          <div>
+            <strong>Скопируйте ссылку</strong>
+            <p>Используйте кнопку «Копировать», чтобы быстро перенести ключ в приложение.</p>
+          </div>
+        </div>
+        <div class="keys-step">
+          <div class="keys-step-icon"><i class="bi bi-box-arrow-up-right"></i></div>
+          <div>
+            <strong>Откройте напрямую</strong>
+            <p>Если приложение поддерживает ссылку, можно открыть подписку сразу из кабинета.</p>
+          </div>
+        </div>
+        <div class="keys-step">
+          <div class="keys-step-icon"><i class="bi bi-phone"></i></div>
+          <div>
+            <strong>Сверьтесь с инструкцией</strong>
+            <p>Если нужен пошаговый гайд для вашего устройства, загляните в раздел инструкций.</p>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <article class="cab-premium-panel">
+      <div class="cab-premium-panel-head">
+        <div>
+          <h2>Что удобно в разделе</h2>
+          <p>Небольшие детали, которые помогают быстрее ориентироваться в подписках.</p>
+        </div>
+      </div>
+      <div class="keys-steps">
+        <div class="keys-step">
+          <div class="keys-step-icon"><i class="bi bi-stars"></i></div>
+          <div>
+            <strong>Новая покупка подсвечивается</strong>
+            <p>После успешной оплаты страница сама покажет уведомление и прокрутит к новой подписке.</p>
+          </div>
+        </div>
+        <div class="keys-step">
+          <div class="keys-step-icon"><i class="bi bi-shield-lock"></i></div>
+          <div>
+            <strong>Статус виден сразу</strong>
+            <p>Активные, истекшие и готовящиеся ключи выделены разными цветами и бейджами.</p>
+          </div>
+        </div>
+        <div class="keys-step">
+          <div class="keys-step-icon"><i class="bi bi-grid-1x2"></i></div>
+          <div>
+            <strong>Вся важная информация на карточке</strong>
+            <p>Стоимость, даты и расход трафика собраны рядом со ссылкой, без лишних переходов.</p>
+          </div>
+        </div>
+      </div>
+    </article>
+  </section>
 </div>
+{% endblock %}
+
+{% block scripts %}
+(function() {
+  try {
+    var url = new URL(window.location.href);
+    if (url.searchParams.has('payment_success') || url.searchParams.has('new_key_id')) {
+      url.searchParams.delete('payment_success');
+      url.searchParams.delete('new_key_id');
+      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+    }
+  } catch (e) {}
+
+  var freshCard = document.querySelector('[data-new-key-card="1"]');
+  if (!freshCard) return;
+  setTimeout(function() {
+    freshCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 160);
+})();
 {% endblock %}

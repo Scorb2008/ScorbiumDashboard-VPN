@@ -53,8 +53,39 @@
     flex-shrink: 0;
   }
 
-  .cab-payment-flow[hidden] {
+  body.payment-flow-open {
+    overflow: hidden;
+  }
+
+  .cab-payment-flow-modal[hidden] {
     display: none;
+  }
+
+  .cab-payment-flow-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 12px;
+  }
+
+  .cab-payment-flow-backdrop {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    background: rgba(3, 10, 20, 0.72);
+    backdrop-filter: blur(12px);
+    cursor: pointer;
+  }
+
+  .cab-payment-flow {
+    position: relative;
+    z-index: 1;
+    width: min(680px, calc(100vw - 24px));
+    max-height: calc(100vh - 40px);
+    overflow: auto;
   }
 
   .cab-payment-flow-body {
@@ -157,6 +188,17 @@
       width: 100%;
       justify-content: center;
     }
+
+    .cab-payment-flow-modal {
+      align-items: flex-end;
+      padding: 12px 10px;
+    }
+
+    .cab-payment-flow {
+      width: 100%;
+      max-height: calc(100vh - 24px);
+      border-radius: 24px;
+    }
   }
 </style>
 {% endblock %}
@@ -220,43 +262,52 @@
       </div>
     </section>
 
-    <section class="cab-premium-panel cab-payment-flow" id="payment-flow-box" hidden>
-      <div class="cab-premium-panel-head">
-        <div>
-          <h2>Текущая оплата</h2>
-          <p>Здесь всегда доступна ссылка на оплату, ручная проверка и понятный статус оформления подписки.</p>
-        </div>
-      </div>
+    <section class="cab-payment-flow-modal" id="payment-flow-modal" hidden>
+      <button
+        class="cab-payment-flow-backdrop"
+        type="button"
+        aria-label="Закрыть окно оплаты"
+        onclick="dismissPaymentFlow()"
+      ></button>
 
-      <div class="cab-payment-flow-body">
-        <div class="cab-payment-flow-status" id="payment-flow-status" data-state="pending">Ожидаем оплату</div>
-        <div class="cab-payment-flow-copy">
+      <div class="cab-premium-panel cab-payment-flow" id="payment-flow-box" role="dialog" aria-modal="true" aria-labelledby="payment-flow-title">
+        <div class="cab-premium-panel-head">
           <div>
-            <span>Тариф</span>
-            <strong id="payment-flow-plan">—</strong>
-          </div>
-          <div>
-            <span>Способ оплаты</span>
-            <strong id="payment-flow-provider">—</strong>
+            <h2 id="payment-flow-title">Оплата подписки</h2>
+            <p>Здесь доступны ссылка на оплату, ручная проверка статуса и отмена окна.</p>
           </div>
         </div>
-        <p class="cab-payment-flow-message" id="payment-flow-message">Откройте ссылку на оплату и затем нажмите проверку статуса.</p>
-        <div class="cab-payment-flow-link" id="payment-flow-link-wrap">
-          <input type="text" class="inp" id="payment-flow-url" value="" readonly>
-          <button class="btn btn-o" type="button" onclick="copyPaymentLink()">
-            <i class="bi bi-copy"></i> Копировать
-          </button>
-        </div>
-        <div class="cab-payment-flow-actions">
-          <button class="btn btn-p" type="button" id="payment-flow-open" onclick="openActivePayment()">
-            <i class="bi bi-box-arrow-up-right"></i> Перейти к оплате
-          </button>
-          <button class="btn btn-o" type="button" id="payment-flow-check" onclick="checkActivePayment(false)">
-            <i class="bi bi-arrow-repeat"></i> Проверить оплату
-          </button>
-          <button class="btn btn-o" type="button" onclick="dismissPaymentFlow()">
-            <i class="bi bi-x-lg"></i> Скрыть
-          </button>
+
+        <div class="cab-payment-flow-body">
+          <div class="cab-payment-flow-status" id="payment-flow-status" data-state="pending">Ожидаем оплату</div>
+          <div class="cab-payment-flow-copy">
+            <div>
+              <span>Тариф</span>
+              <strong id="payment-flow-plan">—</strong>
+            </div>
+            <div>
+              <span>Способ оплаты</span>
+              <strong id="payment-flow-provider">—</strong>
+            </div>
+          </div>
+          <p class="cab-payment-flow-message" id="payment-flow-message">Откройте ссылку на оплату и затем нажмите проверку статуса.</p>
+          <div class="cab-payment-flow-link" id="payment-flow-link-wrap">
+            <input type="text" class="inp" id="payment-flow-url" value="" readonly>
+            <button class="btn btn-o" type="button" onclick="copyPaymentLink()">
+              <i class="bi bi-copy"></i> Копировать
+            </button>
+          </div>
+          <div class="cab-payment-flow-actions">
+            <button class="btn btn-p" type="button" id="payment-flow-open" onclick="openActivePayment()">
+              <i class="bi bi-box-arrow-up-right"></i> Открыть оплату
+            </button>
+            <button class="btn btn-o" type="button" id="payment-flow-check" onclick="checkActivePayment(false)">
+              <i class="bi bi-arrow-repeat"></i> Проверить оплату
+            </button>
+            <button class="btn btn-o" type="button" onclick="dismissPaymentFlow()">
+              <i class="bi bi-x-lg"></i> Отмена
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -437,15 +488,18 @@ function stopPaymentFlowPolling() {
 function renderPaymentFlow() {
   var state = getActivePaymentFlow();
   var box = document.getElementById('payment-flow-box');
-  if (!box) return;
+  var modal = document.getElementById('payment-flow-modal');
+  if (!box || !modal) return;
 
   if (!state || !state.paymentId) {
-    box.hidden = true;
+    modal.hidden = true;
+    document.body.classList.remove('payment-flow-open');
     stopPaymentFlowPolling();
     return;
   }
 
-  box.hidden = false;
+  modal.hidden = false;
+  document.body.classList.add('payment-flow-open');
 
   var status = state.status || 'pending';
   var statusEl = document.getElementById('payment-flow-status');
@@ -507,6 +561,21 @@ function ensurePaymentFlowState(paymentId) {
 
 function dismissPaymentFlow() {
   setActivePaymentFlow(null);
+}
+
+function buildPaymentSuccessRedirect(payload) {
+  var path = (payload && payload.redirect) || '/cabinet/keys';
+  var target = cabinetUrl(path);
+  try {
+    var url = new URL(target, window.location.origin);
+    if (payload && payload.key_id)
+      url.searchParams.set('new_key_id', String(payload.key_id));
+    if (payload && payload.status === 'succeeded' && url.pathname === '/cabinet/keys')
+      url.searchParams.set('payment_success', '1');
+    return url.pathname + url.search + url.hash;
+  } catch (e) {
+    return target;
+  }
 }
 
 function openActivePayment() {
@@ -574,8 +643,9 @@ async function handlePaymentResult(payload, options) {
   if (payload.status === 'succeeded') {
     clearPlansPromoCode();
     showToast(payload.message || 'Оплата прошла успешно', 'success');
+    var successRedirect = buildPaymentSuccessRedirect(payload);
     setTimeout(function() {
-      window.location.href = cabinetUrl(payload.redirect || '/cabinet/keys');
+      window.location.href = successRedirect;
     }, 900);
     return;
   }
@@ -583,7 +653,7 @@ async function handlePaymentResult(payload, options) {
   if (payload.status === 'processing') {
     showToast(payload.message || 'Платёж принят, ключ подготавливается', 'info');
     setTimeout(function() {
-      window.location.href = cabinetUrl(payload.redirect || '/cabinet/keys');
+      window.location.href = buildPaymentSuccessRedirect(payload);
     }, 1200);
     return;
   }
@@ -762,4 +832,7 @@ setActivePaymentFlow(readStoredPaymentFlow());
 checkReturnedPayment();
 initPaymentMethodToggles();
 revealSelectedPlanMethods();
+document.addEventListener('keydown', function(event) {
+  if (event.key === 'Escape' && getActivePaymentFlow()) dismissPaymentFlow();
+});
 {% endblock %}
