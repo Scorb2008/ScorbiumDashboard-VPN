@@ -128,8 +128,8 @@ def test_cabinet_mobile_web_navigation_has_dedicated_fallback_menu():
     assert 'href="/cabinet/promo"' in base_template
     assert 'href="/cabinet/support"' in base_template
     assert ".mnav {\n  position: fixed; left: 10px; right: 10px; bottom: 10px; z-index: 60;\n  display: none;" in cabinet_css
-    assert "grid-template-columns: repeat(4, minmax(0, 1fr));" in cabinet_css
-    assert ".wrap { padding-bottom: 118px; }" in cabinet_css
-    assert ".mnav { grid-template-columns: repeat(3, minmax(0, 1fr)); }" in cabinet_css
-    assert ".mnav { display: grid; }" in cabinet_css
+    assert "overflow-x: auto;" in cabinet_css
+    assert ".mnav { display: flex; }" in cabinet_css
+    assert ".wrap { padding-bottom: 94px; }" in cabinet_css
+    assert "flex: 0 0 78px;" in cabinet_css
     assert ".mini-mode .mnav {\n  display: none !important;\n}" in cabinet_css

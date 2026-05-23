@@ -17,22 +17,22 @@
           <div class="s lhero-copy">
             <span class="login-badge"><i class="bi bi-stars"></i> Защищенный вход</span>
             <h1 class="lt">{{ app_name }}</h1>
-            <p class="lst">Открывайте кабинет через Telegram за пару секунд и сразу переходите к подпискам, балансу, серверам и истории обращений.</p>
+            <p class="lst">Вход через Telegram за пару секунд, после которого сразу доступны ключи, баланс и поддержка.</p>
           </div>
         </div>
 
         <div class="lhero-band">
           <div class="lstat">
             <span class="lstat-v">1 клик</span>
-            <span class="lstat-l">вход без пароля и лишних форм</span>
+            <span class="lstat-l">без пароля и лишних шагов</span>
           </div>
           <div class="lstat">
             <span class="lstat-v">Mini App</span>
-            <span class="lstat-l">одинаково удобно в Telegram и в браузере</span>
+            <span class="lstat-l">удобно и в Telegram, и в браузере</span>
           </div>
           <div class="lstat">
             <span class="lstat-v">VPN</span>
-            <span class="lstat-l">ключи, тарифы и баланс всегда под рукой</span>
+            <span class="lstat-l">ключи и тарифы всегда под рукой</span>
           </div>
         </div>
 
@@ -48,7 +48,7 @@
               <div class="lpreview-card lpreview-card-main">
                 <span class="lpreview-kicker">После входа</span>
                 <strong>Вы сразу попадаете в рабочий кабинет</strong>
-                <span class="lpreview-copy">Без ручной регистрации, без отдельного пароля и без лишних шагов между Telegram и VPN-сервисом.</span>
+                <span class="lpreview-copy">Без регистрации и отдельного пароля: вход подтверждается в Telegram и сразу открывает кабинет.</span>
               </div>
               <div class="lpreview-grid">
                 <div class="lpreview-card">
@@ -72,9 +72,9 @@
         </div>
 
         <div class="ltrust">
-          <div class="ltrust-item"><i class="bi bi-check2-circle"></i><span>Вход привязывается к Telegram-профилю и не требует отдельного аккаунта</span></div>
-          <div class="ltrust-item"><i class="bi bi-check2-circle"></i><span>Подходит для обычного web-входа и для Telegram Mini App</span></div>
-          <div class="ltrust-item"><i class="bi bi-check2-circle"></i><span>После авторизации доступны тарифы, ключи, баланс и поддержка</span></div>
+          <div class="ltrust-item"><i class="bi bi-check2-circle"></i><span>Вход привязывается к Telegram и не требует отдельного аккаунта</span></div>
+          <div class="ltrust-item"><i class="bi bi-check2-circle"></i><span>Работает в браузере и в Telegram Mini App</span></div>
+          <div class="ltrust-item"><i class="bi bi-check2-circle"></i><span>После входа сразу доступны тарифы, ключи, баланс и поддержка</span></div>
         </div>
       </section>
 
@@ -82,7 +82,7 @@
         <div class="lauth-head">
           <span class="lauth-kicker"><i class="bi bi-person-check"></i> Вход по Telegram</span>
           <h2>Вход в кабинет</h2>
-          <p class="login-panel-note">Один подтвержденный вход через Telegram открывает доступ ко всем разделам кабинета без дополнительных логинов.</p>
+          <p class="login-panel-note">Один вход через Telegram открывает все разделы кабинета без дополнительных логинов.</p>
         </div>
         {% if error %}<div class="ib" style="border-color:rgba(255,111,145,.25);color:var(--bad)">{{ error }}</div>{% endif %}
 
@@ -111,7 +111,7 @@
             {% if oidc_enabled %}
             <div class="lwidget-copy">
               <strong>Основной способ входа</strong>
-              <span class="muted">Откроется безопасное окно Telegram Login, после чего вы автоматически вернетесь в кабинет.</span>
+              <span class="muted">Откроется безопасное окно Telegram Login, после чего кабинет откроется автоматически.</span>
             </div>
             <div id="telegram-login-oidc" class="lwidget-action" style="display:flex;justify-content:center;min-height:40px">
               <button id="telegram-oidc-button" type="button" class="btn btn-p lcta" style="min-width:238px" onclick="openTelegramOidc()">
@@ -120,7 +120,7 @@
             </div>
             <div class="lwidget-note">
               <i class="bi bi-shield-check"></i>
-              <span>Без паролей. Без ручной регистрации. Доступ открывается сразу после подтверждения в Telegram.</span>
+              <span>Без паролей и ручной регистрации. Доступ открывается сразу после подтверждения в Telegram.</span>
             </div>
             {% else %}
             <div class="ib"><i class="bi bi-exclamation-triangle cr"></i><span>Вход через Telegram не настроен: отсутствует `TELEGRAM_CLIENT_ID`</span></div>
