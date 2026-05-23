@@ -13,6 +13,18 @@ from typing import Optional
 from app.utils.log import log
 
 
+def _decode_setting(settings: dict, key: str) -> str:
+    value = str(settings.get(key) or "").strip()
+    if not value:
+        return ""
+
+    from app.services.encryption import decrypt_value, is_encrypted
+
+    if is_encrypted(value):
+        return decrypt_value(value).strip()
+    return value
+
+
 class FreeKassaService:
     API_URL = "https://api.fk.life/v1"
     PAY_URL = "https://pay.fk.money/"
@@ -196,10 +208,10 @@ class FreeKassaService:
 
     @staticmethod
     def from_settings(settings: dict) -> Optional["FreeKassaService"]:
-        shop_id = (settings.get("freekassa_shop_id") or "").strip()
-        api_key = (settings.get("freekassa_api_key") or "").strip()
+        shop_id = str(settings.get("freekassa_shop_id") or "").strip()
+        api_key = _decode_setting(settings, "freekassa_api_key")
         if not shop_id or not api_key:
             return None
-        secret1 = (settings.get("freekassa_secret_word_1") or "").strip()
-        secret2 = (settings.get("freekassa_secret_word_2") or "").strip()
+        secret1 = _decode_setting(settings, "freekassa_secret_word_1")
+        secret2 = _decode_setting(settings, "freekassa_secret_word_2")
         return FreeKassaService(shop_id, api_key, secret1, secret2)

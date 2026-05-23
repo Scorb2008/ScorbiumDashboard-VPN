@@ -16,6 +16,7 @@ from app.api.panel.routes import subscriptions as subscriptions_routes
 from app.api.panel.routes import support as support_routes
 from app.bot.handlers import payments as bot_payments
 from app.bot.middlewares import user_notify as user_notify_middleware
+from app.models.bot_settings import BotSettings
 from app.models.payment import Payment, PaymentProvider, PaymentStatus, PaymentType
 from app.models.promo import PromoCode, PromoType
 from app.models.promo_usage import PromoUsage
@@ -27,6 +28,7 @@ from app.models.support import (
 )
 from app.models.vpn_key import VpnKey, VpnKeyStatus
 from app.services import encryption as encryption_service
+from app.services.bot_settings import BotSettingsService
 from app.services.plan import PlanService
 from app.services.platega import PlategaService
 
@@ -290,6 +292,23 @@ def test_encryption_falls_back_without_crashing_on_invalid_key(monkeypatch):
 
     assert encryption_service.decrypt_value(encrypted) == "safe-fallback"
     assert encryption_service.get_encryption_key_info().startswith("Auto-generated")
+
+
+@pytest.mark.asyncio
+async def test_bot_settings_encrypts_yookassa_secret_override(session):
+    service = BotSettingsService(session)
+
+    await service.set("yookassa_secret_key_override", "yk-secret-value")
+    await session.commit()
+
+    row = (
+        await session.execute(
+            select(BotSettings).where(BotSettings.key == "yookassa_secret_key_override")
+        )
+    ).scalar_one()
+
+    assert row.value != "yk-secret-value"
+    assert await service.get("yookassa_secret_key_override") == "yk-secret-value"
 
 
 def test_user_notify_prunes_stale_cache_entries():

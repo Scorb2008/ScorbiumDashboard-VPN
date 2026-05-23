@@ -70,6 +70,39 @@ try {
       {% block content %}{% endblock %}
     </main>
 
+    {% if not is_log and not is_mini_app %}
+    <nav class="mnav" aria-label="Разделы кабинета">
+      <a href="/cabinet/" class="mnl {% if cp in ('/cabinet', '/cabinet/') %}on{% endif %}">
+        <i class="bi bi-grid-1x2"></i>
+        <span>Обзор</span>
+      </a>
+      <a href="/cabinet/plans" class="mnl {% if cp.startswith('/cabinet/plans') %}on{% endif %}">
+        <i class="bi bi-stars"></i>
+        <span>Тарифы</span>
+      </a>
+      <a href="/cabinet/keys" class="mnl {% if cp.startswith('/cabinet/keys') %}on{% endif %}">
+        <i class="bi bi-key"></i>
+        <span>Ключи</span>
+      </a>
+      <a href="/cabinet/balance" class="mnl {% if cp.startswith('/cabinet/balance') %}on{% endif %}">
+        <i class="bi bi-wallet2"></i>
+        <span>Баланс</span>
+      </a>
+      <a href="/cabinet/promo" class="mnl {% if cp.startswith('/cabinet/promo') %}on{% endif %}">
+        <i class="bi bi-ticket-perforated"></i>
+        <span>Промокод</span>
+      </a>
+      <a href="/cabinet/support" class="mnl {% if cp.startswith('/cabinet/support') %}on{% endif %}">
+        <i class="bi bi-chat-left-dots"></i>
+        <span>Поддержка</span>
+      </a>
+      <a href="/cabinet/profile" class="mnl {% if cp.startswith('/cabinet/profile') %}on{% endif %}">
+        <i class="bi bi-person-circle"></i>
+        <span>Профиль</span>
+      </a>
+    </nav>
+    {% endif %}
+
   </div>
 
 <script>

@@ -60,8 +60,9 @@ async def _provision_with_retry(session, user_id: int, plan, max_retries: int = 
 async def _yookassa_polling_is_configured() -> bool:
     async with AsyncSessionFactory() as session:
         settings = BotSettingsService(session)
-        enabled = (await settings.get("ps_yookassa_enabled")) == "1"
-        if not enabled:
+        yookassa_enabled = (await settings.get("ps_yookassa_enabled")) == "1"
+        sbp_enabled = (await settings.get("ps_sbp_enabled")) == "1"
+        if not (yookassa_enabled or sbp_enabled):
             return False
 
         shop_id = (await settings.get("yookassa_shop_id_override") or "").strip()
@@ -87,7 +88,12 @@ async def check_pending_yookassa_payments() -> None:
             select(Payment)
             .where(
                 Payment.status == PaymentStatus.PENDING.value,
-                Payment.provider == PaymentProvider.YOOKASSA.value,
+                Payment.provider.in_(
+                    [
+                        PaymentProvider.YOOKASSA.value,
+                        PaymentProvider.YOOKASSA_SBP.value,
+                    ]
+                ),
                 Payment.external_id.isnot(None),
                 Payment.created_at >= cutoff,
             )

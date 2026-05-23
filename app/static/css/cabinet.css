@@ -1264,7 +1264,7 @@ textarea.inp { resize: vertical; }
 
 .mnav {
   position: fixed; left: 10px; right: 10px; bottom: 10px; z-index: 60;
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;
+  display: none; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;
   padding: 8px;
   border-radius: 16px;
   background: rgba(6,16,29,.85);
@@ -1296,6 +1296,8 @@ textarea.inp { resize: vertical; }
   .nav-links { display: none; }
   .nav-side { width: auto; margin-left: auto; }
   .nav-user { display: none; }
+  .mnav { display: grid; }
+  .wrap { padding-bottom: 118px; }
   .lg { grid-template-columns: 1fr; }
   .lpreview-grid,
   .lhero-band,
@@ -1349,9 +1351,12 @@ textarea.inp { resize: vertical; }
 .mini-mode .nav {
   padding-top: max(10px, env(safe-area-inset-top));
 }
+.mini-mode .mnav {
+  display: none !important;
+}
 
 @media (max-width: 600px) {
-  .wrap { padding: 12px 10px 80px; }
+  .wrap { padding: 12px 10px 132px; }
   .cd, .cd-sm { border-radius: 14px; padding: 14px; }
   .ttl { flex-direction: column; align-items: flex-start; }
   .r3 { grid-template-columns: 1fr; }
@@ -1371,4 +1376,5 @@ textarea.inp { resize: vertical; }
   .lwidget-shell,
   .lstatus,
   .lauth-step { border-radius: 16px; }
+  .mnav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }

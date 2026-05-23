@@ -611,8 +611,7 @@ async def cryptobot_webhook(
     sig_header = request.headers.get("X-Crypto-Pay-API-Signature", "").strip()
     from app.services.webhook_security import verify_cryptobot_signature
 
-    settings = await BotSettingsService(db).get_all()
-    cb_token = settings.get("cryptobot_token", "").strip()
+    cb_token = (await BotSettingsService(db).get("cryptobot_token") or "").strip()
     if not cb_token:
         log.error("CryptoBot webhook: token is not configured")
         return {"ok": False}

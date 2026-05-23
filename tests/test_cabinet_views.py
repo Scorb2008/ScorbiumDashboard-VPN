@@ -116,3 +116,20 @@ def test_cabinet_login_keeps_web_login_visible_for_incomplete_telegram_hashes():
     assert ".tg-miniapp-client #web-login" not in cabinet_css
     assert "setLoginState(m || 'Ошибка')" not in login_template
     assert "var initData = getMiniAppInitData();" in login_template
+
+
+def test_cabinet_mobile_web_navigation_has_dedicated_fallback_menu():
+    project_root = Path(__file__).resolve().parents[1]
+    base_template = (project_root / "app/templates/cabinet/base.html").read_text()
+    cabinet_css = (project_root / "app/static/css/cabinet.css").read_text()
+
+    assert 'class="mnav"' in base_template
+    assert "not is_log and not is_mini_app" in base_template
+    assert 'href="/cabinet/promo"' in base_template
+    assert 'href="/cabinet/support"' in base_template
+    assert ".mnav {\n  position: fixed; left: 10px; right: 10px; bottom: 10px; z-index: 60;\n  display: none;" in cabinet_css
+    assert "grid-template-columns: repeat(4, minmax(0, 1fr));" in cabinet_css
+    assert ".wrap { padding-bottom: 118px; }" in cabinet_css
+    assert ".mnav { grid-template-columns: repeat(3, minmax(0, 1fr)); }" in cabinet_css
+    assert ".mnav { display: grid; }" in cabinet_css
+    assert ".mini-mode .mnav {\n  display: none !important;\n}" in cabinet_css

@@ -8,6 +8,18 @@ from typing import Optional
 from app.utils.log import log
 
 
+def _decode_setting(settings: dict, key: str) -> str:
+    value = str(settings.get(key) or "").strip()
+    if not value:
+        return ""
+
+    from app.services.encryption import decrypt_value, is_encrypted
+
+    if is_encrypted(value):
+        return decrypt_value(value).strip()
+    return value
+
+
 class AiKassaService:
     BASE_URL = "https://aikassa.ru/api/v1"
 
@@ -60,8 +72,8 @@ class AiKassaService:
 
     @staticmethod
     def from_settings(settings: dict) -> Optional["AiKassaService"]:
-        shop_id = (settings.get("aikassa_shop_id") or "").strip()
-        token = (settings.get("aikassa_token") or "").strip()
+        shop_id = str(settings.get("aikassa_shop_id") or "").strip()
+        token = _decode_setting(settings, "aikassa_token")
         if not shop_id or not token:
             return None
         return AiKassaService(shop_id, token)

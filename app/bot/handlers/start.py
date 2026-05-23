@@ -337,15 +337,21 @@ async def _show_topup_payment(
 ) -> None:
     """Показывает способы оплаты для пополнения баланса."""
     async with AsyncSessionFactory() as session:
-        settings = await BotSettingsService(session).get_all()
+        svc = BotSettingsService(session)
+        settings = await svc.get_all()
         from app.services.telegram_stars import TelegramStarsService
 
         rate = await TelegramStarsService.get_rate(session)
 
-    _yk_db_ok = bool(
-        settings.get("yookassa_shop_id_override")
-        and settings.get("yookassa_secret_key_override")
-    )
+        yk_shop = (await svc.get("yookassa_shop_id_override") or "").strip()
+        yk_secret = (await svc.get("yookassa_secret_key_override") or "").strip()
+        cryptobot_token = (await svc.get("cryptobot_token") or "").strip()
+        freekassa_shop = (await svc.get("freekassa_shop_id") or "").strip()
+        freekassa_api_key = (await svc.get("freekassa_api_key") or "").strip()
+        platega_merchant = (await svc.get("platega_merchant_id") or "").strip()
+        platega_secret = (await svc.get("platega_secret") or "").strip()
+
+    _yk_db_ok = bool(yk_shop and yk_secret)
     _yk_toggle = settings.get("ps_yookassa_enabled", "0") == "1"
     _yk_configured = _yk_db_ok
     has_yookassa = _yk_toggle and _yk_configured
@@ -354,24 +360,10 @@ async def _show_topup_payment(
     has_sbp = _sbp_toggle and _yk_configured
 
     _cb_toggle = settings.get("ps_cryptobot_enabled", "0") == "1"
-    has_cryptobot = _cb_toggle and bool(settings.get("cryptobot_token", "").strip())
+    has_cryptobot = _cb_toggle and bool(cryptobot_token)
 
     stars_amount = TelegramStarsService.rub_to_stars(float(amount), rate=rate)
 
-    builder = InlineKeyboardBuilder()
-
-    if has_yookassa:
-        card_labels = {
-            "ru": "💳 Банковская карта",
-            "en": "💳 Bank card",
-            "fa": "💳 کارت بانکی",
-        }
-        builder.row(
-            InlineKeyboardButton(
-                text=card_labels.get(lang, card_labels["ru"]),
-                callback_data=f"topup:pay:yookassa:{amount}",
-            )
-        )
     builder = InlineKeyboardBuilder()
 
     if has_yookassa:
@@ -408,8 +400,9 @@ async def _show_topup_payment(
             )
         )
 
-    has_freekassa = settings.get("ps_freekassa_enabled", "0") == "1" and bool(
-        settings.get("freekassa_shop_id", "").strip()
+    has_freekassa = (
+        settings.get("ps_freekassa_enabled", "0") == "1"
+        and bool(freekassa_shop and freekassa_api_key)
     )
     if has_freekassa:
         fk_labels = {
@@ -426,8 +419,8 @@ async def _show_topup_payment(
 
     has_platega = (
         settings.get("ps_platega_enabled", "0") == "1"
-        and bool(settings.get("platega_merchant_id", "").strip())
-        and bool(settings.get("platega_secret", "").strip())
+        and bool(platega_merchant)
+        and bool(platega_secret)
     )
     if has_platega:
         platega_labels = {
