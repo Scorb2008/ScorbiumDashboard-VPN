@@ -1171,6 +1171,7 @@ async def cabinet_pay_balance(
                 "ok": True,
                 "status": "succeeded",
                 "message": f"Подписка оформлена{amount_note}",
+                "key_id": key.id,
                 "access_url": key.access_url,
                 "redirect": "/cabinet/keys",
             }
@@ -1427,6 +1428,7 @@ async def cabinet_pay_status(
                     "ok": True,
                     "status": "succeeded",
                     "message": "Оплата подтверждена, подписка готова",
+                    "key_id": key.id,
                     "access_url": key.access_url,
                     "redirect": "/cabinet/keys",
                 }
@@ -1475,6 +1477,7 @@ async def cabinet_pay_status(
                         "ok": True,
                         "status": "succeeded",
                         "message": "Оплата подтверждена, подписка готова",
+                        "key_id": key.id,
                         "access_url": key.access_url,
                         "redirect": "/cabinet/keys",
                     }
@@ -1572,6 +1575,7 @@ async def cabinet_pay_status(
                     "ok": True,
                     "status": "succeeded",
                     "message": "Оплата подтверждена, подписка готова",
+                    "key_id": key.id,
                     "access_url": key.access_url,
                     "redirect": "/cabinet/keys",
                 }

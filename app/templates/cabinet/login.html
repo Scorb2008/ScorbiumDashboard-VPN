@@ -4,60 +4,138 @@
 <div class="lp">
   <div class="lc">
     <div class="lg">
-      <div class="lb2">
-        <div class="ll2 brand-badge brand-badge-xl">
-          {% if custom_logo %}
-          <img src="{{ custom_logo }}" alt="Logo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-          <span class="brand-badge-fallback" style="display:none"><i class="bi bi-telegram"></i></span>
-          {% else %}
-          <span class="brand-badge-fallback"><i class="bi bi-telegram"></i></span>
-          {% endif %}
+      <section class="lb2 lhero">
+        <div class="lhero-top">
+          <div class="ll2 brand-badge brand-badge-xl">
+            {% if custom_logo %}
+            <img src="{{ custom_logo }}" alt="Logo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+            <span class="brand-badge-fallback" style="display:none"><i class="bi bi-telegram"></i></span>
+            {% else %}
+            <span class="brand-badge-fallback"><i class="bi bi-telegram"></i></span>
+            {% endif %}
+          </div>
+          <div class="s lhero-copy">
+            <span class="login-badge"><i class="bi bi-stars"></i> Защищенный вход</span>
+            <h1 class="lt">{{ app_name }}</h1>
+            <p class="lst">Открывайте кабинет через Telegram за пару секунд и сразу переходите к подпискам, балансу, серверам и истории обращений.</p>
+          </div>
         </div>
-        <div>
-          <span class="login-badge"><i class="bi bi-stars"></i> Telegram Access</span>
-          <h1 class="lt">{{ app_name }}</h1>
-          <p class="lst">Безопасный вход в VPN-кабинет через Telegram. Подписки, баланс и поддержка всегда под рукой.</p>
-        </div>
-        <div class="lf2">
-          <div class="lfi"><i class="bi bi-lightning-charge cg"></i><div><strong>Вход через Telegram</strong><div class="muted">Без паролей</div></div></div>
-          <div class="lfi"><i class="bi bi-key cg"></i><div><strong>Подписки</strong><div class="muted">Управление и инструкции</div></div></div>
-          <div class="lfi"><i class="bi bi-headset cg"></i><div><strong>Поддержка</strong><div class="muted">История обращений</div></div></div>
-        </div>
-      </div>
 
-      <div class="lp2">
-        <h2>Вход</h2>
-        <p class="login-panel-note">Авторизация происходит через Telegram и сразу привязывает пользователя к кабинету.</p>
+        <div class="lhero-band">
+          <div class="lstat">
+            <span class="lstat-v">1 клик</span>
+            <span class="lstat-l">вход без пароля и лишних форм</span>
+          </div>
+          <div class="lstat">
+            <span class="lstat-v">Mini App</span>
+            <span class="lstat-l">одинаково удобно в Telegram и в браузере</span>
+          </div>
+          <div class="lstat">
+            <span class="lstat-v">VPN</span>
+            <span class="lstat-l">ключи, тарифы и баланс всегда под рукой</span>
+          </div>
+        </div>
+
+        <div class="lscene" aria-hidden="true">
+          <div class="lscene-orb lscene-orb-a"></div>
+          <div class="lscene-orb lscene-orb-b"></div>
+          <div class="lpreview">
+            <div class="lpreview-shell">
+              <div class="lpreview-top">
+                <span class="lpreview-pill"><i class="bi bi-shield-lock"></i> Telegram Secure</span>
+                <span class="lpreview-pill lpreview-pill-muted">VPN Cabinet</span>
+              </div>
+              <div class="lpreview-card lpreview-card-main">
+                <span class="lpreview-kicker">После входа</span>
+                <strong>Вы сразу попадаете в рабочий кабинет</strong>
+                <span class="lpreview-copy">Без ручной регистрации, без отдельного пароля и без лишних шагов между Telegram и VPN-сервисом.</span>
+              </div>
+              <div class="lpreview-grid">
+                <div class="lpreview-card">
+                  <i class="bi bi-wallet2"></i>
+                  <strong>Баланс</strong>
+                  <span>Пополнение и история платежей</span>
+                </div>
+                <div class="lpreview-card">
+                  <i class="bi bi-key"></i>
+                  <strong>Подписки</strong>
+                  <span>Ключи, сроки и инструкции</span>
+                </div>
+                <div class="lpreview-card">
+                  <i class="bi bi-headset"></i>
+                  <strong>Поддержка</strong>
+                  <span>Диалоги и ответы в одном месте</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ltrust">
+          <div class="ltrust-item"><i class="bi bi-check2-circle"></i><span>Вход привязывается к Telegram-профилю и не требует отдельного аккаунта</span></div>
+          <div class="ltrust-item"><i class="bi bi-check2-circle"></i><span>Подходит для обычного web-входа и для Telegram Mini App</span></div>
+          <div class="ltrust-item"><i class="bi bi-check2-circle"></i><span>После авторизации доступны тарифы, ключи, баланс и поддержка</span></div>
+        </div>
+      </section>
+
+      <section class="lp2 lauth">
+        <div class="lauth-head">
+          <span class="lauth-kicker"><i class="bi bi-person-check"></i> Вход по Telegram</span>
+          <h2>Вход в кабинет</h2>
+          <p class="login-panel-note">Один подтвержденный вход через Telegram открывает доступ ко всем разделам кабинета без дополнительных логинов.</p>
+        </div>
         {% if error %}<div class="ib" style="border-color:rgba(255,111,145,.25);color:var(--bad)">{{ error }}</div>{% endif %}
 
-        <div id="login-status" class="r" style="display:none">
-          <i class="bi bi-arrow-repeat spin" style="animation:spin 1s linear infinite"></i>
-          <span id="login-status-text">Подключение...</span>
-        </div>
+        <div class="lauth-surface">
+          <div class="lauth-steps" aria-hidden="true">
+            <div class="lauth-step on"><span>1</span><small>Telegram</small></div>
+            <div class="lauth-step"><span>2</span><small>Проверка</small></div>
+            <div class="lauth-step"><span>3</span><small>Кабинет</small></div>
+          </div>
 
-        <div id="miniapp-status" style="display:none" class="s">
-          <div class="ib"><i class="bi bi-phone cg"></i><div><strong>MiniApp</strong><span class="muted">Вход через initData без отдельной авторизации</span></div></div>
-          <div class="r">
-            <button id="miniapp-retry" class="btn btn-p" style="display:none" onclick="startMiniAppLogin(true)"><i class="bi bi-arrow-clockwise"></i> Повторить</button>
-            <a href="/cabinet/" id="miniapp-home" class="btn btn-o" style="display:none">Открыть</a>
+          <div id="login-status" class="r lstatus" style="display:none" role="status" aria-live="polite">
+            <i class="bi bi-arrow-repeat spin lstatus-icon" style="animation:spin 1s linear infinite"></i>
+            <span id="login-status-text">Подключение...</span>
+          </div>
+
+          <div id="miniapp-status" style="display:none" class="s lmini">
+            <div class="ib lmini-note"><i class="bi bi-phone cg"></i><div><strong>Mini App</strong><span class="muted">Если Telegram уже передал `initData`, кабинет откроется без отдельного входа.</span></div></div>
+            <div class="r lmini-actions">
+              <button id="miniapp-retry" class="btn btn-p" style="display:none" onclick="startMiniAppLogin(true)"><i class="bi bi-arrow-clockwise"></i> Повторить</button>
+              <a href="/cabinet/" id="miniapp-home" class="btn btn-o" style="display:none">Открыть</a>
+            </div>
+          </div>
+
+          {% set oidc_enabled = telegram_client_id|int > 0 %}
+          <div id="web-login" class="s lwidget-shell" {% if is_mini_app %}style="display:none"{% endif %}>
+            {% if oidc_enabled %}
+            <div class="lwidget-copy">
+              <strong>Основной способ входа</strong>
+              <span class="muted">Откроется безопасное окно Telegram Login, после чего вы автоматически вернетесь в кабинет.</span>
+            </div>
+            <div id="telegram-login-oidc" class="lwidget-action" style="display:flex;justify-content:center;min-height:40px">
+              <button id="telegram-oidc-button" type="button" class="btn btn-p lcta" style="min-width:238px" onclick="openTelegramOidc()">
+                <i class="bi bi-telegram"></i> Войти через Telegram
+              </button>
+            </div>
+            <div class="lwidget-note">
+              <i class="bi bi-shield-check"></i>
+              <span>Без паролей. Без ручной регистрации. Доступ открывается сразу после подтверждения в Telegram.</span>
+            </div>
+            {% else %}
+            <div class="ib"><i class="bi bi-exclamation-triangle cr"></i><span>Вход через Telegram не настроен: отсутствует `TELEGRAM_CLIENT_ID`</span></div>
+            {% endif %}
           </div>
         </div>
 
-        {% set oidc_enabled = telegram_client_id|int > 0 %}
-        <div id="web-login" class="s" {% if is_mini_app %}style="display:none"{% endif %}>
-          {% if oidc_enabled %}
-          <div id="telegram-login-oidc" style="display:flex;justify-content:center;min-height:40px">
-            <button id="telegram-oidc-button" type="button" class="btn btn-p" style="min-width:238px" onclick="openTelegramOidc()">
-              <i class="bi bi-telegram"></i> Войти через Telegram
-            </button>
-          </div>
-          {% else %}
-          <div class="ib"><i class="bi bi-exclamation-triangle cr"></i><span>Вход через Telegram не настроен: отсутствует `TELEGRAM_CLIENT_ID`</span></div>
-          {% endif %}
-        </div>
+        <p id="login-hint" class="lh lh-center">{% if is_mini_app %}Нажмите «Повторить»{% else %}Безопасный вход через Telegram{% endif %}</p>
 
-        <p id="login-hint" class="lh">{% if is_mini_app %}Нажмите «Повторить»{% else %}Безопасный вход через Telegram{% endif %}</p>
-      </div>
+        <div class="lauth-foot" aria-hidden="true">
+          <div class="lauth-foot-item"><i class="bi bi-shield-lock"></i><span>OAuth через Telegram</span></div>
+          <div class="lauth-foot-item"><i class="bi bi-phone"></i><span>Поддержка Mini App</span></div>
+          <div class="lauth-foot-item"><i class="bi bi-lightning-charge"></i><span>Моментальный переход в кабинет</span></div>
+        </div>
+      </section>
     </div>
   </div>
 </div>

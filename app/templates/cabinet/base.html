@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/bootstrap-icons.min.css">
-<link rel="stylesheet" href="/static/css/cabinet.css?v=miniapp-20260522a">
+<link rel="stylesheet" href="/static/css/cabinet.css?v=miniapp-20260523b">
 <script src="https://telegram.org/js/telegram-web-app.js?62"></script>
 <script>
 try {
@@ -270,20 +270,14 @@ async function copyText(value, successText) {
     return false;
   }
   try {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text);
-      showToast(successText || 'Скопировано', 'success');
-      return true;
-    }
-  } catch (e) {}
-
-  try {
     var area = document.createElement('textarea');
     area.value = text;
     area.setAttribute('readonly', '');
     area.style.position = 'fixed';
     area.style.opacity = '0';
     area.style.pointerEvents = 'none';
+    area.style.left = '-9999px';
+    area.style.top = '0';
     document.body.appendChild(area);
     area.focus();
     area.select();
@@ -291,6 +285,14 @@ async function copyText(value, successText) {
     var copied = document.execCommand('copy');
     document.body.removeChild(area);
     if (copied) {
+      showToast(successText || 'Скопировано', 'success');
+      return true;
+    }
+  } catch (e) {}
+
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
       showToast(successText || 'Скопировано', 'success');
       return true;
     }
