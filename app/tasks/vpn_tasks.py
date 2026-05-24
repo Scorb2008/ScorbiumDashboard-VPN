@@ -25,8 +25,8 @@ async def expire_outdated_keys() -> None:
                         "data": {"count": count},
                     }
                 )
-    except Exception as e:
-        log.error(f"[vpn_tasks] expire_outdated_keys error: {e}")
+    except Exception:
+        log.exception("[vpn_tasks] expire_outdated_keys error")
 
 
 async def sync_keys_from_marzban() -> None:
@@ -36,8 +36,8 @@ async def sync_keys_from_marzban() -> None:
             result = await VpnKeyService(session).sync_from_marzban()
             await session.commit()
             log.info(f"[vpn_tasks] VPN panel sync: {result}")
-    except Exception as e:
-        log.error(f"[vpn_tasks] sync_keys_from_marzban error: {e}")
+    except Exception:
+        log.exception("[vpn_tasks] sync_keys_from_marzban error")
 
 
 async def expire_loop() -> None:
@@ -48,8 +48,8 @@ async def expire_loop() -> None:
             await expire_outdated_keys()
             await notify_expiring_soon()
             await auto_renew_keys()
-        except Exception as e:
-            log.error(f"expire_loop error: {e}")
+        except Exception:
+            log.exception("expire_loop error")
             await asyncio.sleep(EXPIRE_CHECK_INTERVAL)
 
 
@@ -60,8 +60,8 @@ async def sync_loop() -> None:
         try:
             await sync_keys_from_marzban()
             await asyncio.sleep(SYNC_INTERVAL)
-        except Exception as e:
-            log.error(f"sync_loop error: {e}")
+        except Exception:
+            log.exception("sync_loop error")
             await asyncio.sleep(SYNC_INTERVAL)
 
 
