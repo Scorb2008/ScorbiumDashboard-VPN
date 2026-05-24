@@ -1,0 +1,53 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - link "Scorbium Dashboard VPN" [ref=e5] [cursor=pointer]:
+      - /url: /cabinet/
+      - generic [ref=e8]: 
+  - main [ref=e9]:
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - generic [ref=e15]:
+            - generic [ref=e18]: 
+            - generic [ref=e19]:
+              - generic [ref=e20]: 
+              - text: Защищенный вход
+          - generic [ref=e21]:
+            - heading "Scorbium Dashboard VPN" [level=1] [ref=e22]
+            - paragraph [ref=e23]: "Вход через Telegram открывает кабинет сразу: ключи, баланс и поддержка будут под рукой без отдельного пароля."
+        - generic [ref=e24]:
+          - generic [ref=e25]:
+            - generic [ref=e26]: 1 клик
+            - generic [ref=e27]: без пароля
+          - generic [ref=e28]:
+            - generic [ref=e29]: Mini App
+            - generic [ref=e30]: Telegram и браузер
+          - generic [ref=e31]:
+            - generic [ref=e32]: VPN
+            - generic [ref=e33]: ключи и тарифы рядом
+        - text:    
+      - generic [ref=e34]:
+        - generic [ref=e35]:
+          - generic [ref=e36]:
+            - generic [ref=e37]: 
+            - text: Вход по Telegram
+          - heading "Вход в кабинет" [level=2] [ref=e38]
+          - paragraph [ref=e39]: Один вход через Telegram, и кабинет откроется без лишних шагов.
+        - generic [ref=e40]:
+          - generic [ref=e42]:
+            - generic [ref=e43]: 
+            - generic [ref=e44]: "Вход через Telegram не настроен: отсутствует `TELEGRAM_CLIENT_ID`"
+          - text:  
+          - generic [ref=e45]:
+            - generic [ref=e46]:
+              - generic [ref=e47]: "1"
+              - generic [ref=e48]: Telegram
+            - generic [ref=e49]:
+              - generic [ref=e50]: "2"
+              - generic [ref=e51]: Проверка
+            - generic [ref=e52]:
+              - generic [ref=e53]: "3"
+              - generic [ref=e54]: Кабинет
+          - text: 
+        - paragraph [ref=e55]: Безопасный вход через Telegram
+        - text:   
