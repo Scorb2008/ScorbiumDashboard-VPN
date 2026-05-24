@@ -59,12 +59,19 @@
       position: fixed;
       inset: 0;
       background-image:
-        linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
-      background-size: 72px 72px;
-      mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.7), transparent 88%);
+        linear-gradient(rgba(170, 206, 255, 0.11) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(170, 206, 255, 0.11) 1px, transparent 1px),
+        linear-gradient(rgba(0, 212, 170, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 212, 170, 0.045) 1px, transparent 1px),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.03), transparent 42%, transparent 58%, rgba(255, 255, 255, 0.012));
+      background-size: 92px 92px, 92px 92px, 23px 23px, 23px 23px, 100% 100%;
+      background-position: 0 0, 0 0, 0 0, 0 0, 0 0;
+      mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.96) 32%, rgba(0, 0, 0, 0.84) 62%, transparent 94%);
       z-index: 0;
-      opacity: 0.45;
+      opacity: 0.34;
+      animation:
+        blueprintGridPulse 14s ease-in-out infinite alternate,
+        blueprintGridDrift 28s linear infinite;
     }
     .orb {
       position: fixed;
@@ -83,6 +90,15 @@
       50% { transform: translate(-18px, 18px) rotate(-3deg); }
       75% { transform: translate(30px, 20px) rotate(6deg); }
     }
+    @keyframes blueprintGridPulse {
+      0% { opacity: 0.22; filter: blur(0); }
+      50% { opacity: 0.38; filter: blur(.2px); }
+      100% { opacity: 0.28; filter: blur(0); }
+    }
+    @keyframes blueprintGridDrift {
+      0% { background-position: 0 0, 0 0, 0 0, 0 0, 0 0; }
+      100% { background-position: 92px 46px, 92px 46px, 23px 11px, 23px 11px, 0 0; }
+    }
 
     .login-wrap {
       width: min(1120px, 100%);
@@ -92,6 +108,32 @@
       grid-template-columns: minmax(0, 1.18fr) minmax(360px, 430px);
       gap: 1.5rem;
       align-items: stretch;
+    }
+    .login-wrap::before {
+      content: '';
+      position: absolute;
+      inset: .6rem;
+      border-radius: 30px;
+      background-image:
+        linear-gradient(rgba(170, 206, 255, 0.075) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(170, 206, 255, 0.075) 1px, transparent 1px),
+        linear-gradient(rgba(0, 212, 170, 0.032) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 212, 170, 0.032) 1px, transparent 1px);
+      background-size: 72px 72px, 72px 72px, 18px 18px, 18px 18px;
+      background-position: 0 0, 0 0, 0 0, 0 0;
+      opacity: 0.42;
+      mix-blend-mode: screen;
+      mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.94), rgba(0, 0, 0, 0.4));
+      -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.94), rgba(0, 0, 0, 0.4));
+      pointer-events: none;
+      z-index: 0;
+      animation:
+        blueprintGridPulse 12s ease-in-out infinite alternate,
+        blueprintGridDrift 24s linear infinite;
+    }
+    .login-wrap > * {
+      position: relative;
+      z-index: 1;
     }
     .login-showcase,
     .login-card,
@@ -545,6 +587,10 @@
     @media (max-width: 640px) {
       body {
         padding: .8rem;
+      }
+      body::after {
+        background-size: 72px 72px, 72px 72px, 18px 18px, 18px 18px, 100% 100%;
+        opacity: 0.28;
       }
       .login-showcase,
       .login-card {

@@ -20,6 +20,16 @@
     align-items: center;
     justify-content: center;
     padding: 20px 12px;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .28s ease, visibility .28s ease;
+  }
+
+  .cab-payment-modal.is-visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
   }
 
   .cab-payment-backdrop {
@@ -29,6 +39,8 @@
     background: rgba(3, 10, 20, 0.72);
     backdrop-filter: blur(12px);
     cursor: pointer;
+    opacity: 0;
+    transition: opacity .3s ease;
   }
 
   .cab-payment-sheet {
@@ -37,6 +49,35 @@
     width: min(720px, calc(100vw - 24px));
     max-height: calc(100vh - 40px);
     overflow: auto;
+    border-radius: 28px;
+    background:
+      radial-gradient(circle at top right, rgba(88, 242, 200, 0.11), transparent 28%),
+      radial-gradient(circle at bottom left, rgba(109, 168, 255, 0.1), transparent 30%),
+      linear-gradient(145deg, rgba(8, 20, 36, 0.98), rgba(10, 24, 42, 0.96));
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    transform: translateY(22px) scale(.97);
+    transition:
+      opacity .32s ease,
+      transform .36s cubic-bezier(.22, 1, .36, 1);
+  }
+
+  .cab-payment-sheet::before {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    border-radius: inherit;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    pointer-events: none;
+  }
+
+  .cab-payment-modal.is-visible .cab-payment-backdrop {
+    opacity: 1;
+  }
+
+  .cab-payment-modal.is-visible .cab-payment-sheet {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 
   .cab-payment-view[hidden] {
@@ -205,6 +246,12 @@
     align-items: center;
   }
 
+  .cab-payment-flow-link .inp {
+    min-height: 50px;
+    font-size: .84rem;
+    letter-spacing: .01em;
+  }
+
   .cab-payment-flow-link[hidden] {
     display: none;
   }
@@ -236,11 +283,6 @@
     .cab-payment-flow-actions .btn {
       width: 100%;
       justify-content: center;
-    }
-
-    .cab-payment-modal {
-      align-items: flex-end;
-      padding: 12px 10px;
     }
 
     .cab-payment-sheet {
@@ -324,7 +366,7 @@
           <div class="cab-premium-panel-head">
             <div>
               <h2 id="payment-flow-title">Выберите способ оплаты</h2>
-              <p>Сначала подтвердите способ оплаты, затем здесь же появятся ссылка, проверка платежа и детали выбранного тарифа.</p>
+              <p>После выбора способа это окно останется по центру: здесь же появятся URL для оплаты, кнопки перехода и копирования, а затем проверка статуса.</p>
             </div>
           </div>
 
@@ -406,7 +448,7 @@
           <div class="cab-premium-panel-head">
             <div>
               <h2>Оплата подписки</h2>
-              <p>После перехода к оплате вернитесь сюда: окно покажет ссылку, статус, проверку платежа и данные тарифа.</p>
+              <p>URL уже готов. Вы можете открыть его вручную, скопировать, а затем вернуться сюда и проверить статус платежа.</p>
             </div>
           </div>
 
@@ -439,7 +481,7 @@
             </div>
             <div class="cab-payment-flow-actions">
               <button class="btn btn-p" type="button" id="payment-flow-open" onclick="openActivePayment()">
-                <i class="bi bi-box-arrow-up-right"></i> Перейти к оплате
+                <i class="bi bi-box-arrow-up-right"></i> Открыть ссылку
               </button>
               <button class="btn btn-o" type="button" id="payment-flow-check" onclick="checkActivePayment(false)">
                 <i class="bi bi-arrow-repeat"></i> Проверить платёж
@@ -503,6 +545,7 @@
 {% block scripts %}
 var PAYMENT_FLOW_STORAGE_KEY = 'cabinetPlanPaymentFlow';
 var paymentFlowPollTimer = 0;
+var paymentFlowHideTimer = 0;
 
 function getPlansPromoCode() {
   var input = document.getElementById('plans-promo-code');
@@ -601,6 +644,32 @@ function getActivePaymentFlow() {
   return window.__activePaymentFlow || readStoredPaymentFlow();
 }
 
+function showPaymentModal() {
+  var modal = document.getElementById('payment-flow-modal');
+  if (!modal) return;
+  if (paymentFlowHideTimer) {
+    window.clearTimeout(paymentFlowHideTimer);
+    paymentFlowHideTimer = 0;
+  }
+  modal.hidden = false;
+  document.body.classList.add('payment-flow-open');
+  window.requestAnimationFrame(function() {
+    modal.classList.add('is-visible');
+  });
+}
+
+function hidePaymentModal() {
+  var modal = document.getElementById('payment-flow-modal');
+  if (!modal) return;
+  modal.classList.remove('is-visible');
+  document.body.classList.remove('payment-flow-open');
+  if (paymentFlowHideTimer) window.clearTimeout(paymentFlowHideTimer);
+  paymentFlowHideTimer = window.setTimeout(function() {
+    if (!getActivePaymentFlow() && !getActivePaymentChoice()) modal.hidden = true;
+    paymentFlowHideTimer = 0;
+  }, 280);
+}
+
 function getPaymentStatusLabel(status) {
   if (status === 'succeeded') return 'Оплата подтверждена';
   if (status === 'processing') return 'Подписка готовится';
@@ -625,14 +694,12 @@ function renderPaymentFlow() {
   if (!box || !modal) return;
 
   if ((!state || !state.paymentId) && (!choice || !choice.planId)) {
-    modal.hidden = true;
-    document.body.classList.remove('payment-flow-open');
+    hidePaymentModal();
     stopPaymentFlowPolling();
     return;
   }
 
-  modal.hidden = false;
-  document.body.classList.add('payment-flow-open');
+  showPaymentModal();
 
   if ((!state || !state.paymentId) || (getPaymentModalMode() === 'choice' && choice && choice.planId)) {
     if (choiceView) choiceView.hidden = false;
@@ -804,9 +871,8 @@ function storePendingPayment(paymentData, planId, providerLabel) {
 
 async function beginPlanPayment(paymentData, planId, providerLabel, openMessage) {
   storePendingPayment(paymentData, planId, providerLabel);
-  openActivePayment();
   showToast(
-    openMessage || 'Ссылка на оплату готова. Если окно не открылось, используйте кнопку в блоке оплаты.',
+    openMessage || 'Ссылка на оплату готова. Откройте её вручную или скопируйте URL из окна оплаты.',
     'info'
   );
 }
