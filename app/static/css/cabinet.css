@@ -28,6 +28,39 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+body.login-page {
+  position: relative;
+  overflow-x: hidden;
+}
+
+body.login-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.14) 1px, transparent 1px);
+  background-size: 72px 72px, 72px 72px;
+  background-position: 0 0, 0 0;
+  opacity: 0.34;
+  pointer-events: none;
+  z-index: 0;
+  animation: blueprintGridDrift 26s linear infinite;
+}
+
+body.login-page::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(88, 242, 200, 0.08), transparent 24%),
+    radial-gradient(circle at 84% 16%, rgba(109, 168, 255, 0.07), transparent 26%),
+    radial-gradient(circle at 50% 78%, rgba(255, 214, 102, 0.04), transparent 24%);
+  pointer-events: none;
+  z-index: 0;
+  animation: blueprintGlow 18s ease-in-out infinite;
+}
+
 a { color: inherit; text-decoration: none; }
 a:focus-visible,
 .nav-lnk:focus-visible,
@@ -44,6 +77,12 @@ a:focus-visible,
 .wrap { max-width: 1180px; margin: 0 auto; padding: 16px 12px 90px; }
 .wrap-sm { max-width: 600px; margin: 0 auto; padding: 16px 12px 90px; }
 .login-page .wrap { padding-bottom: 0; }
+body.login-page #app-shell,
+body.login-page .nav,
+body.login-page .wrap {
+  position: relative;
+  z-index: 1;
+}
 
 /* ── nav ── */
 
@@ -662,38 +701,10 @@ textarea.inp { resize: vertical; }
   overflow: hidden;
 }
 .lp::before {
-  content: "";
-  position: absolute;
-  inset: 24px 18px;
-  border-radius: 40px;
-  background-image:
-    linear-gradient(rgba(170, 206, 255, 0.11) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(170, 206, 255, 0.11) 1px, transparent 1px),
-    linear-gradient(rgba(88, 242, 200, 0.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(88, 242, 200, 0.055) 1px, transparent 1px),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.045), transparent 42%, transparent 58%, rgba(255, 255, 255, 0.02));
-  background-size: 92px 92px, 92px 92px, 23px 23px, 23px 23px, 100% 100%;
-  background-position: 0 0, 0 0, 0 0, 0 0, 0 0;
-  opacity: 0.34;
-  mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.98) 34%, rgba(0, 0, 0, 0.86) 62%, transparent 94%);
-  -webkit-mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.98) 34%, rgba(0, 0, 0, 0.86) 62%, transparent 94%);
-  pointer-events: none;
-  z-index: 0;
-  animation:
-    blueprintGridPulse 14s ease-in-out infinite alternate,
-    blueprintGridDrift 28s linear infinite;
+  content: none;
 }
 .lp::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 20% 20%, rgba(88, 242, 200, 0.09), transparent 22%),
-    radial-gradient(circle at 82% 18%, rgba(109, 168, 255, 0.08), transparent 24%),
-    radial-gradient(circle at 55% 72%, rgba(255, 214, 102, 0.05), transparent 20%);
-  pointer-events: none;
-  z-index: 0;
-  animation: blueprintGlow 18s ease-in-out infinite;
+  content: none;
 }
 .lc {
   position: relative;
@@ -744,27 +755,7 @@ textarea.inp { resize: vertical; }
   align-items: stretch;
 }
 .lg::before {
-  content: "";
-  position: absolute;
-  inset: 8px;
-  border-radius: 24px;
-  background-image:
-    linear-gradient(rgba(170, 206, 255, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(170, 206, 255, 0.08) 1px, transparent 1px),
-    linear-gradient(rgba(88, 242, 200, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(88, 242, 200, 0.04) 1px, transparent 1px),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.035), transparent 40%, transparent 60%, rgba(255, 255, 255, 0.015));
-  background-size: 72px 72px, 72px 72px, 18px 18px, 18px 18px, 100% 100%;
-  background-position: 0 0, 0 0, 0 0, 0 0, 0 0;
-  opacity: 0.44;
-  mix-blend-mode: screen;
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0.42));
-  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0.42));
-  pointer-events: none;
-  z-index: 0;
-  animation:
-    blueprintGridPulse 12s ease-in-out infinite alternate,
-    blueprintGridDrift 22s linear infinite;
+  content: none;
 }
 .lg > * {
   position: relative;
@@ -772,100 +763,109 @@ textarea.inp { resize: vertical; }
 }
 .lb2 {
   border-radius: 22px;
-  padding: clamp(22px, 3vw, 28px);
+  padding: clamp(20px, 2.4vw, 24px);
   background:
     linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03)),
     rgba(255,255,255,.02);
   border: 1px solid rgba(255,255,255,.08);
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
     0 18px 36px rgba(0, 0, 0, 0.12);
   animation: loginCardIn .72s cubic-bezier(.22, 1, .36, 1) both;
 }
 .lhero {
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 14px;
 }
 .lhero-top {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 10px;
+}
+.lhero-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
 }
 .lhero-copy {
-  gap: 12px;
+  gap: 8px;
 }
 .ll2 {
-  margin-bottom: 2px;
+  margin-bottom: 0;
+  flex-shrink: 0;
 }
 .login-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 12px;
+  padding: 6px 11px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--accent);
-  font-size: .72rem;
+  font-size: .68rem;
   font-weight: 800;
   letter-spacing: .08em;
   text-transform: uppercase;
   width: fit-content;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+  white-space: nowrap;
 }
 .lt {
-  margin: 10px 0 0;
+  margin: 2px 0 0;
   font-family: "Space Grotesk", "Manrope", sans-serif;
-  font-size: clamp(1.72rem, 3.3vw, 2.5rem);
+  font-size: clamp(1.58rem, 2.9vw, 2.2rem);
   line-height: .95;
   letter-spacing: -.05em;
   max-width: 11ch;
 }
 .lst {
-  margin: 10px 0 0;
-  max-width: 33ch;
+  margin: 4px 0 0;
+  max-width: 31ch;
   color: var(--text-secondary);
-  font-size: .84rem;
-  line-height: 1.52;
+  font-size: .78rem;
+  line-height: 1.42;
 }
 .lhero-band {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 .lstat {
-  padding: 14px 13px;
-  border-radius: 18px;
+  padding: 11px 12px;
+  border-radius: 16px;
   background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
   border: 1px solid rgba(255,255,255,.06);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 .lstat-v {
   font-family: "Space Grotesk", "Manrope", sans-serif;
-  font-size: 1.08rem;
+  font-size: .98rem;
   font-weight: 700;
   letter-spacing: -.04em;
   color: var(--text);
 }
 .lstat-l {
   color: var(--text-muted);
-  font-size: .72rem;
-  line-height: 1.4;
+  font-size: .68rem;
+  line-height: 1.32;
 }
 .lscene {
   position: relative;
-  min-height: 250px;
-  border-radius: 24px;
+  min-height: 214px;
+  border-radius: 22px;
   overflow: hidden;
   background:
     linear-gradient(160deg, rgba(255,255,255,.06), rgba(255,255,255,.015)),
     rgba(4, 13, 24, 0.54);
   border: 1px solid rgba(255,255,255,.07);
-  padding: 20px;
+  padding: 16px;
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.04),
     0 24px 42px rgba(0,0,0,.18);
@@ -899,13 +899,13 @@ textarea.inp { resize: vertical; }
 }
 .lpreview-shell {
   width: 100%;
-  border-radius: 22px;
-  padding: 18px;
+  border-radius: 20px;
+  padding: 15px;
   background:
     linear-gradient(180deg, rgba(8, 20, 36, 0.94), rgba(10, 26, 44, 0.82));
   border: 1px solid rgba(159,193,255,.12);
   display: grid;
-  gap: 14px;
+  gap: 11px;
   box-shadow:
     0 18px 38px rgba(0,0,0,.22),
     inset 0 1px 0 rgba(255,255,255,.06);
@@ -914,20 +914,21 @@ textarea.inp { resize: vertical; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 8px;
+  flex-wrap: nowrap;
 }
 .lpreview-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 11px;
+  padding: 6px 10px;
   border-radius: 999px;
   background: rgba(255,255,255,.05);
   border: 1px solid rgba(255,255,255,.08);
   color: var(--text);
-  font-size: .72rem;
+  font-size: .67rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 .lpreview-pill-muted {
   color: var(--text-secondary);
@@ -935,35 +936,35 @@ textarea.inp { resize: vertical; }
 .lpreview-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 .lpreview-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
-  padding: 14px;
-  border-radius: 18px;
+  padding: 12px;
+  border-radius: 16px;
   background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.025));
   border: 1px solid rgba(255,255,255,.06);
   color: var(--text-secondary);
 }
 .lpreview-card i {
   color: var(--accent);
-  font-size: 1rem;
+  font-size: .92rem;
 }
 .lpreview-card strong {
   color: var(--text);
-  font-size: .88rem;
-  line-height: 1.3;
+  font-size: .82rem;
+  line-height: 1.24;
 }
 .lpreview-card span {
-  font-size: .76rem;
-  line-height: 1.5;
+  font-size: .7rem;
+  line-height: 1.38;
 }
 .lpreview-card-main {
-  gap: 8px;
-  padding: 18px;
+  gap: 6px;
+  padding: 15px;
   background:
     linear-gradient(145deg, rgba(88,242,200,.14), rgba(79,124,255,.12)),
     rgba(255,255,255,.03);
@@ -977,18 +978,20 @@ textarea.inp { resize: vertical; }
   background: rgba(5,15,27,.24);
   border: 1px solid rgba(255,255,255,.08);
   color: rgba(244,248,255,.9);
-  font-size: .68rem;
+  font-size: .63rem;
   font-weight: 800;
   letter-spacing: .05em;
   text-transform: uppercase;
 }
 .lpreview-card-main strong {
   font-family: "Space Grotesk", "Manrope", sans-serif;
-  font-size: 1.16rem;
+  font-size: 1rem;
   letter-spacing: -.03em;
 }
 .lpreview-copy {
-  max-width: 42ch;
+  max-width: 36ch;
+  font-size: .72rem;
+  line-height: 1.38;
 }
 .lf2 {
   display: grid;
@@ -1260,24 +1263,9 @@ body.login-page .nav-inner {
   padding-block: 7px;
 }
 
-@keyframes blueprintGridPulse {
-  0% {
-    opacity: 0.22;
-    filter: blur(0);
-  }
-  50% {
-    opacity: 0.38;
-    filter: blur(.2px);
-  }
-  100% {
-    opacity: 0.28;
-    filter: blur(0);
-  }
-}
-
 @keyframes blueprintGridDrift {
-  0% { background-position: 0 0, 0 0, 0 0, 0 0, 0 0; }
-  100% { background-position: 92px 46px, 92px 46px, 23px 11px, 23px 11px, 0 0; }
+  0% { background-position: 0 0, 0 0; }
+  100% { background-position: 72px 36px, 72px 36px; }
 }
 
 @keyframes blueprintGlow {
@@ -1421,6 +1409,10 @@ body.login-page .nav-inner {
     margin: 0 auto;
   }
   .lhero { gap: 14px; }
+  .lhero-head {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
   .lpreview-grid,
   .lf2 { grid-template-columns: 1fr; }
   .lhero-band { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -1546,15 +1538,14 @@ body.login-page .nav-inner {
 
 @media (max-width: 640px) {
   .lp { min-height: auto; padding: 8px 0 16px; }
-  .lp::before {
-    inset: 18px 8px;
-    background-size: 72px 72px, 72px 72px, 18px 18px, 18px 18px, 100% 100%;
-    opacity: 0.24;
+  body.login-page::before {
+    background-size: 56px 56px, 56px 56px;
+    opacity: 0.3;
   }
   .lc, .lb2, .lp2 { padding: 16px; border-radius: 20px; }
   .lt { font-size: 1.5rem; }
   .lst { font-size: .82rem; line-height: 1.48; }
-  .lhero-top { gap: 14px; }
+  .lhero-top { gap: 10px; }
   .lhero-band { gap: 8px; }
   .lstat { padding: 11px 10px; }
   .lscene { display: none; }
@@ -1639,6 +1630,9 @@ body.login-page .nav-inner {
   .lp { margin: -12px -10px 0; }
   .lauth {
     gap: 12px;
+  }
+  .lhero-head {
+    justify-content: flex-start;
   }
   .lpreview-grid,
   .lhero-band,

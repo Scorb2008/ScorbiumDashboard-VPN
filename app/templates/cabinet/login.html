@@ -6,16 +6,18 @@
     <div class="lg">
       <section class="lb2 lhero">
         <div class="lhero-top">
-          <div class="ll2 brand-badge brand-badge-xl">
-            {% if custom_logo %}
-            <img src="{{ custom_logo }}" alt="Logo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-            <span class="brand-badge-fallback" style="display:none"><i class="bi bi-telegram"></i></span>
-            {% else %}
-            <span class="brand-badge-fallback"><i class="bi bi-telegram"></i></span>
-            {% endif %}
+          <div class="lhero-head">
+            <div class="ll2 brand-badge brand-badge-xl">
+              {% if custom_logo %}
+              <img src="{{ custom_logo }}" alt="Logo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+              <span class="brand-badge-fallback" style="display:none"><i class="bi bi-telegram"></i></span>
+              {% else %}
+              <span class="brand-badge-fallback"><i class="bi bi-telegram"></i></span>
+              {% endif %}
+            </div>
+            <span class="login-badge"><i class="bi bi-stars"></i> Защищенный вход</span>
           </div>
           <div class="s lhero-copy">
-            <span class="login-badge"><i class="bi bi-stars"></i> Защищенный вход</span>
             <h1 class="lt">{{ app_name }}</h1>
             <p class="lst">Вход через Telegram открывает кабинет сразу: ключи, баланс и поддержка будут под рукой без отдельного пароля.</p>
           </div>

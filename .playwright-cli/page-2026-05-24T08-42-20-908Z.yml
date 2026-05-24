@@ -1,0 +1,84 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - link "Scorbium Dashboard VPN" [ref=e5] [cursor=pointer]:
+      - /url: /cabinet/
+      - generic [ref=e8]: 
+  - main [ref=e9]:
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - generic [ref=e15]:
+            - generic [ref=e18]: 
+            - generic [ref=e19]:
+              - generic [ref=e20]: 
+              - text: Защищенный вход
+          - generic [ref=e21]:
+            - heading "Scorbium Dashboard VPN" [level=1] [ref=e22]
+            - paragraph [ref=e23]: "Вход через Telegram открывает кабинет сразу: ключи, баланс и поддержка будут под рукой без отдельного пароля."
+        - generic [ref=e24]:
+          - generic [ref=e25]:
+            - generic [ref=e26]: 1 клик
+            - generic [ref=e27]: без пароля
+          - generic [ref=e28]:
+            - generic [ref=e29]: Mini App
+            - generic [ref=e30]: Telegram и браузер
+          - generic [ref=e31]:
+            - generic [ref=e32]: VPN
+            - generic [ref=e33]: ключи и тарифы рядом
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - generic [ref=e38]:
+              - generic [ref=e39]: 
+              - text: Telegram Secure
+            - generic [ref=e40]: VPN Cabinet
+          - generic [ref=e41]:
+            - generic [ref=e42]: После входа
+            - strong [ref=e43]: Вы сразу попадаете в рабочий кабинет
+            - generic [ref=e44]: Telegram подтверждает вход и сразу открывает кабинет без отдельной регистрации.
+          - generic [ref=e45]:
+            - generic [ref=e46]:
+              - generic [ref=e47]: 
+              - strong [ref=e48]: Баланс
+              - generic [ref=e49]: Пополнение и история платежей
+            - generic [ref=e50]:
+              - generic [ref=e51]: 
+              - strong [ref=e52]: Подписки
+              - generic [ref=e53]: Ключи, сроки и инструкции
+            - generic [ref=e54]:
+              - generic [ref=e55]: 
+              - strong [ref=e56]: Поддержка
+              - generic [ref=e57]: Диалоги и ответы в одном месте
+      - generic [ref=e58]:
+        - generic [ref=e59]:
+          - generic [ref=e60]:
+            - generic [ref=e61]: 
+            - text: Вход по Telegram
+          - heading "Вход в кабинет" [level=2] [ref=e62]
+          - paragraph [ref=e63]: Один вход через Telegram, и кабинет откроется без лишних шагов.
+        - generic [ref=e64]:
+          - generic [ref=e66]:
+            - generic [ref=e67]: 
+            - generic [ref=e68]: "Вход через Telegram не настроен: отсутствует `TELEGRAM_CLIENT_ID`"
+          - text:  
+          - generic [ref=e69]:
+            - generic [ref=e70]:
+              - generic [ref=e71]: "1"
+              - generic [ref=e72]: Telegram
+            - generic [ref=e73]:
+              - generic [ref=e74]: "2"
+              - generic [ref=e75]: Проверка
+            - generic [ref=e76]:
+              - generic [ref=e77]: "3"
+              - generic [ref=e78]: Кабинет
+          - text: 
+        - paragraph [ref=e79]: Безопасный вход через Telegram
+        - generic [ref=e80]:
+          - generic [ref=e81]:
+            - generic [ref=e82]: 
+            - generic [ref=e83]: OAuth через Telegram
+          - generic [ref=e84]:
+            - generic [ref=e85]: 
+            - generic [ref=e86]: Поддержка Mini App
+          - generic [ref=e87]:
+            - generic [ref=e88]: 
+            - generic [ref=e89]: Моментальный переход в кабинет

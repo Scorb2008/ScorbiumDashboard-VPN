@@ -34,17 +34,13 @@
       position:fixed;
       inset:0;
       background-image:
-        linear-gradient(rgba(170, 206, 255, 0.11) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(170, 206, 255, 0.11) 1px, transparent 1px),
-        linear-gradient(rgba(0, 212, 170, 0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 212, 170, 0.05) 1px, transparent 1px);
-      background-size: 90px 90px, 90px 90px, 22px 22px, 22px 22px;
-      background-position: 0 0, 0 0, 0 0, 0 0;
-      opacity:.34;
-      mask-image: radial-gradient(circle at center, rgba(0,0,0,.96) 34%, rgba(0,0,0,.84) 64%, transparent 94%);
-      -webkit-mask-image: radial-gradient(circle at center, rgba(0,0,0,.96) 34%, rgba(0,0,0,.84) 64%, transparent 94%);
+        linear-gradient(rgba(255, 255, 255, 0.22) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.22) 1px, transparent 1px);
+      background-size: 72px 72px, 72px 72px;
+      background-position: 0 0, 0 0;
+      opacity:.4;
       z-index:0;
-      animation: blueprintGridPulse 14s ease-in-out infinite alternate, blueprintGridDrift 28s linear infinite;
+      animation: blueprintGridDrift 26s linear infinite;
     }
     .auth-card {
       position:relative;
@@ -62,37 +58,17 @@
       overflow:hidden;
       backdrop-filter: blur(16px);
     }
-    .auth-card::before {
-      content:'';
-      position:absolute;
-      inset:.7rem;
-      border-radius:18px;
-      background-image:
-        linear-gradient(rgba(170, 206, 255, 0.065) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(170, 206, 255, 0.065) 1px, transparent 1px),
-        linear-gradient(rgba(0, 212, 170, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 212, 170, 0.03) 1px, transparent 1px);
-      background-size: 62px 62px, 62px 62px, 16px 16px, 16px 16px;
-      opacity:.4;
-      pointer-events:none;
-      z-index:0;
-      mix-blend-mode:screen;
-      animation: blueprintGridPulse 12s ease-in-out infinite alternate, blueprintGridDrift 22s linear infinite;
-    }
+    .auth-card::before,
+    .auth-card::after { content:none; }
     .auth-card > * { position:relative; z-index:1; }
     @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
     @keyframes glowDrift {
       0%, 100% { transform: scale(1); opacity: .88; }
       50% { transform: scale(1.04); opacity: 1; }
     }
-    @keyframes blueprintGridPulse {
-      0% { opacity: .22; filter: blur(0); }
-      50% { opacity: .38; filter: blur(.2px); }
-      100% { opacity: .28; filter: blur(0); }
-    }
     @keyframes blueprintGridDrift {
-      0% { background-position: 0 0, 0 0, 0 0, 0 0; }
-      100% { background-position: 90px 45px, 90px 45px, 22px 11px, 22px 11px; }
+      0% { background-position: 0 0, 0 0; }
+      100% { background-position: 72px 36px, 72px 36px; }
     }
     .auth-title { color:#fff; font-size:1.3rem; font-weight:700; margin-bottom:.3rem; }
     .auth-subtitle { color:#6b7280; font-size:.85rem; margin-bottom:1.5rem; }
@@ -122,7 +98,7 @@
     .error-msg { color:#ef4444; font-size:.85rem; margin-top:.5rem; }
     @media (max-width: 640px) {
       .auth-card { padding: 1.5rem; border-radius: 20px; }
-      body::after { background-size: 72px 72px, 72px 72px, 18px 18px, 18px 18px; opacity: .28; }
+      body::after { background-size: 56px 56px, 56px 56px; opacity: .34; }
     }
   </style>
 </head>

@@ -59,19 +59,13 @@
       position: fixed;
       inset: 0;
       background-image:
-        linear-gradient(rgba(170, 206, 255, 0.11) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(170, 206, 255, 0.11) 1px, transparent 1px),
-        linear-gradient(rgba(0, 212, 170, 0.045) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 212, 170, 0.045) 1px, transparent 1px),
-        linear-gradient(135deg, rgba(255, 255, 255, 0.03), transparent 42%, transparent 58%, rgba(255, 255, 255, 0.012));
-      background-size: 92px 92px, 92px 92px, 23px 23px, 23px 23px, 100% 100%;
-      background-position: 0 0, 0 0, 0 0, 0 0, 0 0;
-      mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.96) 32%, rgba(0, 0, 0, 0.84) 62%, transparent 94%);
+        linear-gradient(rgba(255, 255, 255, 0.22) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.22) 1px, transparent 1px);
+      background-size: 72px 72px, 72px 72px;
+      background-position: 0 0, 0 0;
       z-index: 0;
-      opacity: 0.34;
-      animation:
-        blueprintGridPulse 14s ease-in-out infinite alternate,
-        blueprintGridDrift 28s linear infinite;
+      opacity: 0.42;
+      animation: blueprintGridDrift 26s linear infinite;
     }
     .orb {
       position: fixed;
@@ -90,14 +84,9 @@
       50% { transform: translate(-18px, 18px) rotate(-3deg); }
       75% { transform: translate(30px, 20px) rotate(6deg); }
     }
-    @keyframes blueprintGridPulse {
-      0% { opacity: 0.22; filter: blur(0); }
-      50% { opacity: 0.38; filter: blur(.2px); }
-      100% { opacity: 0.28; filter: blur(0); }
-    }
     @keyframes blueprintGridDrift {
-      0% { background-position: 0 0, 0 0, 0 0, 0 0, 0 0; }
-      100% { background-position: 92px 46px, 92px 46px, 23px 11px, 23px 11px, 0 0; }
+      0% { background-position: 0 0, 0 0; }
+      100% { background-position: 72px 36px, 72px 36px; }
     }
 
     .login-wrap {
@@ -109,28 +98,7 @@
       gap: 1.5rem;
       align-items: stretch;
     }
-    .login-wrap::before {
-      content: '';
-      position: absolute;
-      inset: .6rem;
-      border-radius: 30px;
-      background-image:
-        linear-gradient(rgba(170, 206, 255, 0.075) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(170, 206, 255, 0.075) 1px, transparent 1px),
-        linear-gradient(rgba(0, 212, 170, 0.032) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 212, 170, 0.032) 1px, transparent 1px);
-      background-size: 72px 72px, 72px 72px, 18px 18px, 18px 18px;
-      background-position: 0 0, 0 0, 0 0, 0 0;
-      opacity: 0.42;
-      mix-blend-mode: screen;
-      mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.94), rgba(0, 0, 0, 0.4));
-      -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.94), rgba(0, 0, 0, 0.4));
-      pointer-events: none;
-      z-index: 0;
-      animation:
-        blueprintGridPulse 12s ease-in-out infinite alternate,
-        blueprintGridDrift 24s linear infinite;
-    }
+    .login-wrap::before { content: none; }
     .login-wrap > * {
       position: relative;
       z-index: 1;
@@ -170,6 +138,11 @@
       filter: blur(10px);
       pointer-events: none;
     }
+    .login-showcase::after { content: none; }
+    .login-showcase > * {
+      position: relative;
+      z-index: 1;
+    }
     .showcase-kicker {
       display: inline-flex;
       align-items: center;
@@ -195,7 +168,7 @@
     .showcase-title {
       margin: 0;
       font-family: 'Space Grotesk', 'Inter', sans-serif;
-      font-size: clamp(2.2rem, 5vw, 4rem);
+      font-size: clamp(1.52rem, 3.3vw, 2.6rem);
       line-height: .95;
       letter-spacing: -.06em;
       color: #f8fbff;
@@ -294,6 +267,7 @@
       background: radial-gradient(circle, rgba(0, 212, 170, 0.08), transparent 70%);
       pointer-events: none;
     }
+    .login-card::after { content: none; }
     @keyframes cardIn {
       from { opacity: 0; transform: translateY(18px) scale(.98); }
     }
@@ -523,6 +497,24 @@
       background: var(--surface-hover);
       border-color: rgba(255, 255, 255, 0.1);
     }
+    .btn-open-2fa {
+      display: block;
+      width: 100%;
+      margin-top: .85rem;
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      color: var(--text);
+      font-size: .84rem;
+      cursor: pointer;
+      padding: .78rem;
+      border-radius: 12px;
+      transition: all .15s;
+    }
+    .btn-open-2fa:hover {
+      background: rgba(255, 255, 255, 0.075);
+      border-color: rgba(255, 255, 255, 0.14);
+      color: #fff;
+    }
     .btn-2fa.loading .spinner { display: inline-block; }
     .btn-2fa.loading .btn-text { opacity: .7; }
     .security-badge {
@@ -589,8 +581,8 @@
         padding: .8rem;
       }
       body::after {
-        background-size: 72px 72px, 72px 72px, 18px 18px, 18px 18px, 100% 100%;
-        opacity: 0.28;
+        background-size: 56px 56px, 56px 56px;
+        opacity: 0.38;
       }
       .login-showcase,
       .login-card {
@@ -601,7 +593,7 @@
         padding: 1.35rem;
       }
       .showcase-title {
-        font-size: 2rem;
+        font-size: 1.46rem;
       }
       .logo-frame {
         --logo-size: 82px;
@@ -637,17 +629,14 @@
 
       <div class="showcase-grid">
         <article class="showcase-card">
-          <span class="showcase-card-icon"><i class="bi bi-lightning-charge-fill"></i></span>
           <strong>Быстрый старт</strong>
           <span>Сразу после входа видны дашборд, платежи, пользователи и состояние сервисов.</span>
         </article>
         <article class="showcase-card">
-          <span class="showcase-card-icon"><i class="bi bi-shield-lock-fill"></i></span>
           <strong>Защищённый доступ</strong>
           <span>Пароль, CSRF-защита, ограничение попыток входа и поддержка 2FA в одном потоке.</span>
         </article>
         <article class="showcase-card">
-          <span class="showcase-card-icon"><i class="bi bi-graph-up-arrow"></i></span>
           <strong>Операционный обзор</strong>
           <span>Платежные статусы, тикеты и VPN-ключи всегда под рукой без лишних переходов.</span>
         </article>
@@ -716,6 +705,9 @@
             <span class="btn-text"><i class="bi bi-box-arrow-in-right me-2"></i>Войти в панель</span>
           </button>
         </form>
+        <button type="button" class="btn-open-2fa" onclick="toggle2faLogin()">
+          <i class="bi bi-shield-lock me-1"></i>Перейти к 2FA
+        </button>
       </div>
 
       <div id="form-2fa" class="login-card" style="display:{% if show_2fa %}block{% else %}none{% endif %}">
