@@ -711,8 +711,16 @@ function getActivePaymentFlow() {
   return window.__activePaymentFlow || readStoredPaymentFlow();
 }
 
-function showPaymentModal() {
+function ensurePaymentModalDetached() {
   var modal = document.getElementById('payment-flow-modal');
+  if (!modal || !document.body) return modal;
+  if (modal.parentElement !== document.body)
+    document.body.appendChild(modal);
+  return modal;
+}
+
+function showPaymentModal() {
+  var modal = ensurePaymentModalDetached();
   if (!modal) return;
   if (paymentFlowHideTimer) {
     window.clearTimeout(paymentFlowHideTimer);
@@ -726,7 +734,7 @@ function showPaymentModal() {
 }
 
 function hidePaymentModal() {
-  var modal = document.getElementById('payment-flow-modal');
+  var modal = ensurePaymentModalDetached();
   if (!modal) return;
   modal.classList.remove('is-visible');
   document.body.classList.remove('payment-flow-open');
@@ -755,7 +763,7 @@ function renderPaymentFlow() {
   var state = getActivePaymentFlow();
   var choice = getActivePaymentChoice();
   var box = document.getElementById('payment-flow-box');
-  var modal = document.getElementById('payment-flow-modal');
+  var modal = ensurePaymentModalDetached();
   var choiceView = document.getElementById('payment-choice-view');
   var flowView = document.getElementById('payment-flow-view');
   if (!box || !modal) return;
@@ -1165,6 +1173,7 @@ async function checkReturnedPayment() {
 }
 
 hydratePlansPromoCode();
+ensurePaymentModalDetached();
 bindPaymentChoiceActions();
 var storedPaymentFlow = readStoredPaymentFlow();
 if (storedPaymentFlow && storedPaymentFlow.planId) {
