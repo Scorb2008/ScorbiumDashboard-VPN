@@ -16,9 +16,7 @@
     position: fixed;
     inset: 0;
     z-index: 120;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: block;
     min-height: 100dvh;
     padding:
       max(20px, env(safe-area-inset-top))
@@ -49,7 +47,9 @@
   }
 
   .cab-payment-sheet {
-    position: relative;
+    position: fixed;
+    top: 50%;
+    left: 50%;
     z-index: 1;
     flex: 0 1 720px;
     width: min(720px, calc(100vw - 24px));
@@ -65,7 +65,7 @@
     box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
     scrollbar-gutter: stable both-edges;
     opacity: 0;
-    transform: translateY(22px) scale(.97);
+    transform: translate3d(-50%, calc(-50% + 22px), 0) scale(.97);
     transition:
       opacity .32s ease,
       transform .36s cubic-bezier(.22, 1, .36, 1);
@@ -86,7 +86,7 @@
 
   .cab-payment-modal.is-visible .cab-payment-sheet {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translate3d(-50%, -50%, 0) scale(1);
   }
 
   .cab-payment-view[hidden] {
