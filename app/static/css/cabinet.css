@@ -26,29 +26,26 @@ body {
   font-family: "Manrope", -apple-system, sans-serif;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-}
-
-body.login-page {
   position: relative;
   overflow-x: hidden;
 }
 
-body.login-page::before {
+body::before {
   content: "";
   position: fixed;
   inset: 0;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.14) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.14) 1px, transparent 1px);
-  background-size: 72px 72px, 72px 72px;
+    linear-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.16) 1px, transparent 1px);
+  background-size: 68px 68px, 68px 68px;
   background-position: 0 0, 0 0;
-  opacity: 0.34;
+  opacity: 0.3;
   pointer-events: none;
   z-index: 0;
-  animation: blueprintGridDrift 26s linear infinite;
+  animation: blueprintGridDrift 28s linear infinite;
 }
 
-body.login-page::after {
+body::after {
   content: "";
   position: fixed;
   inset: 0;
@@ -59,6 +56,10 @@ body.login-page::after {
   pointer-events: none;
   z-index: 0;
   animation: blueprintGlow 18s ease-in-out infinite;
+}
+
+body.login-page::before {
+  opacity: 0.36;
 }
 
 a { color: inherit; text-decoration: none; }
@@ -74,12 +75,12 @@ a:focus-visible,
   outline-offset: 2px;
 }
 
-.wrap { max-width: 1180px; margin: 0 auto; padding: 16px 12px 90px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 18px 16px 90px; }
 .wrap-sm { max-width: 600px; margin: 0 auto; padding: 16px 12px 90px; }
 .login-page .wrap { padding-bottom: 0; }
-body.login-page #app-shell,
-body.login-page .nav,
-body.login-page .wrap {
+#app-shell,
+.nav,
+.wrap {
   position: relative;
   z-index: 1;
 }
@@ -91,7 +92,7 @@ body.login-page .wrap {
   padding: 10px 12px 0;
 }
 .nav-inner {
-  max-width: 1180px; margin: 0 auto;
+  max-width: 1220px; margin: 0 auto;
   padding: 9px 12px;
   border-radius: 30px;
   background: rgba(6, 16, 29, 0.75);
@@ -1265,7 +1266,7 @@ body.login-page .nav-inner {
 
 @keyframes blueprintGridDrift {
   0% { background-position: 0 0, 0 0; }
-  100% { background-position: 72px 36px, 72px 36px; }
+  100% { background-position: 68px 34px, 68px 34px; }
 }
 
 @keyframes blueprintGlow {
@@ -1536,11 +1537,20 @@ body.login-page .nav-inner {
   }
 }
 
+@media (max-width: 980px) {
+  .wrap {
+    padding: 16px 14px 98px;
+  }
+}
+
 @media (max-width: 640px) {
   .lp { min-height: auto; padding: 8px 0 16px; }
+  body::before {
+    background-size: 50px 50px, 50px 50px;
+    opacity: 0.32;
+  }
   body.login-page::before {
-    background-size: 56px 56px, 56px 56px;
-    opacity: 0.3;
+    opacity: 0.34;
   }
   .lc, .lb2, .lp2 { padding: 16px; border-radius: 20px; }
   .lt { font-size: 1.5rem; }
@@ -1616,7 +1626,7 @@ body.login-page .nav-inner {
 }
 
 @media (max-width: 600px) {
-  .wrap { padding: 12px 10px 96px; }
+  .wrap { padding: 12px 10px 102px; }
   .cd, .cd-sm { border-radius: 14px; padding: 14px; }
   .ttl { flex-direction: column; align-items: flex-start; }
   .r3 { grid-template-columns: 1fr; }
