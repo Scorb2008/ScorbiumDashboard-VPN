@@ -124,7 +124,7 @@
       </div>
       <div class="d-flex justify-content-between mt-3 monitor-meta">
         <span>{% if entry.latency_ms > 0 %}{{ "%.0f"|format(entry.latency_ms) }}ms{% else %}—{% endif %}</span>
-        <span>{{ entry.checked_at.strftime('%H:%M:%S') if entry.checked_at else '—' }}</span>
+        <span>{{ entry.checked_at|dt('%H:%M:%S') }}</span>
       </div>
     </div>
     {% endfor %}
@@ -157,7 +157,7 @@
         </div>
         <div class="d-flex justify-content-between mt-3 monitor-meta">
           <span>{% if entry.latency_ms > 0 %}{{ "%.0f"|format(entry.latency_ms) }}ms{% else %}—{% endif %}</span>
-          <span>{{ entry.checked_at.strftime('%H:%M:%S') if entry.checked_at else '—' }}</span>
+          <span>{{ entry.checked_at|dt('%H:%M:%S') }}</span>
         </div>
       </div>
       {% endfor %}
@@ -184,7 +184,7 @@
       <tbody id="slowQueries">
         {% for q in slow_queries %}
         <tr>
-          <td style="font-size:.8rem;color:var(--text-muted)">{{ q.time.strftime('%H:%M:%S') }}</td>
+          <td style="font-size:.8rem;color:var(--text-muted)">{{ q.time|dt('%H:%M:%S') }}</td>
           <td><span class="badge badge-custom" style="background:rgba(245,158,11,.12);color:#f59e0b">{{ "%.2f"|format(q.duration) }}s</span></td>
           <td style="font-size:.75rem;color:var(--text-muted);max-width:600px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ q.query }}">{{ q.query[:120] }}{% if q.query|length > 120 %}…{% endif %}</td>
         </tr>

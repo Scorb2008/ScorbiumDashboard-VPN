@@ -42,7 +42,7 @@
         {% for entry in entries %}
         <tr class="audit-row" data-action="{{ entry.action }}" data-created="{{ entry.created_at.isoformat() if entry.created_at else '' }}">
           <td style="white-space:nowrap;font-size:.8rem;color:var(--text-muted)">
-            {{ entry.created_at.strftime('%d.%m.%Y %H:%M') if entry.created_at else '—' }}
+            {{ entry.created_at|dt }}
           </td>
           <td><code style="font-size:.8rem;color:var(--accent)">{{ entry.admin_id }}</code></td>
           <td>

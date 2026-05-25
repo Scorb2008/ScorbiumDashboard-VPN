@@ -144,8 +144,8 @@
         <div class="mb-1"><i class="bi bi-arrow-repeat me-1"></i>Автопродление:
           {% if user.autorenew %}<span class="text-success">Вкл</span>{% else %}<span style="color:var(--text-muted)">Выкл</span>{% endif %}
         </div>
-        <div class="mb-1"><i class="bi bi-calendar me-1"></i>Регистрация: <span style="color:var(--text)">{{ user.created_at.strftime('%d.%m.%Y %H:%M') if user.created_at else '—' }}</span></div>
-        <div><i class="bi bi-activity me-1"></i>Последняя активность: <span style="color:var(--text)">{{ user.last_seen.strftime('%d.%m.%Y %H:%M') if user.last_seen else '—' }}</span></div>
+        <div class="mb-1"><i class="bi bi-calendar me-1"></i>Регистрация: <span style="color:var(--text)">{{ user.created_at|dt }}</span></div>
+        <div><i class="bi bi-activity me-1"></i>Последняя активность: <span style="color:var(--text)">{{ user.last_seen|dt }}</span></div>
         <div class="user-detail-inline-actions">
           <button class="btn btn-xs user-detail-green" type="button" onclick="copyPlain('{{ user.id }}', 'ID скопирован')">
             <i class="bi bi-clipboard me-1"></i>Скопировать ID
@@ -178,7 +178,7 @@
       </div>
       <div class="user-detail-mini mb-3">
         <i class="bi bi-credit-card-2-front me-1"></i>Последний успешный платёж:
-        <span style="color:var(--text)">{{ user_stats.last_payment_at.strftime('%d.%m.%Y %H:%M') if user_stats.last_payment_at else '—' }}</span>
+        <span style="color:var(--text)">{{ user_stats.last_payment_at|dt }}</span>
       </div>
 
       <!-- Actions -->
@@ -268,7 +268,7 @@
                 {% elif st == 'expired' %}<span class="badge badge-custom badge-expired">Истекла</span>
                 {% else %}<span class="badge badge-custom badge-closed">Отозвана</span>{% endif %}
               </td>
-              <td style="color:var(--text-muted)">{{ sub.expires_at.strftime('%d.%m.%Y %H:%M') if sub.expires_at else '∞' }}</td>
+              <td style="color:var(--text-muted)">{{ sub.expires_at|dt('%d.%m.%Y %H:%M', '∞') }}</td>
               <td>
                 <div class="d-flex gap-1">
                   <button class="btn btn-xs user-detail-green" title="Скопировать URL" onclick="copyKeyUrl('{{ sub.access_url }}')">
@@ -316,7 +316,7 @@
                 {% elif pst == 'pending' %}<span class="badge badge-custom badge-open">Ожидание</span>
                 {% else %}<span class="badge badge-custom badge-expired">{{ pst }}</span>{% endif %}
               </td>
-              <td style="color:var(--text-muted)">{{ p.created_at.strftime('%d.%m.%Y %H:%M') if p.created_at else '—' }}</td>
+              <td style="color:var(--text-muted)">{{ p.created_at|dt }}</td>
             </tr>
             {% else %}
             <tr><td colspan="5" class="text-center py-3" style="color:var(--text-muted)">Нет платежей</td></tr>

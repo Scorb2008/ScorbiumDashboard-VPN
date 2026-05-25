@@ -560,20 +560,20 @@
     <div class="d-flex align-items-center gap-3">
       <div class="dropdown">
         <span class="topbar-time" id="clockDisplay" data-bs-toggle="dropdown" style="cursor:pointer">
-          <i class="bi bi-clock me-1"></i>{{ current_time | default('12:00') }}
+          <i class="bi bi-clock me-1"></i>{{ current_time | default('12:00:00') }}
         </span>
         <ul class="dropdown-menu dropdown-menu-end" id="timezoneMenu" style="background:var(--bg-card);border-color:var(--border);min-width:180px">
           <li class="dropdown-item tz-select" data-tz="Europe/Moscow" style="color:var(--text-muted);font-size:.78rem;cursor:pointer">
             <i class="bi bi-globe me-1" style="color:var(--accent)"></i>Москва
-            <span class="float-end" style="color:var(--text);font-weight:600" id="tzMoscow">{{ time_moscow | default('00:00') }}</span>
+            <span class="float-end" style="color:var(--text);font-weight:600" id="tzMoscow">{{ time_moscow | default('00:00:00') }}</span>
           </li>
           <li class="dropdown-item tz-select" data-tz="Asia/Tehran" style="color:var(--text-muted);font-size:.78rem;cursor:pointer">
             <i class="bi bi-globe me-1" style="color:var(--warning)"></i>Тегеран
-            <span class="float-end" style="color:var(--text);font-weight:600" id="tzTehran">{{ time_tehran | default('00:00') }}</span>
+            <span class="float-end" style="color:var(--text);font-weight:600" id="tzTehran">{{ time_tehran | default('00:00:00') }}</span>
           </li>
           <li class="dropdown-item tz-select" data-tz="America/New_York" style="color:var(--text-muted);font-size:.78rem;cursor:pointer">
             <i class="bi bi-globe me-1" style="color:var(--info)"></i>Нью-Йорк
-            <span class="float-end" style="color:var(--text);font-weight:600" id="tzNewYork">{{ time_us | default('00:00') }}</span>
+            <span class="float-end" style="color:var(--text);font-weight:600" id="tzNewYork">{{ time_us | default('00:00:00') }}</span>
           </li>
         </ul>
       </div>
@@ -613,7 +613,10 @@
     };
     var clockDisplay = document.getElementById('clockDisplay');
     var menu = document.getElementById('timezoneMenu');
-    var savedTz = localStorage.getItem('timezone') || 'Europe/Moscow';
+    var serverTz = {{ (selected_timezone|default('Europe/Moscow'))|tojson }};
+    var cookieMatch = document.cookie.match(/(?:^|; )panel_timezone=([^;]+)/);
+    var cookieTz = cookieMatch ? decodeURIComponent(cookieMatch[1]) : '';
+    var savedTz = localStorage.getItem('timezone') || cookieTz || serverTz || 'Europe/Moscow';
     var currentTz = savedTz;
 
     function formatTime(tz) {
@@ -653,6 +656,7 @@
     function setActiveTz(tz) {
       currentTz = tz;
       localStorage.setItem('timezone', tz);
+      document.cookie = 'panel_timezone=' + encodeURIComponent(tz) + '; path=/; max-age=31536000; SameSite=Lax';
       // Update active state in dropdown
       var items = menu ? menu.querySelectorAll('.tz-select') : [];
       for (var i = 0; i < items.length; i++) {

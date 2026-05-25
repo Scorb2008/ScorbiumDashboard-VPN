@@ -66,7 +66,7 @@
             {% endif %}
           </td>
           <td style="color:var(--text-muted);font-size:.75rem">
-            {{ key.created_at.strftime('%d.%m.%Y') if key.created_at else '—' }}
+            {{ key.created_at|dt('%d.%m.%Y') }}
           </td>
           <td>
             {% if st == 'active' %}

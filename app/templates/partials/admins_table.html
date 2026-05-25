@@ -31,7 +31,7 @@
             <span class="badge badge-custom badge-expired">Отключён</span>
           {% endif %}
         </td>
-        <td style="color:var(--muted);font-size:.78rem">{{ a.created_at.strftime('%d.%m.%Y') if a.created_at else '—' }}</td>
+        <td style="color:var(--muted);font-size:.78rem">{{ a.created_at|dt('%d.%m.%Y') }}</td>
         <td>
           <div class="d-flex gap-1">
             <button class="btn btn-sm btn-outline py-1 px-2" data-bs-toggle="modal" data-bs-target="#editAdminModal{{ a.id }}">
