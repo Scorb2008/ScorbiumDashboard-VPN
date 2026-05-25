@@ -520,7 +520,6 @@ async def extend_choose_method(callback: CallbackQuery) -> None:
         svc = BotSettingsService(session)
         plan = await PlanService(session).get_by_id(plan_id)
         user = await UserService(session).get_by_id(callback.from_user.id)
-        settings = await svc.get_all()
         balance = float(user.balance or 0) if user else 0
 
         if not plan:

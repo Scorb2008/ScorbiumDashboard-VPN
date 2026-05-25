@@ -47,7 +47,7 @@ async def subscriptions_page(request: Request, db: AsyncSession = Depends(get_db
     await db.commit()
     ctx["subscriptions"] = subscriptions
     ctx["plans"] = await PlanService(db).get_all(only_active=True)
-    return templates.TemplateResponse("subscriptions.html", ctx)
+    return templates.TemplateResponse(request, "subscriptions.html", ctx)
 
 
 @router.post("/create", response_class=HTMLResponse)

@@ -70,6 +70,7 @@ def _parse_payment_status(value: Optional[str]) -> Optional[PaymentStatus]:
 
 def _render_payments_rows(request: Request, payments):
     return templates.TemplateResponse(
+        request,
         "partials/payments_table_rows.html",
         {"request": request, "payments": payments},
     )
@@ -100,7 +101,7 @@ async def payments_page(
     ctx["current_type"] = payment_type or ""
     if request.headers.get("HX-Request") == "true":
         return _render_payments_rows(request, ctx["payments"])
-    return templates.TemplateResponse("payments.html", ctx)
+    return templates.TemplateResponse(request, "payments.html", ctx)
 
 
 @router.get("/stats", response_class=HTMLResponse)
@@ -191,7 +192,7 @@ async def payments_stats_page(request: Request, db: AsyncSession = Depends(get_d
         p["share"] = round(p["count"] / total_prov * 100)
     ctx["providers"] = sorted(providers, key=lambda x: x["revenue"], reverse=True)
 
-    return templates.TemplateResponse("payments_stats.html", ctx)
+    return templates.TemplateResponse(request, "payments_stats.html", ctx)
 
 
 @router.get("/stats/json")

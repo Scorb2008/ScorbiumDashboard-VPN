@@ -1,8 +1,9 @@
 import json
+import re
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -44,6 +45,12 @@ templates.env.globals["is_admin_user"] = lambda u: bool(
     u and u.id in config.telegram.telegram_admin_ids
 )
 _MONEY_STEP = Decimal("0.01")
+_HOST_RE = re.compile(
+    r"^(?:"
+    r"[A-Za-z0-9.-]+(?::\d{1,5})?"
+    r"|\[[0-9A-Fa-f:]+\](?::\d{1,5})?"
+    r")$"
+)
 
 
 async def _require_user(request: Request, db: AsyncSession):
@@ -87,18 +94,49 @@ def _normalize_money(value) -> Decimal:
     return Decimal(str(value)).quantize(_MONEY_STEP, rounding=ROUND_HALF_UP)
 
 
+def _configured_origin() -> str | None:
+    site_url = (config.web.site_url or "").strip()
+    if not site_url:
+        return None
+    parsed = urlsplit(site_url)
+    if not parsed.scheme or not parsed.netloc:
+        return None
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def _sanitize_host(raw_host: str | None) -> str | None:
+    host = (raw_host or "").split(",")[0].strip()
+    if (
+        not host
+        or any(ch.isspace() for ch in host)
+        or "/" in host
+        or "@" in host
+        or not _HOST_RE.fullmatch(host)
+    ):
+        return None
+    return host
+
+
 def _request_origin(request: Request) -> str:
+    configured_origin = _configured_origin()
+    if configured_origin:
+        return configured_origin
+
     forwarded_proto = request.headers.get("x-forwarded-proto", "")
     scheme = (
         forwarded_proto.split(",")[0].strip().lower()
         if forwarded_proto
         else request.url.scheme
     )
-    host = (
-        request.headers.get("x-forwarded-host")
-        or request.headers.get("host")
-        or request.url.netloc
+    host = _sanitize_host(
+        request.headers.get("x-forwarded-host") or request.headers.get("host")
     )
+    if not host:
+        server = request.scope.get("server")
+        if isinstance(server, tuple) and server and server[0]:
+            host = str(server[0])
+        else:
+            host = request.url.netloc
     return f"{scheme}://{host}"
 
 
@@ -545,7 +583,8 @@ async def cabinet_index(request: Request, db: AsyncSession = Depends(get_db)):
             "error": None,
             "is_mini_app": _is_mini_app(request),
             "telegram_client_id": config.telegram.telegram_client_id,
-            "telegram_bot_username": config.telegram.telegram_bot_username,
+            "telegram_bot_username": bot_username
+            or config.telegram.telegram_bot_username,
             **(await _cabinet_branding_context(db)),
         },
     )
