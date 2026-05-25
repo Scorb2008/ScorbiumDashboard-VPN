@@ -68,6 +68,54 @@
     font-size: .76rem;
     line-height: 1.5;
   }
+
+  .user-detail-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .75rem;
+    margin-bottom: 1rem;
+  }
+
+  .user-detail-stat {
+    padding: .85rem .9rem;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: linear-gradient(135deg, rgba(255,255,255,.03), rgba(0,212,170,.04));
+  }
+
+  .user-detail-stat-label {
+    color: var(--text-muted);
+    font-size: .72rem;
+    line-height: 1.4;
+    margin-bottom: .35rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+
+  .user-detail-stat-value {
+    color: var(--text);
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: -.02em;
+  }
+
+  .user-detail-inline-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-top: .9rem;
+  }
+
+  .user-detail-inline-actions .btn {
+    min-height: 34px;
+    border-radius: 999px;
+  }
+
+  @media (max-width: 575.98px) {
+    .user-detail-stats {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>
 <div class="row g-3">
 
@@ -96,7 +144,41 @@
         <div class="mb-1"><i class="bi bi-arrow-repeat me-1"></i>Автопродление:
           {% if user.autorenew %}<span class="text-success">Вкл</span>{% else %}<span style="color:var(--text-muted)">Выкл</span>{% endif %}
         </div>
-        <div><i class="bi bi-calendar me-1"></i>Регистрация: <span style="color:var(--text)">{{ user.created_at.strftime('%d.%m.%Y %H:%M') if user.created_at else '—' }}</span></div>
+        <div class="mb-1"><i class="bi bi-calendar me-1"></i>Регистрация: <span style="color:var(--text)">{{ user.created_at.strftime('%d.%m.%Y %H:%M') if user.created_at else '—' }}</span></div>
+        <div><i class="bi bi-activity me-1"></i>Последняя активность: <span style="color:var(--text)">{{ user.last_seen.strftime('%d.%m.%Y %H:%M') if user.last_seen else '—' }}</span></div>
+        <div class="user-detail-inline-actions">
+          <button class="btn btn-xs user-detail-green" type="button" onclick="copyPlain('{{ user.id }}', 'ID скопирован')">
+            <i class="bi bi-clipboard me-1"></i>Скопировать ID
+          </button>
+          {% if user.referral_code %}
+          <button class="btn btn-xs user-detail-green" type="button" onclick="copyPlain('{{ user.referral_code }}', 'Реферальный код скопирован')">
+            <i class="bi bi-link-45deg me-1"></i>Скопировать код
+          </button>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="user-detail-stats">
+        <div class="user-detail-stat">
+          <div class="user-detail-stat-label">Активные подписки</div>
+          <div class="user-detail-stat-value">{{ user_stats.active_subscriptions_count }}</div>
+        </div>
+        <div class="user-detail-stat">
+          <div class="user-detail-stat-label">Успешные платежи</div>
+          <div class="user-detail-stat-value">{{ user_stats.successful_payments_count }}</div>
+        </div>
+        <div class="user-detail-stat">
+          <div class="user-detail-stat-label">Потрачено</div>
+          <div class="user-detail-stat-value">{{ "%.2f"|format(user_stats.total_spent or 0) }} ₽</div>
+        </div>
+        <div class="user-detail-stat">
+          <div class="user-detail-stat-label">Рефералы</div>
+          <div class="user-detail-stat-value">{{ user_stats.referrals_count }}</div>
+        </div>
+      </div>
+      <div class="user-detail-mini mb-3">
+        <i class="bi bi-credit-card-2-front me-1"></i>Последний успешный платёж:
+        <span style="color:var(--text)">{{ user_stats.last_payment_at.strftime('%d.%m.%Y %H:%M') if user_stats.last_payment_at else '—' }}</span>
       </div>
 
       <!-- Actions -->
@@ -225,7 +307,8 @@
             {% for p in payments %}
             <tr>
               <td><code style="color:#00d4aa">#{{ p.id }}</code></td>
-              <td style="color:var(--text-muted)">{{ p.provider.value }}</td>
+              {% set provider = p.provider.value if p.provider.value is defined else p.provider %}
+              <td style="color:var(--text-muted)">{{ provider or '—' }}</td>
               <td><b>{{ p.amount }}</b> {{ p.currency }}</td>
               <td>
                 {% set pst = p.status.value if p.status.value is defined else p.status %}
@@ -233,7 +316,7 @@
                 {% elif pst == 'pending' %}<span class="badge badge-custom badge-open">Ожидание</span>
                 {% else %}<span class="badge badge-custom badge-expired">{{ pst }}</span>{% endif %}
               </td>
-              <td style="color:var(--text-muted)">{{ p.created_at.strftime('%d.%m.%Y') if p.created_at else '—' }}</td>
+              <td style="color:var(--text-muted)">{{ p.created_at.strftime('%d.%m.%Y %H:%M') if p.created_at else '—' }}</td>
             </tr>
             {% else %}
             <tr><td colspan="5" class="text-center py-3" style="color:var(--text-muted)">Нет платежей</td></tr>
@@ -318,6 +401,15 @@
 
 {% block scripts %}
 <script>
+async function copyPlain(value, successMsg) {
+  if (!value) return;
+  try {
+    await navigator.clipboard.writeText(value);
+    showToast(successMsg || 'Скопировано', 'success');
+  } catch (e) {
+    showToast('Не удалось скопировать', 'error');
+  }
+}
 async function changeBalance(action) {
   const amount = document.getElementById('bal-amount').value;
   if (!amount || parseFloat(amount) <= 0) return;

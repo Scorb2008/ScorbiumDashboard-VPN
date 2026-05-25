@@ -19,6 +19,7 @@ from app.bot.handlers import payments as bot_payments
 from app.bot.middlewares import user_notify as user_notify_middleware
 from app.models.bot_settings import BotSettings
 from app.models.payment import Payment, PaymentProvider, PaymentStatus, PaymentType
+from app.models.referral import Referral
 from app.models.promo import PromoCode, PromoType
 from app.models.promo_usage import PromoUsage
 from app.models.support import (
@@ -394,10 +395,23 @@ async def test_subscriptions_page_includes_expired_and_revoked_keys(
 
 @pytest.mark.asyncio
 async def test_user_detail_page_shows_language_and_registration_date(
-    session, sample_user, sample_plan, monkeypatch
+    session, sample_user, sample_plan, sample_vpn_key, sample_referral, monkeypatch
 ):
     sample_user.autorenew = True
     sample_user.created_at = datetime(2026, 5, 1, 12, 30, tzinfo=timezone.utc)
+    sample_user.last_seen = datetime(2026, 5, 2, 8, 45, tzinfo=timezone.utc)
+    assert sample_vpn_key.status == VpnKeyStatus.ACTIVE.value
+    assert isinstance(sample_referral, Referral)
+    payment = Payment(
+        user_id=sample_user.id,
+        provider=PaymentProvider.YOOKASSA.value,
+        payment_type=PaymentType.SUBSCRIPTION.value,
+        amount=Decimal("199.00"),
+        currency="RUB",
+        status=PaymentStatus.SUCCEEDED.value,
+        created_at=datetime(2026, 5, 3, 18, 20, tzinfo=timezone.utc),
+    )
+    session.add(payment)
     await session.commit()
 
     monkeypatch.setattr(
@@ -421,13 +435,27 @@ async def test_user_detail_page_shows_language_and_registration_date(
     )
 
     body = response.body.decode("utf-8")
+    user_stats = response.context["user_stats"]
     assert response.status_code == 200
+    assert user_stats["active_subscriptions_count"] == 1
+    assert user_stats["successful_payments_count"] == 1
+    assert user_stats["referrals_count"] == 1
+    assert user_stats["total_spent"] == Decimal("199.00")
     assert "Язык:" in body
     assert ">ru<" in body
     assert "Регистрация:" in body
     assert "01.05.2026 12:30" in body
+    assert "Последняя активность:" in body
+    assert "02.05.2026 08:45" in body
     assert "Автопродление:" in body
     assert "Вкл" in body
+    assert "Успешные платежи" in body
+    assert "Активные подписки" in body
+    assert "Рефералы" in body
+    assert "Потрачено" in body
+    assert "199.00 ₽" in body
+    assert "Последний успешный платёж" in body
+    assert "03.05.2026 18:20" in body
 
 
 @pytest.mark.asyncio

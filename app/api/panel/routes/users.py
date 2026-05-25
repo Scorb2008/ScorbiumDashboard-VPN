@@ -12,6 +12,7 @@ from app.api.dependencies import get_db
 from app.schemas.user import UserRead
 from app.services.bot_settings import BotSettingsService
 from app.services.plan import PlanService
+from app.services.referral import ReferralService
 from app.services.telegram_notify import TelegramNotifyService
 from app.services.user import UserService
 from app.services.vpn_key import VpnKeyService
@@ -60,8 +61,8 @@ async def user_detail_page(
     user_id: int, request: Request, db: AsyncSession = Depends(get_db)
 ):
     from sqlalchemy import select
-    from app.models.payment import Payment
-    from app.models.vpn_key import VpnKey
+    from app.models.payment import Payment, PaymentStatus
+    from app.models.vpn_key import VpnKey, VpnKeyStatus
 
     admin_info = _require_permission(request, "users.read")
     ctx = await _base_ctx(request, db, "users", admin_info)
@@ -80,10 +81,36 @@ async def user_detail_page(
         .where(Payment.user_id == user_id)
         .order_by(Payment.created_at.desc())
     )
+    subscriptions = list(keys_result.scalars().all())
+    payments = list(pays_result.scalars().all())
+    successful_payments = [
+        payment
+        for payment in payments
+        if payment.status == PaymentStatus.SUCCEEDED.value
+    ]
+    active_subscriptions_count = sum(
+        1
+        for subscription in subscriptions
+        if subscription.status == VpnKeyStatus.ACTIVE.value
+    )
+    total_spent = sum(
+        (Decimal(str(payment.amount or 0)) for payment in successful_payments),
+        Decimal("0.00"),
+    )
+
     ctx["user"] = UserRead.model_validate(user)
-    ctx["subscriptions"] = list(keys_result.scalars().all())
-    ctx["payments"] = list(pays_result.scalars().all())
+    ctx["subscriptions"] = subscriptions
+    ctx["payments"] = payments
     ctx["plans"] = await PlanService(db).get_all(only_active=True)
+    ctx["user_stats"] = {
+        "active_subscriptions_count": active_subscriptions_count,
+        "successful_payments_count": len(successful_payments),
+        "total_spent": total_spent,
+        "referrals_count": await ReferralService(db).count_referrals(user_id),
+        "last_payment_at": (
+            successful_payments[0].created_at if successful_payments else None
+        ),
+    }
     return templates.TemplateResponse(request, "user_detail.html", ctx)
 
 
