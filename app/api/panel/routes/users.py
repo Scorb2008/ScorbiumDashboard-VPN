@@ -31,7 +31,7 @@ async def users_page(request: Request, db: AsyncSession = Depends(get_db)):
     raw = await UserService(db).get_all(limit=200)
     ctx["users"] = [_to_detail(u) for u in raw]
     ctx["plans"] = await PlanService(db).get_all(only_active=True)
-    return templates.TemplateResponse("users.html", ctx)
+    return templates.TemplateResponse(request, "users.html", ctx)
 
 
 @router.get("/search", response_class=HTMLResponse)
@@ -49,6 +49,7 @@ async def users_search(
         if q in (u.full_name or "").lower() or q in (u.username or "").lower()
     ]
     return templates.TemplateResponse(
+        request,
         "partials/users_rows.html",
         {"request": request, "users": [_to_detail(u) for u in filtered]},
     )
@@ -83,7 +84,7 @@ async def user_detail_page(
     ctx["subscriptions"] = list(keys_result.scalars().all())
     ctx["payments"] = list(pays_result.scalars().all())
     ctx["plans"] = await PlanService(db).get_all(only_active=True)
-    return templates.TemplateResponse("user_detail.html", ctx)
+    return templates.TemplateResponse(request, "user_detail.html", ctx)
 
 
 @router.post("/{user_id}/deduct-balance", response_class=HTMLResponse)
@@ -138,7 +139,9 @@ async def ban_user_view(
     )
     await TelegramNotifyService().send_message(user_id, ban_msg)
     resp = templates.TemplateResponse(
-        "partials/users_rows.html", {"request": request, "users": [_to_detail(user)]}
+        request,
+        "partials/users_rows.html",
+        {"request": request, "users": [_to_detail(user)]},
     )
     _toast(resp, "Пользователь заблокирован")
     return resp
@@ -163,7 +166,9 @@ async def unban_user_view(
     )
     await TelegramNotifyService().send_message(user_id, unban_msg)
     resp = templates.TemplateResponse(
-        "partials/users_rows.html", {"request": request, "users": [_to_detail(user)]}
+        request,
+        "partials/users_rows.html",
+        {"request": request, "users": [_to_detail(user)]},
     )
     _toast(resp, "Пользователь разблокирован")
     return resp
