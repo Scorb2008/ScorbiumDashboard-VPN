@@ -15,11 +15,9 @@ _SENSITIVE_KEYS = {
 
 async def main():
     from app.core.database import AsyncSessionFactory
-    from app.services.bot_settings import BotSettingsService
     from app.services.encryption import encrypt_value, is_encrypted
 
     async with AsyncSessionFactory() as session:
-        svc = BotSettingsService(session)
         migrated = 0
 
         for key in _SENSITIVE_KEYS:

@@ -1,5 +1,6 @@
 import asyncio
 from aiogram import Router, F, Bot
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, Message, PreCheckoutQuery, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
@@ -23,6 +24,32 @@ from app.services.i18n import t, get_lang
 from app.utils.log import log
 
 router = Router()
+
+
+async def _safe_callback_answer(
+    callback: CallbackQuery, text: str | None = None, *, show_alert: bool = False
+) -> bool:
+    """Answer callback queries without crashing on expired Telegram query ids."""
+    try:
+        if text is None:
+            await callback.answer()
+        else:
+            await callback.answer(text, show_alert=show_alert)
+        return True
+    except TelegramBadRequest as exc:
+        error_text = str(exc).lower()
+        if (
+            "query is too old" in error_text
+            or "query id is invalid" in error_text
+            or "response timeout expired" in error_text
+        ):
+            log.warning(
+                "Skipped stale callback answer for user %s: %s",
+                callback.from_user.id if callback.from_user else "unknown",
+                exc,
+            )
+            return False
+        raise
 
 
 async def _get_user_lang(user_id: int, session) -> str:
@@ -294,8 +321,10 @@ async def handle_yookassa_payment(callback: CallbackQuery, bot: Bot) -> None:
         plan = await PlanService(session).get_by_id(plan_id)
         lang = await _get_user_lang(callback.from_user.id, session)
         if not plan or not plan.is_active:
-            await callback.answer(t("no_plans", lang), show_alert=True)
+            await _safe_callback_answer(callback, t("no_plans", lang), show_alert=True)
             return
+
+        await _safe_callback_answer(callback, "⏳", show_alert=False)
 
         try:
             from app.services.yookassa import YookassaService
@@ -367,8 +396,6 @@ async def handle_yookassa_payment(callback: CallbackQuery, bot: Bot) -> None:
             except Exception:
                 pass
 
-    await callback.answer()
-
 
 @router.callback_query(F.data.startswith("yk:check:"))
 async def handle_yookassa_check(callback: CallbackQuery, bot: Bot) -> None:
@@ -380,15 +407,17 @@ async def handle_yookassa_check(callback: CallbackQuery, bot: Bot) -> None:
         lang = await _get_user_lang(callback.from_user.id, session)
         payment = await PaymentService(session).get_by_id(payment_id)
         if not payment or payment.user_id != callback.from_user.id:
-            await callback.answer("❌", show_alert=True)
+            await _safe_callback_answer(callback, "❌", show_alert=True)
             return
         if not payment.external_id:
-            await callback.answer(t("payment_error", lang), show_alert=True)
+            await _safe_callback_answer(
+                callback, t("payment_error", lang), show_alert=True
+            )
             return
 
         if payment.status == PaymentStatus.SUCCEEDED.value and payment.vpn_key_id:
-            await callback.answer(
-                _payment_already_confirmed_text(lang), show_alert=True
+            await _safe_callback_answer(
+                callback, _payment_already_confirmed_text(lang), show_alert=True
             )
             return
 
@@ -400,7 +429,9 @@ async def handle_yookassa_check(callback: CallbackQuery, bot: Bot) -> None:
             if yk_payment.status == "succeeded":
                 plan = await PlanService(session).get_by_id(plan_id)
                 if not plan:
-                    await callback.answer(t("payment_error", lang), show_alert=True)
+                    await _safe_callback_answer(
+                        callback, t("payment_error", lang), show_alert=True
+                    )
                     return
 
                 confirmation = await PaymentService(session).confirm_once(
@@ -410,7 +441,9 @@ async def handle_yookassa_check(callback: CallbackQuery, bot: Bot) -> None:
                     session
                 ).provision_subscription_once(payment_id, callback.from_user.id, plan)
                 await session.commit()
-                await callback.answer(t("payment_success", lang), show_alert=True)
+                await _safe_callback_answer(
+                    callback, t("payment_success", lang), show_alert=True
+                )
                 should_notify_user = (
                     confirmation.just_confirmed or delivery.just_processed
                 )
@@ -426,12 +459,18 @@ async def handle_yookassa_check(callback: CallbackQuery, bot: Bot) -> None:
             elif yk_payment.status == "canceled":
                 payment.status = PaymentStatus.FAILED.value
                 await session.commit()
-                await callback.answer(t("payment_failed", lang), show_alert=True)
+                await _safe_callback_answer(
+                    callback, t("payment_failed", lang), show_alert=True
+                )
             else:
-                await callback.answer(t("payment_pending", lang), show_alert=True)
+                await _safe_callback_answer(
+                    callback, t("payment_pending", lang), show_alert=True
+                )
         except Exception as e:
             log.error(f"YooKassa check error: {e}")
-            await callback.answer(t("payment_error", lang), show_alert=True)
+            await _safe_callback_answer(
+                callback, t("payment_error", lang), show_alert=True
+            )
 
 
 # ── СБП (ЮКасса) ─────────────────────────────────────────────────────────────
@@ -445,8 +484,10 @@ async def handle_sbp_payment(callback: CallbackQuery, bot: Bot) -> None:
         plan = await PlanService(session).get_by_id(plan_id)
         lang = await _get_user_lang(callback.from_user.id, session)
         if not plan or not plan.is_active:
-            await callback.answer(t("no_plans", lang), show_alert=True)
+            await _safe_callback_answer(callback, t("no_plans", lang), show_alert=True)
             return
+
+        await _safe_callback_answer(callback, "⏳", show_alert=False)
 
         try:
             from app.services.yookassa import YookassaService
@@ -519,8 +560,6 @@ async def handle_sbp_payment(callback: CallbackQuery, bot: Bot) -> None:
             from app.bot.utils.media import edit_with_photo
 
             await edit_with_photo(callback, t("payment_error", lang), reply_markup=kb)
-
-    await callback.answer()
 
 
 # ── Telegram Stars ────────────────────────────────────────────────────────────

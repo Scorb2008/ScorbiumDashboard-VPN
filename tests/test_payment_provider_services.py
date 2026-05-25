@@ -1,6 +1,9 @@
 from app.services.paypalych import PayPalychService
 from app.services.encryption import encrypt_value
 from app.services.platega import PlategaService
+from app.services.cryptobot import CryptoBotService
+from app.services.freekassa import FreeKassaService
+from app.services.aikassa import AiKassaService
 
 
 async def test_platega_service_awaits_request(monkeypatch):
@@ -139,3 +142,42 @@ def test_paypalych_from_settings_decrypts_token():
 
     assert service is not None
     assert service.api_token == "bearer-token"
+
+
+def test_cryptobot_from_settings_decrypts_token():
+    service = CryptoBotService.from_settings(
+        {"cryptobot_token": encrypt_value("crypto-token")}
+    )
+
+    assert service is not None
+    assert service._token == "crypto-token"
+
+
+def test_freekassa_from_settings_decrypts_sensitive_values():
+    service = FreeKassaService.from_settings(
+        {
+            "freekassa_shop_id": "shop-1",
+            "freekassa_api_key": encrypt_value("api-key"),
+            "freekassa_secret_word_1": encrypt_value("secret-1"),
+            "freekassa_secret_word_2": encrypt_value("secret-2"),
+        }
+    )
+
+    assert service is not None
+    assert service._shop_id == "shop-1"
+    assert service._api_key == "api-key"
+    assert service._secret_word_1 == "secret-1"
+    assert service._secret_word_2 == "secret-2"
+
+
+def test_aikassa_from_settings_decrypts_token():
+    service = AiKassaService.from_settings(
+        {
+            "aikassa_shop_id": "shop-42",
+            "aikassa_token": encrypt_value("aikassa-token"),
+        }
+    )
+
+    assert service is not None
+    assert service._shop_id == "shop-42"
+    assert service._token == "aikassa-token"

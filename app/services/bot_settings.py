@@ -9,6 +9,7 @@ from app.models.bot_settings import BotSettings
 from app.utils.log import log
 
 _SENSITIVE_KEYS = {
+    "yookassa_secret_key_override",
     "cryptobot_token",
     "freekassa_api_key",
     "freekassa_secret_word_1",

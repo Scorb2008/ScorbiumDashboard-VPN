@@ -1,5 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
+from aiogram.exceptions import TelegramBadRequest
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -89,6 +90,15 @@ def _is_secure_request(request: Request) -> bool:
     if forwarded_proto:
         return forwarded_proto.split(",")[0].strip().lower() == "https"
     return request.url.scheme == "https"
+
+
+def _is_stale_telegram_query_error(exc: TelegramBadRequest) -> bool:
+    error_text = str(exc).lower()
+    return (
+        "query is too old" in error_text
+        or "query id is invalid" in error_text
+        or "response timeout expired" in error_text
+    )
 
 
 def _make_dp():
@@ -449,7 +459,7 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(Exception)
     async def _global_exc(request: Request, exc: Exception) -> JSONResponse:
-        log.error("Unhandled exception on %s: %s", request.url, exc)
+        log.exception("Unhandled exception on %s", request.url)
         return JSONResponse(
             status_code=500, content={"detail": "Internal server error"}
         )
@@ -664,7 +674,23 @@ def create_app() -> FastAPI:
         if bot is None or dp is None:
             return JSONResponse({"ok": False}, status_code=503)
         update = Update.model_validate(await request.json())
-        await dp.feed_update(bot, update)
+        try:
+            await dp.feed_update(bot, update)
+        except TelegramBadRequest as exc:
+            if _is_stale_telegram_query_error(exc):
+                log.warning(
+                    "Ignored stale Telegram callback query for update %s: %s",
+                    update.update_id,
+                    exc,
+                )
+            else:
+                log.exception(
+                    "Telegram webhook bad request for update %s", update.update_id
+                )
+            return JSONResponse({"ok": True})
+        except Exception:
+            log.exception("Telegram webhook handler failed for update %s", update.update_id)
+            return JSONResponse({"ok": True})
         return JSONResponse({"ok": True})
 
     @app.get("/panel", include_in_schema=False)
@@ -690,8 +716,8 @@ def create_app() -> FastAPI:
             async with AsyncSessionFactory() as session:
                 await session.execute(text("SELECT 1"))
             return JSONResponse({"status": "ok", "db": "connected"})
-        except Exception as e:
-            log.error("Health check failed: %s", e)
+        except Exception:
+            log.exception("Health check failed")
             return JSONResponse(
                 {"status": "error", "db": "unavailable"}, status_code=503
             )

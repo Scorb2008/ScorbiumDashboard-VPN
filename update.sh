@@ -8,11 +8,36 @@ COMPOSE_FILE="docker-compose.prod.yml"
 NGINX_GENERATED_CONF="nginx/nginx.generated.conf"
 MIN_FREE_KB=1048576
 BACKUP_DIR="${BACKUP_DIR:-../ScorbiumDashboard-backups}"
+BUILD_RETRIES=3
 
 info()    { echo -e "${CYAN}[INFO]${RESET} $*"; }
 success() { echo -e "${GREEN}[OK]${RESET}   $*"; }
 warn()    { echo -e "${YELLOW}[WARN]${RESET} $*"; }
 error()   { echo -e "${RED}[ERR]${RESET}  $*"; exit 1; }
+
+build_app_image() {
+    local attempt
+
+    for attempt in $(seq 1 "${BUILD_RETRIES}"); do
+        info "Сборка app через BuildKit (${attempt}/${BUILD_RETRIES})..."
+        if docker compose -f "${COMPOSE_FILE}" build app; then
+            return 0
+        fi
+        warn "BuildKit-сборка не удалась"
+        if [[ "${attempt}" -lt "${BUILD_RETRIES}" ]]; then
+            info "Жду 5 сек и пробую снова..."
+            sleep 5
+        fi
+    done
+
+    warn "Переключаюсь на legacy builder как fallback..."
+    if DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 docker compose -f "${COMPOSE_FILE}" build app; then
+        success "Сборка app прошла через legacy builder"
+        return 0
+    fi
+
+    error "Не удалось собрать app image. Если в логах есть auth.docker.io или network is unreachable, это проблема доступа Docker к registry (часто IPv6/DNS/firewall), а не логики update.sh."
+}
 
 print_recent_logs() {
     warn "Последние логи контейнеров:"
@@ -669,7 +694,7 @@ success "nginx generated conf готов"
 
 # ── [3/4] Пересобираем и запускаем ───────────────────────────────────────────
 info "[3/4] Пересобираю app..."
-docker compose -f "${COMPOSE_FILE}" build app
+build_app_image
 
 info "Очищаю старые образы..."
 docker image prune -f --filter "until=168h" >/dev/null 2>&1 || true

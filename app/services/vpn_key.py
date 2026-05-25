@@ -50,6 +50,12 @@ class VpnKeyService:
         result = await self.session.execute(select(VpnKey).where(VpnKey.id == key_id))
         return result.scalar_one_or_none()
 
+    async def get_by_id_for_update(self, key_id: int) -> Optional[VpnKey]:
+        result = await self.session.execute(
+            select(VpnKey).where(VpnKey.id == key_id).with_for_update()
+        )
+        return result.scalar_one_or_none()
+
     async def get_active_for_user(self, user_id: int) -> list[VpnKey]:
         result = await self.session.execute(
             select(VpnKey)
@@ -272,7 +278,7 @@ class VpnKeyService:
     # ── Management ───────────────────────────────────────────────────────────
 
     async def revoke(self, key_id: int) -> Optional[VpnKey]:
-        key = await self.get_by_id(key_id)
+        key = await self.get_by_id_for_update(key_id)
         if not key:
             return None
         if key.pasarguard_key_id:
@@ -285,7 +291,7 @@ class VpnKeyService:
         return key
 
     async def extend(self, key_id: int, days: int) -> Optional[VpnKey]:
-        key = await self.get_by_id(key_id)
+        key = await self.get_by_id_for_update(key_id)
         if not key:
             return None
         if key.pasarguard_key_id:
@@ -294,16 +300,23 @@ class VpnKeyService:
             except Exception as e:
                 log.warning(f"Marzban extend failed: {e}")
                 return None
+
+        now = datetime.now(timezone.utc)
+        base_expires_at = now
         if key.expires_at:
-            key.expires_at = key.expires_at + timedelta(days=days)
-        else:
-            key.expires_at = datetime.now(timezone.utc) + timedelta(days=days)
+            expires_at = key.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            if expires_at > now:
+                base_expires_at = expires_at
+
+        key.expires_at = base_expires_at + timedelta(days=days)
         key.status = VpnKeyStatus.ACTIVE.value
         await self.session.flush()
         return key
 
     async def delete_from_marzban(self, key_id: int) -> Optional[VpnKey]:
-        key = await self.get_by_id(key_id)
+        key = await self.get_by_id_for_update(key_id)
         if not key:
             return None
         if key.pasarguard_key_id:

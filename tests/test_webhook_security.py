@@ -9,6 +9,7 @@ from starlette.requests import Request
 from app.api.v1.payments import (
     _get_yookassa_webhook_secret,
     _platega_headers_match,
+    cryptobot_webhook,
     platega_webhook,
     yookassa_webhook,
 )
@@ -22,6 +23,7 @@ from app.models.payment import Payment, PaymentProvider, PaymentStatus, PaymentT
 from app.models.plan import Plan
 from app.models.user import User
 from app.services.bot_settings import reset_bot_settings_cache
+from app.services.encryption import encrypt_value
 from app.services.webhook_security import (
     compute_cryptobot_hmac,
     verify_cryptobot_signature,
@@ -208,6 +210,80 @@ async def test_yookassa_webhook_does_not_treat_subscription_without_plan_id_as_t
     result = await yookassa_webhook(request, db=session)
 
     assert result == {"status": "ok"}
+
+
+@pytest.mark.asyncio
+async def test_cryptobot_webhook_accepts_encrypted_token(session, monkeypatch):
+    await reset_bot_settings_cache()
+    user = User(id=111222335, username="cb-user", full_name="Crypto User")
+    plan = Plan(
+        id=43,
+        name="Crypto Plan",
+        slug="crypto-plan",
+        description="Test",
+        duration_days=30,
+        price=100,
+        is_active=True,
+    )
+    payment = Payment(
+        id=44,
+        user_id=user.id,
+        provider=PaymentProvider.CRYPTOBOT.value,
+        payment_type=PaymentType.SUBSCRIPTION.value,
+        amount=100,
+        currency="RUB",
+        status=PaymentStatus.PENDING.value,
+    )
+    session.add_all(
+        [
+            user,
+            plan,
+            payment,
+            BotSettings(
+                key="cryptobot_token",
+                value=encrypt_value("12345:secret-token"),
+            ),
+        ]
+    )
+    await session.commit()
+
+    sent = []
+
+    class _Notify:
+        async def send_message(self, chat_id, message):
+            sent.append((chat_id, message))
+
+    async def fake_finalize(*args, **kwargs):
+        fake_payment = SimpleNamespace(user_id=user.id)
+        fake_key = SimpleNamespace(access_url="https://vpn-key", expires_at=None)
+        return fake_payment, fake_key, True, True
+
+    monkeypatch.setattr(
+        "app.api.v1.payments._finalize_subscription_payment", fake_finalize
+    )
+    monkeypatch.setattr(
+        "app.services.telegram_notify.TelegramNotifyService", lambda: _Notify()
+    )
+
+    payload = {
+        "payload": {
+            "invoice_id": 9001,
+            "status": "paid",
+            "payload": "cb_44_43",
+        }
+    }
+    raw_body = json.dumps(payload).encode("utf-8")
+    signature = compute_cryptobot_hmac("12345:secret-token", raw_body)
+    request = _make_json_request(
+        "/api/v1/payments/webhook/cryptobot",
+        payload,
+        {"X-Crypto-Pay-API-Signature": signature},
+    )
+
+    result = await cryptobot_webhook(request, db=session)
+
+    assert result == {"ok": True}
+    assert sent
 
 
 def _make_json_request(path: str, payload: dict, headers: dict[str, str]) -> Request:

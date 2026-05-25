@@ -2,6 +2,7 @@ from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
@@ -37,10 +38,27 @@ class UserService:
         user = await self.create(data)
         return user, True
 
-    async def sync_telegram_profile(self, data: UserCreate) -> tuple[User, bool]:
+    async def _create_if_missing(self, data: UserCreate) -> tuple[User, bool]:
         user = await self.get_by_id(data.id)
-        if not user:
-            user = await self.create(data)
+        if user:
+            return user, False
+
+        created_user = User(**data.model_dump())
+        try:
+            async with self.session.begin_nested():
+                self.session.add(created_user)
+                await self.session.flush()
+        except IntegrityError:
+            user = await self.get_by_id(data.id)
+            if user is None:
+                raise
+            return user, False
+
+        return created_user, True
+
+    async def sync_telegram_profile(self, data: UserCreate) -> tuple[User, bool]:
+        user, created = await self._create_if_missing(data)
+        if created:
             return user, True
 
         username = (data.username or "").strip() or user.username

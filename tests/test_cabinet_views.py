@@ -1,4 +1,5 @@
 from pathlib import Path
+from types import SimpleNamespace
 
 from fastapi import Request
 from fastapi.responses import Response
@@ -98,11 +99,62 @@ def test_cabinet_redirect_url_keeps_miniapp_context():
 
 
 def test_absolute_cabinet_url_keeps_forwarded_host_port():
+    from app.core.config import config
+
+    original_web_config = config.web_config
+    monkeypatch_value = SimpleNamespace(site_url="")
+    config.web_config = monkeypatch_value
     request = _make_request_with_forwarded_host("example.com:8443")
 
-    absolute_url = _absolute_cabinet_url(request, "/cabinet/balance", payment_id=123)
+    try:
+        absolute_url = _absolute_cabinet_url(
+            request, "/cabinet/balance", payment_id=123
+        )
+    finally:
+        config.web_config = original_web_config
 
     assert absolute_url == "https://example.com:8443/cabinet/balance?payment_id=123"
+
+
+def test_absolute_cabinet_url_prefers_configured_site_url(monkeypatch):
+    from app.core.config import config
+
+    original_web_config = config.web_config
+    monkeypatch.setattr(
+        config,
+        "web_config",
+        SimpleNamespace(site_url="https://billing.example.com:9443"),
+    )
+
+    try:
+        request = _make_request_with_forwarded_host("evil.example.com")
+        absolute_url = _absolute_cabinet_url(
+            request, "/cabinet/balance", payment_id=123
+        )
+    finally:
+        monkeypatch.setattr(config, "web_config", original_web_config)
+
+    assert (
+        absolute_url
+        == "https://billing.example.com:9443/cabinet/balance?payment_id=123"
+    )
+
+
+def test_absolute_cabinet_url_rejects_invalid_forwarded_host():
+    from app.core.config import config
+
+    original_web_config = config.web_config
+    config.web_config = SimpleNamespace(site_url="")
+    request = _make_request_with_forwarded_host("evil.example.com/bad path")
+
+    try:
+        absolute_url = _absolute_cabinet_url(
+            request, "/cabinet/balance", payment_id=123
+        )
+    finally:
+        config.web_config = original_web_config
+
+    assert absolute_url == "https://testserver/cabinet/balance?payment_id=123"
 
 
 def test_cabinet_login_keeps_web_login_visible_for_incomplete_telegram_hashes():
@@ -116,3 +168,20 @@ def test_cabinet_login_keeps_web_login_visible_for_incomplete_telegram_hashes():
     assert ".tg-miniapp-client #web-login" not in cabinet_css
     assert "setLoginState(m || 'Ошибка')" not in login_template
     assert "var initData = getMiniAppInitData();" in login_template
+
+
+def test_cabinet_mobile_web_navigation_has_dedicated_fallback_menu():
+    project_root = Path(__file__).resolve().parents[1]
+    base_template = (project_root / "app/templates/cabinet/base.html").read_text()
+    cabinet_css = (project_root / "app/static/css/cabinet.css").read_text()
+
+    assert 'class="mnav"' in base_template
+    assert "not is_log and not is_mini_app" in base_template
+    assert 'href="/cabinet/promo"' in base_template
+    assert 'href="/cabinet/support"' in base_template
+    assert ".mnav {\n  position: fixed; left: 10px; right: 10px; bottom: 10px; z-index: 60;\n  display: none;" in cabinet_css
+    assert "overflow-x: auto;" in cabinet_css
+    assert ".mnav { display: flex; }" in cabinet_css
+    assert ".wrap { padding-bottom: 94px; }" in cabinet_css
+    assert "flex: 0 0 78px;" in cabinet_css
+    assert ".mini-mode .mnav {\n  display: none !important;\n}" in cabinet_css

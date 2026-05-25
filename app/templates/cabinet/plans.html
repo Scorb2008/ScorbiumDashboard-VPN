@@ -4,24 +4,147 @@
 {% block head %}
 <style>{% include "cabinet/_premium_section_styles.html" %}</style>
 <style>
-  .cab-payment-grid {
-    display: grid;
-    gap: 12px;
+  .cab-payment-trigger {
+    min-height: 50px;
   }
 
-  .cab-payment-grid[hidden] {
+  .cab-payment-modal[hidden] {
     display: none;
   }
 
-  .cab-payment-trigger {
-    justify-content: space-between;
+  .cab-payment-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    display: block;
+    min-height: 100dvh;
+    padding:
+      max(20px, env(safe-area-inset-top))
+      12px
+      max(20px, env(safe-area-inset-bottom));
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    overflow: hidden;
+    transition: opacity .28s ease, visibility .28s ease;
+  }
+
+  .cab-payment-modal.is-visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .cab-payment-backdrop {
+    position: fixed;
+    inset: 0;
+    border: 0;
+    background: rgba(3, 10, 20, 0.72);
+    backdrop-filter: blur(12px);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .3s ease;
+  }
+
+  .cab-payment-sheet {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    z-index: 1;
+    flex: 0 1 720px;
+    width: min(720px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+    max-height: min(780px, calc(100dvh - 40px));
+    overflow: auto;
+    margin: 0;
+    border-radius: 28px;
+    background:
+      radial-gradient(circle at top right, rgba(88, 242, 200, 0.11), transparent 28%),
+      radial-gradient(circle at bottom left, rgba(109, 168, 255, 0.1), transparent 30%),
+      linear-gradient(145deg, rgba(8, 20, 36, 0.98), rgba(10, 24, 42, 0.96));
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
+    scrollbar-gutter: stable both-edges;
+    opacity: 0;
+    transform: translate3d(-50%, calc(-50% + 22px), 0) scale(.97);
+    transition:
+      opacity .32s ease,
+      transform .36s cubic-bezier(.22, 1, .36, 1);
+  }
+
+  .cab-payment-sheet::before {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    border-radius: inherit;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    pointer-events: none;
+  }
+
+  .cab-payment-modal.is-visible .cab-payment-backdrop {
+    opacity: 1;
+  }
+
+  .cab-payment-modal.is-visible .cab-payment-sheet {
+    opacity: 1;
+    transform: translate3d(-50%, -50%, 0) scale(1);
+  }
+
+  .cab-payment-view[hidden] {
+    display: none;
+  }
+
+  .cab-payment-choice-body {
+    display: grid;
+    gap: 16px;
+  }
+
+  .cab-payment-choice-copy {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: .92rem;
+    line-height: 1.58;
+  }
+
+  .cab-payment-choice-meta {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
+  }
+
+  .cab-payment-choice-meta div {
+    padding: 14px 16px;
+    border-radius: 18px;
+    border: 1px solid rgba(159, 193, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .cab-payment-choice-meta span {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text-muted);
+    font-size: .78rem;
+  }
+
+  .cab-payment-choice-meta strong {
+    display: block;
+    color: var(--text);
+    font-size: .95rem;
+  }
+
+  .cab-payment-choice-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  .cab-payment-choice-actions .btn {
+    min-width: 148px;
   }
 
   .cab-payment-methods {
     display: grid;
     gap: 10px;
-    margin-top: 12px;
   }
 
   .cab-payment-method {
@@ -33,6 +156,11 @@
     border-radius: 18px;
     border: 1px solid rgba(159, 193, 255, 0.12);
     background: rgba(255, 255, 255, 0.04);
+  }
+
+  .cab-payment-method > div {
+    min-width: 0;
+    flex: 1;
   }
 
   .cab-payment-method strong {
@@ -55,37 +183,6 @@
 
   body.payment-flow-open {
     overflow: hidden;
-  }
-
-  .cab-payment-flow-modal[hidden] {
-    display: none;
-  }
-
-  .cab-payment-flow-modal {
-    position: fixed;
-    inset: 0;
-    z-index: 120;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px 12px;
-  }
-
-  .cab-payment-flow-backdrop {
-    position: absolute;
-    inset: 0;
-    border: 0;
-    background: rgba(3, 10, 20, 0.72);
-    backdrop-filter: blur(12px);
-    cursor: pointer;
-  }
-
-  .cab-payment-flow {
-    position: relative;
-    z-index: 1;
-    width: min(680px, calc(100vw - 24px));
-    max-height: calc(100vh - 40px);
-    overflow: auto;
   }
 
   .cab-payment-flow-body {
@@ -130,7 +227,7 @@
 
   .cab-payment-flow-copy {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 12px;
   }
 
@@ -168,6 +265,12 @@
     align-items: center;
   }
 
+  .cab-payment-flow-link .inp {
+    min-height: 50px;
+    font-size: .84rem;
+    letter-spacing: .01em;
+  }
+
   .cab-payment-flow-link[hidden] {
     display: none;
   }
@@ -178,26 +281,81 @@
     gap: 10px;
   }
 
+  .cab-payment-flow-actions .btn {
+    flex: 1 1 calc(50% - 10px);
+    min-width: 190px;
+    justify-content: center;
+  }
+
+  .cab-payment-flow-link .btn {
+    min-height: 50px;
+    justify-content: center;
+  }
+
+  @media (max-width: 980px) {
+    .cab-payment-sheet {
+      flex-basis: 680px;
+      width: min(680px, calc(100vw - 24px));
+    }
+  }
+
   @media (max-width: 720px) {
+    .cab-payment-modal {
+      padding:
+        max(12px, env(safe-area-inset-top))
+        10px
+        max(12px, env(safe-area-inset-bottom));
+    }
+
+    .cab-payment-choice-meta,
     .cab-payment-flow-copy,
     .cab-payment-flow-link {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .cab-payment-choice-actions .btn,
+    .cab-payment-flow-link .btn,
+    .cab-payment-method .btn,
+    .cab-payment-method {
+      width: 100%;
+    }
+
+    .cab-payment-method {
+      align-items: flex-start;
+      flex-direction: column;
+      padding: 13px 14px;
+    }
+
+    .cab-payment-choice-actions,
+    .cab-payment-flow-actions {
+      display: grid;
       grid-template-columns: 1fr;
     }
 
     .cab-payment-flow-actions .btn {
       width: 100%;
       justify-content: center;
+      min-width: 0;
     }
 
-    .cab-payment-flow-modal {
-      align-items: flex-end;
-      padding: 12px 10px;
+    .cab-payment-sheet {
+      flex-basis: 560px;
+      width: min(560px, calc(100vw - 20px));
+      max-width: calc(100vw - 20px);
+      max-height: calc(100dvh - 24px);
+      border-radius: 22px;
     }
 
-    .cab-payment-flow {
-      width: 100%;
-      max-height: calc(100vh - 24px);
-      border-radius: 24px;
+    .cab-payment-choice-copy,
+    .cab-payment-flow-message {
+      font-size: .85rem;
+      line-height: 1.5;
+    }
+
+    .cab-payment-flow-link .inp {
+      min-height: 48px;
+      font-size: .8rem;
     }
   }
 </style>
@@ -262,51 +420,146 @@
       </div>
     </section>
 
-    <section class="cab-payment-flow-modal" id="payment-flow-modal" hidden>
+    <section class="cab-payment-modal" id="payment-flow-modal" hidden>
       <button
-        class="cab-payment-flow-backdrop"
+        class="cab-payment-backdrop"
         type="button"
         aria-label="Закрыть окно оплаты"
         onclick="dismissPaymentFlow()"
       ></button>
 
-      <div class="cab-premium-panel cab-payment-flow" id="payment-flow-box" role="dialog" aria-modal="true" aria-labelledby="payment-flow-title">
-        <div class="cab-premium-panel-head">
-          <div>
-            <h2 id="payment-flow-title">Оплата подписки</h2>
-            <p>Здесь доступны ссылка на оплату, ручная проверка статуса и отмена окна.</p>
+      <div class="cab-premium-panel cab-payment-sheet" id="payment-flow-box" role="dialog" aria-modal="true" aria-labelledby="payment-flow-title">
+        <div class="cab-payment-view" id="payment-choice-view" hidden>
+          <div class="cab-premium-panel-head">
+            <div>
+              <h2 id="payment-flow-title">Выберите способ оплаты</h2>
+              <p>После выбора способа это окно останется по центру: здесь же появятся URL для оплаты, кнопки перехода и копирования, а затем проверка статуса.</p>
+            </div>
+          </div>
+
+          <div class="cab-payment-choice-body">
+            <div class="cab-payment-choice-meta">
+              <div>
+                <span>Тариф</span>
+                <strong id="payment-choice-plan">—</strong>
+              </div>
+              <div>
+                <span>Стоимость</span>
+                <strong id="payment-choice-price">—</strong>
+              </div>
+              <div>
+                <span>Срок</span>
+                <strong id="payment-choice-duration">—</strong>
+              </div>
+            </div>
+
+            <p class="cab-payment-choice-copy" id="payment-choice-description">Выберите удобный способ оплаты для продолжения.</p>
+
+            <div class="cab-payment-methods">
+              <div class="cab-payment-method">
+                <div>
+                  <strong>Баланс кабинета</strong>
+                  <span>Мгновенная покупка без внешнего перехода, если на счёте хватает средств.</span>
+                </div>
+                <button class="btn btn-p" type="button" id="payment-choice-balance">
+                  <i class="bi bi-wallet2"></i> Оплатить
+                </button>
+              </div>
+
+              {% if settings.get('ps_yookassa_enabled', '0') == '1' %}
+              <div class="cab-payment-method">
+                <div>
+                  <strong>Банковская карта</strong>
+                  <span>Стандартная оплата через YooKassa с возвратом обратно в кабинет.</span>
+                </div>
+                <button class="btn btn-o" type="button" id="payment-choice-card">
+                  <i class="bi bi-credit-card-2-front"></i> Картой
+                </button>
+              </div>
+              {% endif %}
+
+              {% if settings.get('ps_sbp_enabled', '0') == '1' %}
+              <div class="cab-payment-method">
+                <div>
+                  <strong>СБП</strong>
+                  <span>Быстрая оплата через банковское приложение без ввода реквизитов карты.</span>
+                </div>
+                <button class="btn btn-o" type="button" id="payment-choice-sbp">
+                  <i class="bi bi-qr-code-scan"></i> СБП
+                </button>
+              </div>
+              {% endif %}
+
+              {% if settings.get('ps_platega_enabled', '0') == '1' %}
+              <div class="cab-payment-method">
+                <div>
+                  <strong>Platega</strong>
+                  <span>Оплата через платёжный шлюз Platega.io с возвратом обратно в кабинет.</span>
+                </div>
+                <button class="btn btn-o" type="button" id="payment-choice-platega">
+                  <i class="bi bi-credit-card"></i> Platega
+                </button>
+              </div>
+              {% endif %}
+            </div>
+
+            <div class="cab-payment-choice-actions">
+              <button class="btn btn-o" type="button" onclick="dismissPaymentFlow()">
+                <i class="bi bi-x-lg"></i> Закрыть
+              </button>
+            </div>
           </div>
         </div>
 
-        <div class="cab-payment-flow-body">
-          <div class="cab-payment-flow-status" id="payment-flow-status" data-state="pending">Ожидаем оплату</div>
-          <div class="cab-payment-flow-copy">
+        <div class="cab-payment-view" id="payment-flow-view" hidden>
+          <div class="cab-premium-panel-head">
             <div>
-              <span>Тариф</span>
-              <strong id="payment-flow-plan">—</strong>
-            </div>
-            <div>
-              <span>Способ оплаты</span>
-              <strong id="payment-flow-provider">—</strong>
+              <h2>Оплата подписки</h2>
+              <p>URL уже готов. Вы можете открыть его вручную, скопировать, а затем вернуться сюда и проверить статус платежа.</p>
             </div>
           </div>
-          <p class="cab-payment-flow-message" id="payment-flow-message">Откройте ссылку на оплату и затем нажмите проверку статуса.</p>
-          <div class="cab-payment-flow-link" id="payment-flow-link-wrap">
-            <input type="text" class="inp" id="payment-flow-url" value="" readonly>
-            <button class="btn btn-o" type="button" onclick="copyPaymentLink()">
-              <i class="bi bi-copy"></i> Копировать
-            </button>
-          </div>
-          <div class="cab-payment-flow-actions">
-            <button class="btn btn-p" type="button" id="payment-flow-open" onclick="openActivePayment()">
-              <i class="bi bi-box-arrow-up-right"></i> Открыть оплату
-            </button>
-            <button class="btn btn-o" type="button" id="payment-flow-check" onclick="checkActivePayment(false)">
-              <i class="bi bi-arrow-repeat"></i> Проверить оплату
-            </button>
-            <button class="btn btn-o" type="button" onclick="dismissPaymentFlow()">
-              <i class="bi bi-x-lg"></i> Отмена
-            </button>
+
+          <div class="cab-payment-flow-body">
+            <div class="cab-payment-flow-status" id="payment-flow-status" data-state="pending">Ожидаем оплату</div>
+            <div class="cab-payment-flow-copy">
+              <div>
+                <span>Тариф</span>
+                <strong id="payment-flow-plan">—</strong>
+              </div>
+              <div>
+                <span>Стоимость</span>
+                <strong id="payment-flow-price">—</strong>
+              </div>
+              <div>
+                <span>Срок</span>
+                <strong id="payment-flow-duration">—</strong>
+              </div>
+              <div>
+                <span>Способ оплаты</span>
+                <strong id="payment-flow-provider">—</strong>
+              </div>
+            </div>
+            <p class="cab-payment-flow-message" id="payment-flow-message">Откройте ссылку на оплату и затем нажмите проверку статуса.</p>
+            <div class="cab-payment-flow-link" id="payment-flow-link-wrap">
+              <input type="text" class="inp" id="payment-flow-url" value="" readonly>
+              <button class="btn btn-o" type="button" onclick="copyPaymentLink()">
+                <i class="bi bi-copy"></i> Копировать
+              </button>
+            </div>
+            <div class="cab-payment-flow-actions">
+              <button class="btn btn-p" type="button" id="payment-flow-open" onclick="openActivePayment()">
+                <i class="bi bi-box-arrow-up-right"></i> Открыть ссылку
+              </button>
+              <button class="btn btn-o" type="button" id="payment-flow-check" onclick="checkActivePayment(false)">
+                <i class="bi bi-arrow-repeat"></i> Проверить платёж
+              </button>
+              <button class="btn btn-o" type="button" onclick="openCurrentPaymentChoice()">
+                <i class="bi bi-arrow-left"></i> Назад
+              </button>
+              <button class="btn btn-o" type="button" onclick="dismissPaymentFlow()">
+                <i class="bi bi-x-lg"></i> Закрыть
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -314,7 +567,14 @@
 
     <div class="cab-premium-grid-2" style="margin-top:18px">
       {% for plan in plans %}
-      <article class="cab-premium-plan" data-plan-card="{{ plan.id }}" data-plan-name="{{ plan.name|e }}">
+      <article
+        class="cab-premium-plan"
+        data-plan-card="{{ plan.id }}"
+        data-plan-name="{{ plan.name|e }}"
+        data-plan-price="{{ '%.0f'|format(plan.price) }} ₽"
+        data-plan-duration="{{ plan.duration_days }} дн."
+        data-plan-description="{{ (plan.description or 'Сбалансированный тариф для стабильного доступа без лишних переключений.')|e }}"
+      >
         <div class="cab-premium-plan-tag"><i class="bi bi-lightning-charge"></i>{{ plan.duration_days }} дн.</div>
         <h3>{{ plan.name }}</h3>
         <div class="cab-premium-price">{{ "%.0f"|format(plan.price) }} ₽</div>
@@ -323,61 +583,11 @@
           <button
             class="btn btn-p btn-w cab-payment-trigger"
             type="button"
-            data-payment-toggle="{{ plan.id }}"
-            aria-expanded="false"
+            onclick="openPaymentChoice({{ plan.id }})"
           >
-            <span><i class="bi bi-wallet2"></i> Способы оплаты</span>
-            <i class="bi bi-chevron-down"></i>
+            <span><i class="bi bi-wallet2"></i> Выбрать оплату</span>
+            <i class="bi bi-chevron-right"></i>
           </button>
-        </div>
-        <div class="cab-payment-grid" id="payment-methods-{{ plan.id }}" hidden>
-          <div class="cab-payment-methods">
-            <div class="cab-payment-method">
-              <div>
-                <strong>Баланс кабинета</strong>
-                <span>Мгновенная покупка без внешнего перехода, если на счёте хватает средств.</span>
-              </div>
-              <button class="btn btn-p" type="button" onclick="payBalance({{ plan.id }})">
-                <i class="bi bi-wallet2"></i> Оплатить
-              </button>
-            </div>
-
-            {% if settings.get('ps_yookassa_enabled', '0') == '1' %}
-            <div class="cab-payment-method">
-              <div>
-                <strong>Банковская карта</strong>
-                <span>Стандартная оплата через YooKassa с возвратом обратно в кабинет.</span>
-              </div>
-              <button class="btn btn-o" type="button" onclick="payYooKassa({{ plan.id }})">
-                <i class="bi bi-credit-card-2-front"></i> Картой
-              </button>
-            </div>
-            {% endif %}
-
-            {% if settings.get('ps_sbp_enabled', '0') == '1' %}
-            <div class="cab-payment-method">
-              <div>
-                <strong>СБП</strong>
-                <span>Быстрая оплата через банковское приложение без ввода реквизитов карты.</span>
-              </div>
-              <button class="btn btn-o" type="button" onclick="paySbp({{ plan.id }})">
-                <i class="bi bi-qr-code-scan"></i> СБП
-              </button>
-            </div>
-            {% endif %}
-
-            {% if settings.get('ps_platega_enabled', '0') == '1' %}
-            <div class="cab-payment-method">
-              <div>
-                <strong>Platega</strong>
-                <span>Оплата через платёжный шлюз Platega.io с возвратом обратно в кабинет.</span>
-              </div>
-              <button class="btn btn-o" type="button" onclick="payPlatega({{ plan.id }})">
-                <i class="bi bi-credit-card"></i> Platega
-              </button>
-            </div>
-            {% endif %}
-          </div>
         </div>
       </article>
       {% else %}
@@ -402,6 +612,7 @@
 {% block scripts %}
 var PAYMENT_FLOW_STORAGE_KEY = 'cabinetPlanPaymentFlow';
 var paymentFlowPollTimer = 0;
+var paymentFlowHideTimer = 0;
 
 function getPlansPromoCode() {
   var input = document.getElementById('plans-promo-code');
@@ -443,10 +654,39 @@ function getSelectedPlanFromQuery() {
 function getPlanMeta(planId) {
   var selector = '[data-plan-card="' + String(planId).replace(/"/g, '\\"') + '"]';
   var card = document.querySelector(selector);
-  if (!card) return { planName: '' };
+  if (!card) {
+    return {
+      planId: Number(planId) || 0,
+      planName: '',
+      planPrice: '',
+      planDuration: '',
+      planDescription: ''
+    };
+  }
   return {
-    planName: card.getAttribute('data-plan-name') || ''
+    planId: Number(planId) || 0,
+    planName: card.getAttribute('data-plan-name') || '',
+    planPrice: card.getAttribute('data-plan-price') || '',
+    planDuration: card.getAttribute('data-plan-duration') || '',
+    planDescription: card.getAttribute('data-plan-description') || ''
   };
+}
+
+function getActivePaymentChoice() {
+  return window.__activePaymentChoice || null;
+}
+
+function setActivePaymentChoice(state) {
+  window.__activePaymentChoice = state && state.planId ? state : null;
+  renderPaymentFlow();
+}
+
+function getPaymentModalMode() {
+  return window.__paymentModalMode || 'choice';
+}
+
+function setPaymentModalMode(mode) {
+  window.__paymentModalMode = mode === 'flow' ? 'flow' : 'choice';
 }
 
 function readStoredPaymentFlow() {
@@ -471,6 +711,40 @@ function getActivePaymentFlow() {
   return window.__activePaymentFlow || readStoredPaymentFlow();
 }
 
+function ensurePaymentModalDetached() {
+  var modal = document.getElementById('payment-flow-modal');
+  if (!modal || !document.body) return modal;
+  if (modal.parentElement !== document.body)
+    document.body.appendChild(modal);
+  return modal;
+}
+
+function showPaymentModal() {
+  var modal = ensurePaymentModalDetached();
+  if (!modal) return;
+  if (paymentFlowHideTimer) {
+    window.clearTimeout(paymentFlowHideTimer);
+    paymentFlowHideTimer = 0;
+  }
+  modal.hidden = false;
+  document.body.classList.add('payment-flow-open');
+  window.requestAnimationFrame(function() {
+    modal.classList.add('is-visible');
+  });
+}
+
+function hidePaymentModal() {
+  var modal = ensurePaymentModalDetached();
+  if (!modal) return;
+  modal.classList.remove('is-visible');
+  document.body.classList.remove('payment-flow-open');
+  if (paymentFlowHideTimer) window.clearTimeout(paymentFlowHideTimer);
+  paymentFlowHideTimer = window.setTimeout(function() {
+    if (!getActivePaymentFlow() && !getActivePaymentChoice()) modal.hidden = true;
+    paymentFlowHideTimer = 0;
+  }, 280);
+}
+
 function getPaymentStatusLabel(status) {
   if (status === 'succeeded') return 'Оплата подтверждена';
   if (status === 'processing') return 'Подписка готовится';
@@ -487,23 +761,47 @@ function stopPaymentFlowPolling() {
 
 function renderPaymentFlow() {
   var state = getActivePaymentFlow();
+  var choice = getActivePaymentChoice();
   var box = document.getElementById('payment-flow-box');
-  var modal = document.getElementById('payment-flow-modal');
+  var modal = ensurePaymentModalDetached();
+  var choiceView = document.getElementById('payment-choice-view');
+  var flowView = document.getElementById('payment-flow-view');
   if (!box || !modal) return;
 
-  if (!state || !state.paymentId) {
-    modal.hidden = true;
-    document.body.classList.remove('payment-flow-open');
+  if ((!state || !state.paymentId) && (!choice || !choice.planId)) {
+    hidePaymentModal();
     stopPaymentFlowPolling();
     return;
   }
 
-  modal.hidden = false;
-  document.body.classList.add('payment-flow-open');
+  showPaymentModal();
+
+  if ((!state || !state.paymentId) || (getPaymentModalMode() === 'choice' && choice && choice.planId)) {
+    if (choiceView) choiceView.hidden = false;
+    if (flowView) flowView.hidden = true;
+    if (choice) {
+      var choicePlanEl = document.getElementById('payment-choice-plan');
+      var choicePriceEl = document.getElementById('payment-choice-price');
+      var choiceDurationEl = document.getElementById('payment-choice-duration');
+      var choiceDescriptionEl = document.getElementById('payment-choice-description');
+      if (choicePlanEl) choicePlanEl.textContent = choice.planName || 'Подписка';
+      if (choicePriceEl) choicePriceEl.textContent = choice.planPrice || '—';
+      if (choiceDurationEl) choiceDurationEl.textContent = choice.planDuration || '—';
+      if (choiceDescriptionEl)
+        choiceDescriptionEl.textContent =
+          choice.planDescription || 'Выберите удобный способ оплаты для продолжения.';
+    }
+    return;
+  }
+
+  if (choiceView) choiceView.hidden = true;
+  if (flowView) flowView.hidden = false;
 
   var status = state.status || 'pending';
   var statusEl = document.getElementById('payment-flow-status');
   var planEl = document.getElementById('payment-flow-plan');
+  var priceEl = document.getElementById('payment-flow-price');
+  var durationEl = document.getElementById('payment-flow-duration');
   var providerEl = document.getElementById('payment-flow-provider');
   var messageEl = document.getElementById('payment-flow-message');
   var urlWrap = document.getElementById('payment-flow-link-wrap');
@@ -517,6 +815,8 @@ function renderPaymentFlow() {
     statusEl.textContent = getPaymentStatusLabel(status);
   }
   if (planEl) planEl.textContent = state.planName || 'Подписка';
+  if (priceEl) priceEl.textContent = state.planPrice || '—';
+  if (durationEl) durationEl.textContent = state.planDuration || '—';
   if (providerEl) providerEl.textContent = state.providerLabel || 'Оплата';
   if (messageEl)
     messageEl.textContent =
@@ -547,12 +847,25 @@ function setActivePaymentFlow(state) {
 
 function ensurePaymentFlowState(paymentId) {
   var current = getActivePaymentFlow() || {};
+  var selectedPlanId = current.planId || getSelectedPlanFromQuery();
+  var planMeta = getPlanMeta(selectedPlanId);
   if (String(current.paymentId || '') === String(paymentId)) return;
+  setActivePaymentChoice({
+    planId: Number(selectedPlanId) || 0,
+    planName: current.planName || planMeta.planName || 'Подписка',
+    planPrice: current.planPrice || planMeta.planPrice || '',
+    planDuration: current.planDuration || planMeta.planDuration || '',
+    planDescription: current.planDescription || planMeta.planDescription || ''
+  });
+  setPaymentModalMode('flow');
   setActivePaymentFlow({
     paymentId: Number(paymentId),
     paymentUrl: current.paymentUrl || '',
-    planId: current.planId || '',
-    planName: current.planName || 'Подписка',
+    planId: Number(selectedPlanId) || 0,
+    planName: current.planName || planMeta.planName || 'Подписка',
+    planPrice: current.planPrice || planMeta.planPrice || '',
+    planDuration: current.planDuration || planMeta.planDuration || '',
+    planDescription: current.planDescription || planMeta.planDescription || '',
     providerLabel: current.providerLabel || 'Оплата',
     status: 'pending',
     message: 'Проверяем статус платежа...'
@@ -560,7 +873,21 @@ function ensurePaymentFlowState(paymentId) {
 }
 
 function dismissPaymentFlow() {
+  setPaymentModalMode('choice');
+  window.__activePaymentChoice = null;
   setActivePaymentFlow(null);
+}
+
+function openPaymentChoice(planId) {
+  var planMeta = getPlanMeta(planId);
+  setActivePaymentChoice(planMeta);
+  setPaymentModalMode('choice');
+}
+
+function openCurrentPaymentChoice() {
+  if (!getActivePaymentChoice()) return;
+  setPaymentModalMode('choice');
+  renderPaymentFlow();
 }
 
 function buildPaymentSuccessRedirect(payload) {
@@ -599,11 +926,16 @@ async function copyPaymentLink() {
 
 function storePendingPayment(paymentData, planId, providerLabel) {
   var planMeta = getPlanMeta(planId);
+  setActivePaymentChoice(planMeta);
+  setPaymentModalMode('flow');
   setActivePaymentFlow({
     paymentId: Number(paymentData.payment_id),
     paymentUrl: paymentData.payment_url || '',
     planId: Number(planId),
     planName: planMeta.planName || ('Тариф #' + planId),
+    planPrice: planMeta.planPrice || '',
+    planDuration: planMeta.planDuration || '',
+    planDescription: planMeta.planDescription || '',
     providerLabel: providerLabel,
     status: paymentData.status || 'pending',
     message:
@@ -614,9 +946,8 @@ function storePendingPayment(paymentData, planId, providerLabel) {
 
 async function beginPlanPayment(paymentData, planId, providerLabel, openMessage) {
   storePendingPayment(paymentData, planId, providerLabel);
-  openActivePayment();
   showToast(
-    openMessage || 'Ссылка на оплату готова. Если окно не открылось, используйте кнопку в блоке оплаты.',
+    openMessage || 'Ссылка на оплату готова. Откройте её вручную или скопируйте URL из окна оплаты.',
     'info'
   );
 }
@@ -624,11 +955,15 @@ async function beginPlanPayment(paymentData, planId, providerLabel, openMessage)
 function updatePaymentFlowFromResult(payload) {
   var current = getActivePaymentFlow() || {};
   if (!current.paymentId && !payload.payment_id) return;
+  setPaymentModalMode('flow');
   setActivePaymentFlow({
     paymentId: Number(payload.payment_id || current.paymentId),
     paymentUrl: payload.payment_url || current.paymentUrl || '',
     planId: Number(current.planId || 0),
     planName: current.planName || 'Подписка',
+    planPrice: current.planPrice || '',
+    planDuration: current.planDuration || '',
+    planDescription: current.planDescription || '',
     providerLabel: current.providerLabel || 'Оплата',
     status: payload.status || current.status || 'pending',
     message: payload.message || current.message || ''
@@ -764,6 +1099,33 @@ async function payPlatega(id) {
   }
 }
 
+function getCurrentChoicePlanId() {
+  var choice = getActivePaymentChoice();
+  return choice && choice.planId ? Number(choice.planId) : 0;
+}
+
+function bindPaymentChoiceActions() {
+  var bindings = [
+    ['payment-choice-balance', payBalance],
+    ['payment-choice-card', payYooKassa],
+    ['payment-choice-sbp', paySbp],
+    ['payment-choice-platega', payPlatega]
+  ];
+
+  bindings.forEach(function(binding) {
+    var element = document.getElementById(binding[0]);
+    if (!element) return;
+    element.addEventListener('click', function() {
+      var planId = getCurrentChoicePlanId();
+      if (!planId) {
+        showToast('Не удалось определить выбранный тариф', 'error');
+        return;
+      }
+      binding[1](planId);
+    });
+  });
+}
+
 async function checkActivePayment(silentPending, explicitPaymentId) {
   var state = getActivePaymentFlow();
   var paymentId = explicitPaymentId || (state ? state.paymentId : '');
@@ -786,29 +1148,12 @@ async function checkActivePayment(silentPending, explicitPaymentId) {
   }
 }
 
-function initPaymentMethodToggles() {
-  document.querySelectorAll('[data-payment-toggle]').forEach(function(trigger) {
-    trigger.addEventListener('click', function() {
-      var planId = trigger.getAttribute('data-payment-toggle');
-      var panel = document.getElementById('payment-methods-' + planId);
-      if (!panel) return;
-      var nextState = panel.hasAttribute('hidden');
-      if (nextState) panel.removeAttribute('hidden');
-      else panel.setAttribute('hidden', '');
-      trigger.setAttribute('aria-expanded', nextState ? 'true' : 'false');
-    });
-  });
-}
-
 function revealSelectedPlanMethods() {
   var planId = getSelectedPlanFromQuery();
   if (!planId) return;
-  var trigger = document.querySelector('[data-payment-toggle="' + planId.replace(/"/g, '\\"') + '"]');
-  var panel = document.getElementById('payment-methods-' + planId);
-  if (!trigger || !panel || !panel.hasAttribute('hidden')) return;
-  panel.removeAttribute('hidden');
-  trigger.setAttribute('aria-expanded', 'true');
-  trigger.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  if (!document.querySelector('[data-plan-card="' + planId.replace(/"/g, '\\"') + '"]')) return;
+  if (getActivePaymentFlow()) return;
+  openPaymentChoice(planId);
 }
 
 async function checkReturnedPayment() {
@@ -828,11 +1173,24 @@ async function checkReturnedPayment() {
 }
 
 hydratePlansPromoCode();
-setActivePaymentFlow(readStoredPaymentFlow());
+ensurePaymentModalDetached();
+bindPaymentChoiceActions();
+var storedPaymentFlow = readStoredPaymentFlow();
+if (storedPaymentFlow && storedPaymentFlow.planId) {
+  setActivePaymentChoice({
+    planId: Number(storedPaymentFlow.planId) || 0,
+    planName: storedPaymentFlow.planName || 'Подписка',
+    planPrice: storedPaymentFlow.planPrice || '',
+    planDuration: storedPaymentFlow.planDuration || '',
+    planDescription: storedPaymentFlow.planDescription || ''
+  });
+}
+setPaymentModalMode('flow');
+setActivePaymentFlow(storedPaymentFlow);
 checkReturnedPayment();
-initPaymentMethodToggles();
 revealSelectedPlanMethods();
 document.addEventListener('keydown', function(event) {
-  if (event.key === 'Escape' && getActivePaymentFlow()) dismissPaymentFlow();
+  if (event.key === 'Escape' && (getActivePaymentFlow() || getActivePaymentChoice()))
+    dismissPaymentFlow();
 });
 {% endblock %}

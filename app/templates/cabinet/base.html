@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/bootstrap-icons.min.css">
-<link rel="stylesheet" href="/static/css/cabinet.css?v=miniapp-20260523b">
+<link rel="stylesheet" href="/static/css/cabinet.css?v=miniapp-20260524i">
 <script src="https://telegram.org/js/telegram-web-app.js?62"></script>
 <script>
 try {
@@ -69,6 +69,39 @@ try {
     <main class="wrap">
       {% block content %}{% endblock %}
     </main>
+
+    {% if not is_log and not is_mini_app %}
+    <nav class="mnav" aria-label="Разделы кабинета">
+      <a href="/cabinet/" class="mnl {% if cp in ('/cabinet', '/cabinet/') %}on{% endif %}">
+        <i class="bi bi-grid-1x2"></i>
+        <span>Обзор</span>
+      </a>
+      <a href="/cabinet/plans" class="mnl {% if cp.startswith('/cabinet/plans') %}on{% endif %}">
+        <i class="bi bi-stars"></i>
+        <span>Тарифы</span>
+      </a>
+      <a href="/cabinet/keys" class="mnl {% if cp.startswith('/cabinet/keys') %}on{% endif %}">
+        <i class="bi bi-key"></i>
+        <span>Ключи</span>
+      </a>
+      <a href="/cabinet/balance" class="mnl {% if cp.startswith('/cabinet/balance') %}on{% endif %}">
+        <i class="bi bi-wallet2"></i>
+        <span>Баланс</span>
+      </a>
+      <a href="/cabinet/promo" class="mnl {% if cp.startswith('/cabinet/promo') %}on{% endif %}">
+        <i class="bi bi-ticket-perforated"></i>
+        <span>Промокод</span>
+      </a>
+      <a href="/cabinet/support" class="mnl {% if cp.startswith('/cabinet/support') %}on{% endif %}">
+        <i class="bi bi-chat-left-dots"></i>
+        <span>Поддержка</span>
+      </a>
+      <a href="/cabinet/profile" class="mnl {% if cp.startswith('/cabinet/profile') %}on{% endif %}">
+        <i class="bi bi-person-circle"></i>
+        <span>Профиль</span>
+      </a>
+    </nav>
+    {% endif %}
 
   </div>
 

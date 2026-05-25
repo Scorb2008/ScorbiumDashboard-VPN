@@ -3,6 +3,18 @@ from typing import Optional
 from app.utils.log import log
 
 
+def _decode_setting(settings: dict, key: str) -> str:
+    value = str(settings.get(key) or "").strip()
+    if not value:
+        return ""
+
+    from app.services.encryption import decrypt_value, is_encrypted
+
+    if is_encrypted(value):
+        return decrypt_value(value).strip()
+    return value
+
+
 class CryptoBotService:
     BASE_URL = "https://pay.crypt.bot/api"
 
@@ -81,7 +93,7 @@ class CryptoBotService:
     @staticmethod
     def from_settings(settings: dict) -> Optional["CryptoBotService"]:
         """Создать сервис из bot_settings. Возвращает None если токен не задан."""
-        token = settings.get("cryptobot_token", "").strip()
+        token = _decode_setting(settings, "cryptobot_token")
         if not token:
             return None
         return CryptoBotService(token)

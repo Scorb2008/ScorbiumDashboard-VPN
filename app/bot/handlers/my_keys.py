@@ -517,55 +517,37 @@ async def extend_choose_method(callback: CallbackQuery) -> None:
         from app.services.bot_settings import BotSettingsService
         from app.services.telegram_stars import TelegramStarsService
 
+        svc = BotSettingsService(session)
         plan = await PlanService(session).get_by_id(plan_id)
         user = await UserService(session).get_by_id(callback.from_user.id)
-        settings = await BotSettingsService(session).get_all()
         balance = float(user.balance or 0) if user else 0
 
         if not plan:
             await callback.answer("Тариф не найден", show_alert=True)
             return
 
-        _yk_toggle = (
-            await BotSettingsService(session).get("ps_yookassa_enabled") or "0"
-        ) == "1"
-        _sbp_toggle = (
-            await BotSettingsService(session).get("ps_sbp_enabled") or "0"
-        ) == "1"
-        _yk_shop_db = (
-            await BotSettingsService(session).get("yookassa_shop_id_override") or ""
-        )
-        _yk_key_db = bool(
-            await BotSettingsService(session).get("yookassa_secret_key_override")
-        )
+        _yk_toggle = (await svc.get("ps_yookassa_enabled") or "0") == "1"
+        _sbp_toggle = (await svc.get("ps_sbp_enabled") or "0") == "1"
+        _yk_shop_db = (await svc.get("yookassa_shop_id_override") or "").strip()
+        _yk_key_db = bool((await svc.get("yookassa_secret_key_override") or "").strip())
         _yk_configured = bool(_yk_shop_db and _yk_key_db)
         has_yookassa = _yk_toggle and _yk_configured
         has_sbp = _sbp_toggle and _yk_configured
 
-        _cb_toggle = (
-            await BotSettingsService(session).get("ps_cryptobot_enabled") or "0"
-        ) == "1"
-        has_cryptobot = bool(settings.get("cryptobot_token", "").strip()) and _cb_toggle
+        _cb_toggle = (await svc.get("ps_cryptobot_enabled") or "0") == "1"
+        has_cryptobot = bool((await svc.get("cryptobot_token") or "").strip()) and _cb_toggle
 
-        _fk_toggle = (
-            await BotSettingsService(session).get("ps_freekassa_enabled") or "0"
-        ) == "1"
-        _fk_shop = await BotSettingsService(session).get("freekassa_shop_id") or ""
-        _fk_key = await BotSettingsService(session).get("freekassa_api_key") or ""
+        _fk_toggle = (await svc.get("ps_freekassa_enabled") or "0") == "1"
+        _fk_shop = (await svc.get("freekassa_shop_id") or "").strip()
+        _fk_key = (await svc.get("freekassa_api_key") or "").strip()
         has_freekassa = _fk_toggle and bool(_fk_shop and _fk_key)
 
-        _pl_toggle = (
-            await BotSettingsService(session).get("ps_platega_enabled") or "0"
-        ) == "1"
-        _pl_merchant = (
-            await BotSettingsService(session).get("platega_merchant_id") or ""
-        )
-        _pl_secret = await BotSettingsService(session).get("platega_secret") or ""
+        _pl_toggle = (await svc.get("ps_platega_enabled") or "0") == "1"
+        _pl_merchant = (await svc.get("platega_merchant_id") or "").strip()
+        _pl_secret = (await svc.get("platega_secret") or "").strip()
         has_platega = _pl_toggle and bool(_pl_merchant and _pl_secret)
 
-        _stars_rate = float(
-            await BotSettingsService(session).get("stars_rate") or "1.5"
-        )
+        _stars_rate = float(await svc.get("stars_rate") or "1.5")
         stars = TelegramStarsService.rub_to_stars(float(plan.price), rate=_stars_rate)
 
     plan_price = float(plan.price)

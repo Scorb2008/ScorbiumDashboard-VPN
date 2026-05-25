@@ -75,7 +75,7 @@ async def select_plan(callback: CallbackQuery) -> None:
         has_sbp = _sbp_toggle and _yk_configured
 
         has_cryptobot = (
-            bool(settings.get("cryptobot_token", "").strip())
+            bool((await svc.get("cryptobot_token") or "").strip())
             and (await svc.get("ps_cryptobot_enabled") or "0") == "1"
         )
 
