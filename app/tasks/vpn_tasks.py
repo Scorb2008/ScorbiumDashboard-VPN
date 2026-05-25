@@ -181,7 +181,7 @@ async def auto_renew_keys() -> None:
     """Auto-renew expired keys for users with autorenew enabled and sufficient balance."""
     from datetime import datetime, timezone, timedelta
     from sqlalchemy import select
-    from app.models.vpn_key import VpnKey
+    from app.models.vpn_key import VpnKey, VpnKeyStatus
     from app.services.user import UserService
     from app.services.vpn_key import VpnKeyService
     from app.services.telegram_notify import TelegramNotifyService
@@ -195,6 +195,9 @@ async def auto_renew_keys() -> None:
         async with AsyncSessionFactory() as session:
             result = await session.execute(
                 select(VpnKey).where(
+                    VpnKey.status.in_(
+                        [VpnKeyStatus.ACTIVE.value, VpnKeyStatus.EXPIRED.value]
+                    ),
                     VpnKey.expires_at >= expired_since,
                     VpnKey.expires_at <= now,
                     VpnKey.price.isnot(None),
@@ -235,7 +238,11 @@ async def auto_renew_keys() -> None:
                         _select(_VpnKey).where(_VpnKey.id == key_id).with_for_update()
                     )
                     current_key = key_result.scalar_one_or_none()
-                    if not current_key or current_key.expires_at > now:
+                    if (
+                        not current_key
+                        or current_key.status == VpnKeyStatus.REVOKED.value
+                        or current_key.expires_at > now
+                    ):
                         continue
 
                     user_check = await UserService(session).get_by_id(user_id)
