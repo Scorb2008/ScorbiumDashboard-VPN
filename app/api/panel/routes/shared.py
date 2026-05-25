@@ -2,12 +2,15 @@
 
 import html
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from fastapi import Request, Response
 from fastapi.templating import Jinja2Templates
+from jinja2 import pass_context
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,6 +26,13 @@ from app.core.permissions import PERMISSIONS, has_permission
 
 _tpl_path = Path(__file__).resolve().parent.parent.parent.parent / "templates"
 templates = Jinja2Templates(directory=str(_tpl_path))
+
+DEFAULT_PANEL_TIMEZONE = "Europe/Moscow"
+PANEL_TIMEZONES = {
+    "Europe/Moscow": "Москва",
+    "Asia/Tehran": "Тегеран",
+    "America/New_York": "Нью-Йорк",
+}
 
 SESSION_COOKIE = "vpn_session"
 
@@ -67,6 +77,57 @@ _DEFAULT_LAYOUT = [
 
 _startup_time = datetime.now(timezone.utc)
 _STATE_UNSET = object()
+
+
+@lru_cache(maxsize=len(PANEL_TIMEZONES))
+def _zoneinfo(name: str) -> ZoneInfo:
+    return ZoneInfo(name)
+
+
+def _normalize_datetime(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _resolve_panel_timezone(raw_tz: str | None) -> str:
+    tz_name = (raw_tz or "").strip()
+    return tz_name if tz_name in PANEL_TIMEZONES else DEFAULT_PANEL_TIMEZONE
+
+
+def _get_request_timezone_name(request: Request | None) -> str:
+    if request is None:
+        return DEFAULT_PANEL_TIMEZONE
+    return _resolve_panel_timezone(request.cookies.get("panel_timezone"))
+
+
+def _format_datetime_for_timezone(
+    value: datetime | None,
+    tz_name: str,
+    fmt: str = "%d.%m.%Y %H:%M",
+    fallback: str = "—",
+) -> str:
+    normalized = _normalize_datetime(value)
+    if normalized is None:
+        return fallback
+    return normalized.astimezone(_zoneinfo(tz_name)).strftime(fmt)
+
+
+@pass_context
+def _jinja_datetime_filter(
+    context,
+    value: datetime | None,
+    fmt: str = "%d.%m.%Y %H:%M",
+    fallback: str = "—",
+) -> str:
+    request = context.get("request")
+    tz_name = _get_request_timezone_name(request)
+    return _format_datetime_for_timezone(value, tz_name, fmt=fmt, fallback=fallback)
+
+
+templates.env.filters["dt"] = _jinja_datetime_filter
 
 
 def _get_uptime() -> str:
@@ -284,9 +345,7 @@ async def _base_ctx(
     role = admin_info["role"] if admin_info else ""
     custom_logo = await BrandingAssetService(db).get_logo_url()
     now = datetime.now(timezone.utc)
-    moscow_tz = timezone(timedelta(hours=3))
-    iran_tz = timezone(timedelta(hours=3, minutes=30))
-    us_east = timezone(timedelta(hours=-5))
+    selected_timezone = _get_request_timezone_name(request)
     return {
         "request": request,
         "active": active,
@@ -299,11 +358,22 @@ async def _base_ctx(
         "admin_role": role,
         "admin_username": admin_info["sub"] if admin_info else "",
         "has_perm": has_permission,
-        "current_time": now.strftime("%H:%M"),
-        "current_date": now.strftime("%d %B %Y"),
-        "time_moscow": now.astimezone(moscow_tz).strftime("%H:%M"),
-        "time_tehran": now.astimezone(iran_tz).strftime("%H:%M"),
-        "time_us": now.astimezone(us_east).strftime("%H:%M"),
+        "selected_timezone": selected_timezone,
+        "current_time": _format_datetime_for_timezone(
+            now, selected_timezone, fmt="%H:%M:%S"
+        ),
+        "current_date": _format_datetime_for_timezone(
+            now, selected_timezone, fmt="%d.%m.%Y"
+        ),
+        "time_moscow": _format_datetime_for_timezone(
+            now, "Europe/Moscow", fmt="%H:%M:%S"
+        ),
+        "time_tehran": _format_datetime_for_timezone(
+            now, "Asia/Tehran", fmt="%H:%M:%S"
+        ),
+        "time_us": _format_datetime_for_timezone(
+            now, "America/New_York", fmt="%H:%M:%S"
+        ),
         "csrf_token": request.cookies.get("csrf_token", ""),
         "custom_logo": custom_logo,
         "open_alerts": 0,

@@ -18,7 +18,7 @@
       <span class="badge badge-custom badge-expired">{{ st }}</span>
     {% endif %}
   </td>
-  <td style="color:var(--text-muted);font-size:.8rem">{{ p.created_at.strftime('%d.%m.%Y %H:%M') if p.created_at else '—' }}</td>
+  <td style="color:var(--text-muted);font-size:.8rem">{{ p.created_at|dt }}</td>
   <td>
     {% if st == 'succeeded' %}
     <button class="btn btn-sm btn-outline-warning py-0 px-2"

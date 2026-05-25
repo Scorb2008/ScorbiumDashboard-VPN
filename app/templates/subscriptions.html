@@ -180,7 +180,7 @@
             {% endif %}
           </td>
           <td style="color:var(--text-muted);font-size:.8rem">
-            {{ sub.expires_at.strftime('%d.%m.%Y') if sub.expires_at else '—' }}
+            {{ sub.expires_at|dt('%d.%m.%Y') }}
           </td>
           <td>
             <div class="d-flex gap-1 flex-wrap">

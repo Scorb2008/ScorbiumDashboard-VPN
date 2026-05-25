@@ -421,7 +421,12 @@ async def test_user_detail_page_shows_language_and_registration_date(
     )
 
     async def fake_base_ctx(request, db, active, admin_info=None):
-        return {"request": request, "active": active, "admin_role": "superadmin"}
+        return {
+            "request": request,
+            "active": active,
+            "admin_role": "superadmin",
+            "selected_timezone": "Asia/Tehran",
+        }
 
     monkeypatch.setattr(users_routes, "_base_ctx", fake_base_ctx)
     monkeypatch.setitem(
@@ -430,7 +435,10 @@ async def test_user_detail_page_shows_language_and_registration_date(
 
     response = await users_routes.user_detail_page(
         user_id=sample_user.id,
-        request=_make_request(f"/panel/users/{sample_user.id}"),
+        request=_make_request(
+            f"/panel/users/{sample_user.id}",
+            headers=[(b"cookie", b"panel_timezone=Asia/Tehran")],
+        ),
         db=session,
     )
 
@@ -444,9 +452,9 @@ async def test_user_detail_page_shows_language_and_registration_date(
     assert "Язык:" in body
     assert ">ru<" in body
     assert "Регистрация:" in body
-    assert "01.05.2026 12:30" in body
+    assert "01.05.2026 16:00" in body
     assert "Последняя активность:" in body
-    assert "02.05.2026 08:45" in body
+    assert "02.05.2026 12:15" in body
     assert "Автопродление:" in body
     assert "Вкл" in body
     assert "Успешные платежи" in body
@@ -455,7 +463,7 @@ async def test_user_detail_page_shows_language_and_registration_date(
     assert "Потрачено" in body
     assert "199.00 ₽" in body
     assert "Последний успешный платёж" in body
-    assert "03.05.2026 18:20" in body
+    assert "03.05.2026 21:50" in body
 
 
 @pytest.mark.asyncio
