@@ -14,6 +14,7 @@ from app.api.dependencies import get_db
 from app.api.panel.routes import payments as payments_routes
 from app.api.panel.routes import subscriptions as subscriptions_routes
 from app.api.panel.routes import support as support_routes
+from app.api.panel.routes import users as users_routes
 from app.bot.handlers import payments as bot_payments
 from app.bot.middlewares import user_notify as user_notify_middleware
 from app.models.bot_settings import BotSettings
@@ -389,6 +390,44 @@ async def test_subscriptions_page_includes_expired_and_revoked_keys(
     assert f"#{revoked_key.id}" in body
     assert "Истекла" in body
     assert "Отозвана" in body
+
+
+@pytest.mark.asyncio
+async def test_user_detail_page_shows_language_and_registration_date(
+    session, sample_user, sample_plan, monkeypatch
+):
+    sample_user.autorenew = True
+    sample_user.created_at = datetime(2026, 5, 1, 12, 30, tzinfo=timezone.utc)
+    await session.commit()
+
+    monkeypatch.setattr(
+        users_routes,
+        "_require_permission",
+        lambda request, permission: {"sub": "admin", "role": "superadmin"},
+    )
+
+    async def fake_base_ctx(request, db, active, admin_info=None):
+        return {"request": request, "active": active, "admin_role": "superadmin"}
+
+    monkeypatch.setattr(users_routes, "_base_ctx", fake_base_ctx)
+    monkeypatch.setitem(
+        users_routes.templates.env.globals, "has_perm", lambda role, perm: True
+    )
+
+    response = await users_routes.user_detail_page(
+        user_id=sample_user.id,
+        request=_make_request(f"/panel/users/{sample_user.id}"),
+        db=session,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert "Язык:" in body
+    assert ">ru<" in body
+    assert "Регистрация:" in body
+    assert "01.05.2026 12:30" in body
+    assert "Автопродление:" in body
+    assert "Вкл" in body
 
 
 @pytest.mark.asyncio

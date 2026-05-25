@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
@@ -18,6 +19,10 @@ class UserRead(BaseModel):
     is_banned: bool
     balance: Optional[float] = 0.0
     referral_code: Optional[str] = None
+    language: Optional[str] = None
+    autorenew: bool = False
+    created_at: Optional[datetime] = None
+    last_seen: Optional[datetime] = None
 
 
 class UserUpdate(BaseModel):
