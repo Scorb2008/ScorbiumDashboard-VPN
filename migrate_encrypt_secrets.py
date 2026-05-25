@@ -21,8 +21,8 @@ async def main():
         migrated = 0
 
         for key in _SENSITIVE_KEYS:
-            # Use raw DB query to check actual stored value (not decrypted cache)
             from sqlalchemy import text
+
             result = await session.execute(
                 text("SELECT value FROM bot_settings WHERE key = :key"),
                 {"key": key},

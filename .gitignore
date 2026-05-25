@@ -45,8 +45,19 @@ logs/
 # Backups
 backups/
 backup_*.sql
+backup_*.zip
+backup_*.tar
+backup_*.tar.gz
 *.sql.gz
 *.sql.zst
+*.dump
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
+*.tmp
+*.temp
 .env.backup.*
 
 # OS
@@ -57,9 +68,11 @@ Thumbs.db
 *.db
 *.sqlite
 *.sqlite3
+.coverage
+coverage.xml
+htmlcov/
 
 # Nginx generated
 nginx/ssl/
 nginx/nginx.generated.conf
-
 
