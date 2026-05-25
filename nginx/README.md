@@ -5,7 +5,7 @@
 ## Какие файлы используются
 
 - `nginx/nginx.local.template.conf` — шаблон dev-конфига
-- `nginx/nginx.local.conf` — dev-конфиг для локального `docker compose`
+- `nginx/nginx.local.conf` — сгенерированный dev-конфиг по умолчанию
 - `nginx/nginx.generated.conf` — prod-конфиг, который генерируют скрипты
 - `nginx/nginx.conf` — больше не используется в деплое и может оставаться только как справочный пример
 
@@ -26,10 +26,10 @@
 
 ## Локальная разработка
 
-Для dev используется `docker-compose.yml`, который монтирует:
+Для dev используется `docker-compose.yml`, который монтирует шаблон и даёт entrypoint'у собрать итоговый конфиг:
 
 ```text
-./nginx/nginx.local.conf:/etc/nginx/nginx.conf
+./nginx/nginx.local.template.conf:/etc/nginx/templates/nginx.local.template.conf
 ```
 
 Путь админки берётся из `.env` (`SET_PATH_ADMIN`) или генерируется `setup.sh`.

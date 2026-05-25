@@ -68,6 +68,6 @@ curl https://your-domain.com/api/v1/healthy
 
 Или через API:
 ```bash
-curl -X POST https://your-domain.com/panel/vpn/sync \
+curl -X POST https://your-domain.com/<admin-path>/vpn/sync \
   -H "Cookie: vpn_session=your_token"
 ```

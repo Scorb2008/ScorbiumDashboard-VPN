@@ -12,12 +12,12 @@
           <i class="bi bi-download me-1"></i>Экспорт
         </button>
         <ul class="dropdown-menu dropdown-menu-dark" style="background:var(--bg-elevated);border-color:var(--border)">
-          <li><a class="dropdown-item" href="/panel/export/payments?format=csv" style="color:var(--text)">CSV</a></li>
-          <li><a class="dropdown-item" href="/panel/export/payments?format=xlsx" style="color:var(--text)">Excel</a></li>
+          <li><a class="dropdown-item" href="{{ panel_base }}/export/payments?format=csv" style="color:var(--text)">CSV</a></li>
+          <li><a class="dropdown-item" href="{{ panel_base }}/export/payments?format=xlsx" style="color:var(--text)">Excel</a></li>
         </ul>
       </div>
       <select class="form-select form-select-sm" style="width:140px"
-        hx-get="/panel/payments" hx-target="#payments-tbody" hx-include="#payments-filters" name="status">
+        hx-get="{{ panel_base }}/payments" hx-target="#payments-tbody" hx-include="#payments-filters" name="status">
         <option value="" {% if current_status == '' %}selected{% endif %}>Все статусы</option>
         <option value="succeeded" {% if current_status == 'succeeded' %}selected{% endif %}>Успешные</option>
         <option value="pending" {% if current_status == 'pending' %}selected{% endif %}>Ожидание</option>

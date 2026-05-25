@@ -1,7 +1,7 @@
 {% for p in payments %}
 <tr>
   <td><code style="color:#00d4aa">#{{ p.id }}</code></td>
-  <td><a href="/panel/users/{{ p.user_id }}" style="color:#00d4aa">{{ p.user_id }}</a></td>
+  <td><a href="{{ panel_base }}/users/{{ p.user_id }}" style="color:#00d4aa">{{ p.user_id }}</a></td>
   <td><span style="color:var(--text-muted);font-size:.8rem">{{ p.provider }}</span></td>
   <td><b>{{ p.amount }}</b> {{ p.currency }}</td>
   <td>
@@ -22,7 +22,7 @@
   <td>
     {% if st == 'succeeded' %}
     <button class="btn btn-sm btn-outline-warning py-0 px-2"
-      hx-post="/panel/payments/{{ p.id }}/refund"
+      hx-post="{{ panel_base }}/payments/{{ p.id }}/refund"
       hx-target="closest tr" hx-swap="outerHTML"
       hx-confirm="Сделать возврат платежа #{{ p.id }}?"
       title="Возврат">

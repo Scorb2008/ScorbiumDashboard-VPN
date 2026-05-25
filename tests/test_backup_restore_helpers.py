@@ -17,6 +17,7 @@ from app.api.panel.routes.backup import (
     backup_import,
     _prepare_restore_sql,
 )
+from app.core.config import config
 from app.models.bot_settings import BotSettings
 from app.services.bot_settings import sync_deployment_url_settings
 
@@ -72,14 +73,15 @@ def test_format_subprocess_error_prefers_actual_error_over_drop_notice():
 
 
 def _make_request() -> Request:
+    panel_import_path = config.web.panel_path("backup/import")
     return Request(
         {
             "type": "http",
             "http_version": "1.1",
             "method": "POST",
             "scheme": "http",
-            "path": "/panel/backup/import",
-            "raw_path": b"/panel/backup/import",
+            "path": panel_import_path,
+            "raw_path": panel_import_path.encode("utf-8"),
             "query_string": b"",
             "headers": [],
             "client": ("127.0.0.1", 12345),

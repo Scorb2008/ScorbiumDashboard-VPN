@@ -226,7 +226,7 @@
           {% endif %}
         </div>
         <button class="btn btn-sm btn-outline-secondary w-100"
-                hx-post="/panel/telegram/test-marzban" hx-target="#marzban-status" hx-swap="innerHTML">
+                hx-post="{{ panel_base }}/telegram/test-marzban" hx-target="#marzban-status" hx-swap="innerHTML">
           <i class="bi bi-arrow-repeat me-1"></i>Проверить
         </button>
       </div>
@@ -245,7 +245,7 @@
           </div>
         </div>
         <div class="d-flex flex-column gap-2">
-          <button class="action-btn" hx-post="/panel/vpn/sync" hx-swap="none">
+          <button class="action-btn" hx-post="{{ panel_base }}/vpn/sync" hx-swap="none">
             <div class="action-icon" style="background:rgba(0,212,170,.12);color:var(--accent)">
               <i class="bi bi-arrow-repeat"></i>
             </div>
@@ -254,7 +254,7 @@
               <div style="font-size:.7rem;color:var(--text-muted)">Обновить данные из VPN-панели</div>
             </div>
           </button>
-          <button class="action-btn" hx-post="/panel/subscriptions/expire-outdated" hx-swap="none">
+          <button class="action-btn" hx-post="{{ panel_base }}/subscriptions/expire-outdated" hx-swap="none">
             <div class="action-icon" style="background:rgba(245,158,11,.12);color:var(--warning)">
               <i class="bi bi-clock-history"></i>
             </div>
@@ -276,12 +276,12 @@
       <div>
         <span><i class="bi bi-people me-2" style="color:var(--accent)"></i>VPN пользователи в Marzban</span>
       </div>
-      <button class="btn btn-accent btn-sm" hx-get="/panel/pasarguard/users" hx-target="#pg-users-table" hx-swap="innerHTML">
+      <button class="btn btn-accent btn-sm" hx-get="{{ panel_base }}/pasarguard/users" hx-target="#pg-users-table" hx-swap="innerHTML">
         <i class="bi bi-arrow-repeat me-1"></i>Загрузить
       </button>
     </div>
     <div id="pg-users-table" class="p-3" style="color:var(--text-muted);font-size:.85rem"
-         hx-get="/panel/pasarguard/users" hx-trigger="every 30s" hx-swap="innerHTML">
+         hx-get="{{ panel_base }}/pasarguard/users" hx-trigger="every 30s" hx-swap="innerHTML">
       Нажмите «Загрузить» для получения списка пользователей из Marzban.
     </div>
   </div>
@@ -294,7 +294,7 @@
       <div class="card h-100">
         <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
           <span><i class="bi bi-diagram-3 me-2" style="color:var(--accent)"></i>Группы Marzban</span>
-          <button class="btn btn-accent btn-sm" hx-get="/panel/pasarguard/groups" hx-target="#pg-groups-table" hx-swap="innerHTML">
+          <button class="btn btn-accent btn-sm" hx-get="{{ panel_base }}/pasarguard/groups" hx-target="#pg-groups-table" hx-swap="innerHTML">
             <i class="bi bi-arrow-repeat me-1"></i>Загрузить
           </button>
         </div>
@@ -312,13 +312,13 @@
           <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:.75rem">
             Группы назначаются при создании подписки
           </div>
-          <form hx-post="/panel/telegram/groups" hx-swap="none">
+          <form hx-post="{{ panel_base }}/telegram/groups" hx-swap="none">
             <div id="pg-groups-list" style="min-height:40px;font-size:.8rem;color:var(--text-muted)">
               <i class="bi bi-arrow-down-circle me-1"></i>Нажмите «Загрузить»
             </div>
             <div class="d-flex gap-2 mt-3">
               <button type="button" class="btn btn-sm btn-outline-secondary"
-                      hx-get="/panel/telegram/groups" hx-target="#pg-groups-list" hx-swap="innerHTML">
+                      hx-get="{{ panel_base }}/telegram/groups" hx-target="#pg-groups-list" hx-swap="innerHTML">
                 <i class="bi bi-arrow-repeat me-1"></i>Загрузить
               </button>
               <button type="submit" class="btn btn-sm btn-accent"><i class="bi bi-floppy me-1"></i>Сохранить</button>
@@ -341,7 +341,7 @@
   <div class="card">
     <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
       <span><i class="bi bi-server me-2" style="color:var(--accent)"></i>Ноды Marzban</span>
-      <button class="btn btn-accent btn-sm" hx-get="/panel/pasarguard/nodes" hx-target="#pg-nodes-table" hx-swap="innerHTML">
+      <button class="btn btn-accent btn-sm" hx-get="{{ panel_base }}/pasarguard/nodes" hx-target="#pg-nodes-table" hx-swap="innerHTML">
         <i class="bi bi-arrow-repeat me-1"></i>Загрузить
       </button>
     </div>

@@ -67,7 +67,7 @@
           </td>
           <td style="font-size:.8rem">
             {% if entry.target_type and entry.target_id %}
-              <a href="/panel/users/{{ entry.target_id }}" style="color:var(--accent)" class="text-decoration-none">
+              <a href="{{ panel_base }}/users/{{ entry.target_id }}" style="color:var(--accent)" class="text-decoration-none">
                 {{ entry.target_type }} #{{ entry.target_id }}
               </a>
             {% else %}

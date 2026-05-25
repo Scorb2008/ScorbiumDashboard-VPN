@@ -23,7 +23,7 @@ ls nginx/ssl/live/your-domain.com/
 
 4. Проверьте что домен указывает на сервер:
 ```bash
-curl -I https://your-domain.com/panel/
+curl -I https://your-domain.com/<admin-path>/
 ```
 
 ---

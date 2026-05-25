@@ -6,7 +6,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <span style="color:var(--text-muted);font-size:.85rem">Всего: <b style="color:#fff">{{ keys|length }}</b></span>
   <button class="btn btn-sm btn-outline-secondary"
-    hx-post="/panel/vpn/sync"
+    hx-post="{{ panel_base }}/vpn/sync"
     hx-swap="none"
     title="Синхронизировать статусы из Marzban">
     <i class="bi bi-arrow-repeat me-1"></i>Синхронизировать
@@ -33,7 +33,7 @@
         <tr id="vpn-key-{{ key.id }}">
           <td><code style="color:#00d4aa">#{{ key.id }}</code></td>
           <td>
-            <a href="/panel/users/{{ key.user_id }}" style="color:#00d4aa;font-size:.85rem">{{ key.user_id }}</a>
+            <a href="{{ panel_base }}/users/{{ key.user_id }}" style="color:#00d4aa;font-size:.85rem">{{ key.user_id }}</a>
           </td>
           <td>
             <code style="font-size:.75rem;color:var(--text-muted)">{{ key.pasarguard_key_id or '—' }}</code>
@@ -72,13 +72,13 @@
             {% if st == 'active' %}
             <div class="d-flex gap-1">
               <button class="btn btn-sm btn-outline-warning"
-                hx-post="/panel/vpn/{{ key.id }}/revoke"
+                hx-post="{{ panel_base }}/vpn/{{ key.id }}/revoke"
                 hx-swap="none"
                 title="Отозвать (отключить в Marzban)">
                 <i class="bi bi-pause-circle"></i>
               </button>
               <button class="btn btn-sm btn-outline-danger"
-                hx-post="/panel/vpn/{{ key.id }}/delete"
+                hx-post="{{ panel_base }}/vpn/{{ key.id }}/delete"
                 hx-target="#vpn-key-{{ key.id }}"
                 hx-swap="outerHTML"
                 hx-confirm="Удалить ключ из Marzban навсегда?"

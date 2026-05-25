@@ -55,6 +55,7 @@ PasarGuard / Marzban:
 
 Домен: your-domain.com
 Email для SSL: your@email.com
+SET_PATH_ADMIN [/x7k/panel/ или Enter для автогенерации]:
 ```
 
 ### 4. Готово!
@@ -64,7 +65,7 @@ Email для SSL: your@email.com
 ```
 ✅ Готово!
 
-  🌐 Панель:   https://your-domain.com/panel/
+  🌐 Панель:   https://your-domain.com/x7k/panel/
   👤 Логин:    admin
   🔑 Пароль:   ваш_пароль
 ```

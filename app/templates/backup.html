@@ -63,10 +63,10 @@
           Файл содержит все таблицы, данные и структуру.
         </p>
         <div class="d-flex flex-column gap-3">
-          <a href="/panel/backup/export" class="btn btn-accent d-flex align-items-center gap-2 justify-content-center" style="font-size:.85rem;padding:.6rem 1.2rem">
+          <a href="{{ panel_base }}/backup/export" class="btn btn-accent d-flex align-items-center gap-2 justify-content-center" style="font-size:.85rem;padding:.6rem 1.2rem">
             <i class="bi bi-download"></i> Скачать дамп (.sql)
           </a>
-          <a href="/panel/backup/export?format=gz" class="btn btn-outline-secondary d-flex align-items-center gap-2 justify-content-center" style="font-size:.85rem;padding:.6rem 1.2rem">
+          <a href="{{ panel_base }}/backup/export?format=gz" class="btn btn-outline-secondary d-flex align-items-center gap-2 justify-content-center" style="font-size:.85rem;padding:.6rem 1.2rem">
             <i class="bi bi-file-zip"></i> Скачать сжатый (.sql.gz)
           </a>
         </div>
@@ -97,7 +97,7 @@
             <b>Внимание!</b> Восстановление перезапишет текущие данные. Сначала сделай экспорт.
           </div>
         </div>
-        <form hx-post="/panel/backup/import" hx-encoding="multipart/form-data"
+        <form hx-post="{{ panel_base }}/backup/import" hx-encoding="multipart/form-data"
               hx-indicator="#import-spinner" hx-swap="none">
           <div class="mb-3">
             <label class="form-label">SQL файл (.sql или .sql.gz)</label>
@@ -170,7 +170,7 @@ async function clearDatabase() {
   try {
     const meta = document.querySelector('meta[name="csrf-token"]');
     const csrf = meta ? meta.getAttribute('content') : '';
-    const r = await fetch('/panel/backup/database/clear', {
+    const r = await fetch(panelUrl('/backup/database/clear'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

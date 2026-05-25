@@ -45,11 +45,12 @@ services:
     image: nginx:alpine
     container_name: vpn_nginx
     restart: unless-stopped
+    env_file: .env
     ports:
       - "80:80"
       - "8443:8443"
     volumes:
-      - ./nginx/nginx.local.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx.local.template.conf:/etc/nginx/templates/nginx.local.template.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl
       - ./nginx/entrypoint.sh:/docker-entrypoint.d/01-generate-ssl.sh:ro
       - ./app/static:/app/app/static:ro

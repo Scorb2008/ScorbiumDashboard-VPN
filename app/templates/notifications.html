@@ -107,7 +107,7 @@ const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('co
 async function saveSetting(key, value) {
   const val = typeof value === 'boolean' ? (value ? '1' : '0') : String(value);
   try {
-    const r = await fetch('/panel/notifications/api/setting', {
+    const r = await fetch(panelUrl('/notifications/api/setting'), {
       method: 'POST',
       headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf},
       body: `key=${encodeURIComponent(key)}&value=${encodeURIComponent(val)}`
@@ -144,7 +144,7 @@ function criticalOnly() {
 
 async function testNotification() {
   try {
-    const r = await fetch('/panel/notifications/api/test', {
+    const r = await fetch(panelUrl('/notifications/api/test'), {
       method: 'POST',
       headers: {'X-CSRF-Token': csrf}
     });

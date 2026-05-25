@@ -187,13 +187,13 @@
       <div class="d-flex flex-column gap-2 user-detail-actions">
         {% if user.is_banned %}
         <button class="btn btn-sm user-detail-green-strong w-100"
-          hx-post="/panel/users/{{ user.id }}/unban" hx-swap="none"
+          hx-post="{{ panel_base }}/users/{{ user.id }}/unban" hx-swap="none"
           onclick="location.reload()">
           <i class="bi bi-unlock me-1"></i>Разбанить пользователя
         </button>
         {% else %}
         <button class="btn btn-sm user-detail-action-danger w-100"
-          hx-post="/panel/users/{{ user.id }}/ban" hx-swap="none"
+          hx-post="{{ panel_base }}/users/{{ user.id }}/ban" hx-swap="none"
           hx-confirm="Забанить пользователя?" onclick="setTimeout(()=>location.reload(),500)">
           <i class="bi bi-slash-circle me-1"></i>Забанить пользователя
         </button>
@@ -213,7 +213,7 @@
     <div class="card p-3 mb-3">
       <div class="fw-semibold mb-1" style="color:var(--text)"><i class="bi bi-gift me-2" style="color:var(--accent)"></i>Подарить по тарифу</div>
       <p class="user-detail-mini mb-3">Выдаёт готовую подписку по выбранному тарифу.</p>
-      <form hx-post="/panel/users/{{ user.id }}/gift-subscription" hx-swap="none">
+      <form hx-post="{{ panel_base }}/users/{{ user.id }}/gift-subscription" hx-swap="none">
         <select name="plan_id" class="form-select mb-2" required>
           {% for plan in plans %}
           <option value="{{ plan.id }}">{{ plan.name }} — {{ plan.duration_days }} дн.</option>
@@ -229,7 +229,7 @@
     <div class="card p-3">
       <div class="fw-semibold mb-1" style="color:var(--text)"><i class="bi bi-calendar-heart me-2" style="color:var(--accent)"></i>Подарить по дням</div>
       <p class="user-detail-mini mb-3">Быстрый бонус без привязки к тарифу.</p>
-      <form hx-post="/panel/users/{{ user.id }}/gift-days" hx-swap="none">
+      <form hx-post="{{ panel_base }}/users/{{ user.id }}/gift-days" hx-swap="none">
         <div class="mb-2">
           <input type="number" name="days" class="form-control" placeholder="Дней" min="1" max="3650" required />
         </div>
@@ -281,7 +281,7 @@
                   {% endif %}
                   {% if st == 'active' %}
                   <button class="btn btn-xs btn-outline-danger" title="Отозвать"
-                    hx-post="/panel/vpn/{{ sub.id }}/revoke" hx-swap="none"
+                    hx-post="{{ panel_base }}/vpn/{{ sub.id }}/revoke" hx-swap="none"
                     hx-confirm="Отозвать подписку?">
                     <i class="bi bi-x-circle"></i>
                   </button>
@@ -416,7 +416,9 @@ async function changeBalance(action) {
   const fd = new FormData(); fd.append('amount', amount);
   const meta = document.querySelector('meta[name="csrf-token"]');
   const csrf = meta ? meta.getAttribute('content') : '';
-  const url = action === 'add' ? '/panel/users/{{ user.id }}/add-balance' : '/panel/users/{{ user.id }}/deduct-balance';
+  const url = action === 'add'
+    ? panelUrl('/users/{{ user.id }}/add-balance')
+    : panelUrl('/users/{{ user.id }}/deduct-balance');
   const r = await fetch(url, { method: 'POST', body: fd, headers:{'X-CSRF-Token':csrf}, credentials:'same-origin' });
   bootstrap.Modal.getInstance(document.getElementById('balanceModal'))?.hide();
   showToast(r.ok ? (action==='add'?`Пополнено ${amount} ₽`:`Снято ${amount} ₽`) : 'Ошибка', r.ok?'success':'error');
@@ -435,7 +437,7 @@ async function sendMsg() {
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Отправка...';
     }
-    const r = await fetch('/panel/telegram/send', { method: 'POST', body: fd, headers:{'X-CSRF-Token':csrf}, credentials:'same-origin' });
+    const r = await fetch(panelUrl('/telegram/send'), { method: 'POST', body: fd, headers:{'X-CSRF-Token':csrf}, credentials:'same-origin' });
     bootstrap.Modal.getInstance(document.getElementById('msgModal'))?.hide();
     showToast(r.ok ? 'Отправлено' : 'Ошибка', r.ok ? 'success' : 'error');
   } finally {
@@ -462,7 +464,7 @@ async function extendKey() {
   const fd = new FormData(); fd.append('days', days);
   const meta = document.querySelector('meta[name="csrf-token"]');
   const csrf = meta ? meta.getAttribute('content') : '';
-  const r = await fetch('/panel/vpn/' + extendKeyId + '/extend', {
+  const r = await fetch(panelUrl('/vpn/' + extendKeyId + '/extend'), {
     method: 'POST', body: fd, headers:{'X-CSRF-Token':csrf}, credentials:'same-origin'
   });
   bootstrap.Modal.getInstance(document.getElementById('extendModal'))?.hide();

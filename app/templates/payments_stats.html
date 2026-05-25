@@ -118,7 +118,7 @@ const providerLabels = {
 
 async function loadStats(days) {
   try {
-    const r = await fetch(`/panel/payments/stats/json?days=${days}`);
+    const r = await fetch(panelUrl(`/payments/stats/json?days=${days}`));
     if (!r.ok) return;
     const data = await r.json();
 

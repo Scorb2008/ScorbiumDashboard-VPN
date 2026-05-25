@@ -80,7 +80,7 @@
           <div style="font-size:.75rem;color:{% if bot_on %}#22c55e{% else %}#ef4444{% endif %}">{% if bot_on %}✅ Включён{% else %}❌ Отключён{% endif %}</div>
         </div>
         <button class="btn btn-sm {% if bot_on %}btn-outline-danger{% else %}btn-outline-success{% endif %}"
-          hx-post="/panel/telegram/bot-toggle" hx-swap="none" hx-on::after-request="location.reload()">
+          hx-post="{{ panel_base }}/telegram/bot-toggle" hx-swap="none" hx-on::after-request="location.reload()">
           {% if bot_on %}<i class="bi bi-pause-circle me-1"></i>Отключить{% else %}<i class="bi bi-play-circle me-1"></i>Включить{% endif %}
         </button>
       </div>
@@ -89,7 +89,7 @@
     <!-- Direct message -->
     <div class="card p-3">
       <div class="fw-semibold" style="color:var(--text); margin-bottom: 0.75rem"><i class="bi bi-chat-dots me-2 text-muted"></i>Прямое сообщение</div>
-      <form hx-post="/panel/telegram/send" hx-swap="none">
+      <form hx-post="{{ panel_base }}/telegram/send" hx-swap="none">
         <div class="mb-2"><label class="form-label">Telegram ID</label>
           <input type="number" name="chat_id" class="form-control" placeholder="123456789" required /></div>
         <div class="mb-2"><label class="form-label">Текст (HTML)</label>
@@ -115,7 +115,7 @@
     <!-- Referral -->
     <div class="card p-3">
       <div class="fw-semibold" style="color:var(--text); margin-bottom: 0.75rem"><i class="bi bi-diagram-3 me-2 text-muted"></i>Реферальная программа</div>
-      <form hx-post="/panel/telegram/bot-settings" hx-swap="none">
+      <form hx-post="{{ panel_base }}/telegram/bot-settings" hx-swap="none">
         <div class="row g-2">
           <div class="col-6">
             <label class="form-label">Тип бонуса</label>
@@ -172,12 +172,12 @@
             <div style="flex:1;min-width:0">
               <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:.25rem">Логотип панели</div>
               <p style="font-size:.7rem;color:var(--text-muted);margin-bottom:.75rem">PNG, JPG, WebP, SVG, GIF · до 2 MB</p>
-              <form id="logo-upload-form" hx-post="/panel/logo/upload" hx-encoding="multipart/form-data" hx-swap="none" hx-on::after-request="handleLogoUpload(event)">
+              <form id="logo-upload-form" hx-post="{{ panel_base }}/logo/upload" hx-encoding="multipart/form-data" hx-swap="none" hx-on::after-request="handleLogoUpload(event)">
                 <div class="d-flex gap-2 flex-wrap">
                   <input type="file" name="logo" accept="image/*" class="form-control" id="logo-file-input" required style="font-size:.75rem;width:auto;max-width:180px" />
                   <button type="submit" class="btn btn-accent btn-sm"><i class="bi bi-upload me-1"></i>Загрузить</button>
                   {% if bot_settings.get('custom_logo') %}
-                  <button type="button" class="btn btn-outline-danger btn-sm" hx-post="/panel/logo/clear" hx-swap="none" hx-on::after-request="location.reload()"><i class="bi bi-trash me-1"></i></button>
+                  <button type="button" class="btn btn-outline-danger btn-sm" hx-post="{{ panel_base }}/logo/clear" hx-swap="none" hx-on::after-request="location.reload()"><i class="bi bi-trash me-1"></i></button>
                   {% endif %}
                 </div>
               </form>
@@ -192,7 +192,7 @@
             <div style="flex:1;min-width:0">
               <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:.25rem">Язык бота по умолчанию</div>
               <p style="font-size:.7rem;color:var(--text-muted);margin-bottom:.75rem">Пользователи могут сменить язык кнопкой «🌐 Язык» в боте</p>
-              <form hx-post="/panel/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')" class="d-flex gap-2 align-items-end">
+              <form hx-post="{{ panel_base }}/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')" class="d-flex gap-2 align-items-end">
                 <div>
                   <select name="bot_language" class="form-select" style="min-width:150px;font-size:.8rem">
                     <option value="ru" {% if bot_settings.get('bot_language','ru')=='ru' %}selected{% endif %}>🇷🇺 Русский</option>
@@ -217,7 +217,7 @@
       <span style="font-size:.85rem;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.5px">Пробный период</span>
     </div>
     <div class="card p-3">
-      <form hx-post="/panel/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
+      <form hx-post="{{ panel_base }}/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
         <div class="d-flex align-items-start gap-3">
           <div style="font-size:1.6rem;flex-shrink:0;line-height:1">🎁</div>
           <div style="flex:1;min-width:0">
@@ -264,7 +264,7 @@
       <span style="font-size:.85rem;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.5px">Уведомления</span>
     </div>
     <div class="card p-3">
-      <form hx-post="/panel/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
+      <form hx-post="{{ panel_base }}/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
         <div class="d-flex align-items-start gap-3">
           <div style="font-size:1.6rem;flex-shrink:0;line-height:1">🔔</div>
           <div style="flex:1;min-width:0">
@@ -313,7 +313,7 @@
             <i class="bi bi-chat-text" style="color:var(--accent);font-size:1.1rem"></i>
             <span style="font-size:.8rem;font-weight:600;color:var(--text)">Тексты бота</span>
           </div>
-          <form hx-post="/panel/telegram/bot-settings" hx-swap="none">
+          <form hx-post="{{ panel_base }}/telegram/bot-settings" hx-swap="none">
             <div class="mb-3">
               <label class="form-label" style="font-size:.75rem">Приветствие (/start)</label>
               <textarea name="welcome_message" class="form-control" rows="3" style="font-size:.8rem" placeholder="👋 Привет, {name}!">{{ bot_settings.get('welcome_message','') }}</textarea>
@@ -337,7 +337,7 @@
             <i class="bi bi-exclamation-triangle" style="color:var(--accent-warm);font-size:1.1rem"></i>
             <span style="font-size:.8rem;font-weight:600;color:var(--text)">Системные сообщения</span>
           </div>
-          <form hx-post="/panel/telegram/bot-settings" hx-swap="none">
+          <form hx-post="{{ panel_base }}/telegram/bot-settings" hx-swap="none">
             <div class="row g-2">
               <div class="col-6">
                 <label class="form-label" style="font-size:.7rem">При бане</label>
@@ -384,7 +384,7 @@
             <div style="flex:1;min-width:0">
               <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:.25rem">URL кабинета пользователя</div>
               <p style="font-size:.7rem;color:var(--text-muted);margin-bottom:.75rem">WebApp кнопка «Кабинет» в меню бота</p>
-              <form hx-post="/panel/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
+              <form hx-post="{{ panel_base }}/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
                 <input type="text" name="cabinet_url" class="form-control" style="font-size:.8rem"
                   placeholder="https://example.com:8443/cabinet/"
                   value="{{ bot_settings.get('cabinet_url', '') }}" />
@@ -404,7 +404,7 @@
             <div style="flex:1;min-width:0">
               <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:.25rem">URL админ панели</div>
               <p style="font-size:.7rem;color:var(--text-muted);margin-bottom:.75rem">Кнопка «Админ панель» в меню бота (только для админов)</p>
-              <form hx-post="/panel/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
+              <form hx-post="{{ panel_base }}/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
                 <input type="text" name="admin_panel_url" class="form-control" style="font-size:.8rem"
                   placeholder="https://example.com:8443{{ panel_root }}"
                   value="{{ bot_settings.get('admin_panel_url', '') }}" />
@@ -565,7 +565,7 @@
           </button>
           {% if bot_settings.get(key) %}
           <button type="button" class="btn btn-sm btn-outline-danger"
-            hx-post="/panel/telegram/photo/clear" hx-vals='{"photo_type":"{{ key }}"}' hx-swap="none" hx-on::after-request="location.reload()">
+            hx-post="{{ panel_base }}/telegram/photo/clear" hx-vals='{"photo_type":"{{ key }}"}' hx-swap="none" hx-on::after-request="location.reload()">
             <i class="bi bi-trash"></i>
           </button>
           {% endif %}
@@ -586,7 +586,7 @@
   <div class="col-12">
     <div class="card p-3">
       <div class="fw-semibold" style="color:var(--text); margin-bottom: 0.75rem"><i class="bi bi-translate me-2 text-muted"></i>Язык бота по умолчанию</div>
-      <form hx-post="/panel/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
+      <form hx-post="{{ panel_base }}/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
         <div class="d-flex gap-3 flex-wrap align-items-end">
           <div>
             <label class="form-label">Язык по умолчанию</label>
@@ -660,7 +660,7 @@
         }),
       ] %}
       <div id="lang-pane-{{ lang_code }}" style="display:{% if lang_code == 'ru' %}block{% else %}none{% endif %}">
-        <form hx-post="/panel/telegram/lang-strings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
+        <form hx-post="{{ panel_base }}/telegram/lang-strings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
           <input type="hidden" name="lang" value="{{ lang_code }}" />
           <div class="row g-2">
             {% for key, (label, default) in lang_strings.items() %}
@@ -695,7 +695,7 @@
       <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:.75rem">
         Бот доступен только подписчикам канала. Бот должен быть администратором канала.
       </div>
-      <form hx-post="/panel/telegram/bot-settings" hx-swap="none">
+      <form hx-post="{{ panel_base }}/telegram/bot-settings" hx-swap="none">
         <div class="row g-2 mb-2">
           <div class="col-7">
             <label class="form-label">ID канала</label>
@@ -743,7 +743,7 @@
       <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.75rem;padding-left:36px">
         Банковские карты и СБП · <a href="https://yookassa.ru" target="_blank" style="color:#00d4aa">yookassa.ru</a>
       </div>
-      <form id="yk-form" hx-post="/panel/telegram/payment-systems/yookassa" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'yk')">
+      <form id="yk-form" hx-post="{{ panel_base }}/telegram/payment-systems/yookassa" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'yk')">
         <div class="mb-2">
           <label class="form-label" style="font-size:.7rem">Shop ID</label>
           <input type="text" name="yookassa_shop_id" class="form-control" style="font-size:.8rem"
@@ -769,7 +769,7 @@
         <div class="d-flex gap-2 mt-3">
           <button type="submit" class="btn btn-accent btn-sm flex-fill"><i class="bi bi-floppy me-1"></i>Сохранить</button>
           <button type="button" class="btn btn-outline-secondary btn-sm" style="font-size:.75rem"
-            hx-post="/panel/telegram/payment-systems/yookassa/test" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'yk-test')">
+            hx-post="{{ panel_base }}/telegram/payment-systems/yookassa/test" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'yk-test')">
             <i class="bi bi-lightning me-1"></i>Тест
           </button>
         </div>
@@ -796,7 +796,7 @@
       <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.75rem;padding-left:36px">
         Криптовалюта · <a href="https://t.me/CryptoBot" target="_blank" style="color:#00d4aa">@CryptoBot</a>
       </div>
-      <form hx-post="/panel/telegram/payment-systems/cryptobot" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'cb')">
+      <form hx-post="{{ panel_base }}/telegram/payment-systems/cryptobot" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'cb')">
         <div class="mb-2">
           <label class="form-label" style="font-size:.7rem">API Token</label>
           <div class="input-group">
@@ -811,7 +811,7 @@
         <div class="d-flex gap-2 mt-3">
           <button type="submit" class="btn btn-accent btn-sm flex-fill"><i class="bi bi-floppy me-1"></i>Сохранить</button>
           <button type="button" class="btn btn-outline-secondary btn-sm" style="font-size:.75rem"
-            hx-post="/panel/telegram/payment-systems/cryptobot/test" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'cb-test')">
+            hx-post="{{ panel_base }}/telegram/payment-systems/cryptobot/test" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'cb-test')">
             <i class="bi bi-lightning me-1"></i>Тест
           </button>
         </div>
@@ -838,7 +838,7 @@
       <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.75rem;padding-left:36px">
         Карты, СБП, кошельки · <a href="https://freekassa.com" target="_blank" style="color:#00d4aa">freekassa.com</a>
       </div>
-      <form hx-post="/panel/telegram/payment-systems/freekassa" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'fk')">
+      <form hx-post="{{ panel_base }}/telegram/payment-systems/freekassa" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'fk')">
         <div class="row g-2 mb-2">
           <div class="col-6">
             <label class="form-label" style="font-size:.7rem">Shop ID</label>
@@ -878,7 +878,7 @@
         <div class="d-flex gap-2 mt-3">
           <button type="submit" class="btn btn-accent btn-sm flex-fill"><i class="bi bi-floppy me-1"></i>Сохранить</button>
           <button type="button" class="btn btn-outline-secondary btn-sm" style="font-size:.75rem"
-            hx-post="/panel/telegram/payment-systems/freekassa/test" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'fk-test')">
+            hx-post="{{ panel_base }}/telegram/payment-systems/freekassa/test" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'fk-test')">
             <i class="bi bi-lightning me-1"></i>Тест
           </button>
         </div>
@@ -905,7 +905,7 @@
       <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.75rem;padding-left:36px">
         Платёжный агрегатор · <a href="https://aikassa.ru" target="_blank" style="color:#00d4aa">aikassa.ru</a>
       </div>
-      <form hx-post="/panel/telegram/payment-systems/aikassa" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'ak')">
+      <form hx-post="{{ panel_base }}/telegram/payment-systems/aikassa" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'ak')">
         <div class="mb-2">
           <label class="form-label" style="font-size:.7rem">Shop ID</label>
           <input type="text" name="aikassa_shop_id" class="form-control" style="font-size:.8rem"
@@ -925,7 +925,7 @@
         <div class="d-flex gap-2 mt-3">
           <button type="submit" class="btn btn-accent btn-sm flex-fill"><i class="bi bi-floppy me-1"></i>Сохранить</button>
           <button type="button" class="btn btn-outline-secondary btn-sm" style="font-size:.75rem"
-            hx-post="/panel/telegram/payment-systems/aikassa/test" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'ak-test')">
+            hx-post="{{ panel_base }}/telegram/payment-systems/aikassa/test" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'ak-test')">
             <i class="bi bi-lightning me-1"></i>Тест
           </button>
         </div>
@@ -952,7 +952,7 @@
       <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.75rem;padding-left:36px">
         Карты, СБП, криптовалюта · <a href="https://platega.io" target="_blank" style="color:#00d4aa">platega.io</a>
       </div>
-      <form hx-post="/panel/telegram/payment-systems/platega" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'pl2')">
+      <form hx-post="{{ panel_base }}/telegram/payment-systems/platega" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'pl2')">
         <div class="mb-2">
           <label class="form-label" style="font-size:.7rem">Merchant ID</label>
           <input type="text" name="platega_merchant_id" class="form-control" style="font-size:.8rem"
@@ -973,7 +973,7 @@
         <div class="d-flex gap-2 mt-3">
           <button type="submit" class="btn btn-accent btn-sm flex-fill"><i class="bi bi-floppy me-1"></i>Сохранить</button>
           <button type="button" class="btn btn-outline-secondary btn-sm" style="font-size:.75rem"
-            hx-post="/panel/telegram/payment-systems/platega/test" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'pl2-test')">
+            hx-post="{{ panel_base }}/telegram/payment-systems/platega/test" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'pl2-test')">
             <i class="bi bi-lightning me-1"></i>Тест
           </button>
         </div>
@@ -1001,7 +1001,7 @@
       <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.75rem;padding-left:36px">
         Bearer-токен · <a href="https://paypalych.io" target="_blank" style="color:#00d4aa">paypalych.io</a>
       </div>
-      <form hx-post="/panel/telegram/payment-systems/paypalych" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'pl')">
+      <form hx-post="{{ panel_base }}/telegram/payment-systems/paypalych" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'pl')">
         <div class="mb-2">
           <label class="form-label" style="font-size:.7rem">API Token</label>
           <div class="input-group">
@@ -1016,7 +1016,7 @@
         <div class="d-flex gap-2 mt-3">
           <button type="submit" class="btn btn-accent btn-sm flex-fill"><i class="bi bi-floppy me-1"></i>Сохранить</button>
           <button type="button" class="btn btn-outline-secondary btn-sm" style="font-size:.75rem"
-            hx-post="/panel/telegram/payment-systems/paypalych/test" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'pl-test')">
+            hx-post="{{ panel_base }}/telegram/payment-systems/paypalych/test" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'pl-test')">
             <i class="bi bi-lightning me-1"></i>Тест
           </button>
         </div>
@@ -1041,7 +1041,7 @@
       <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.75rem;padding-left:36px">
         Merchant ID + Secret · <a href="https://paypalych.io" target="_blank" style="color:#00d4aa">paypalych.io</a>
       </div>
-      <form hx-post="/panel/telegram/payment-systems/paypalych" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'plm')">
+      <form hx-post="{{ panel_base }}/telegram/payment-systems/paypalych" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'plm')">
         <div class="mb-2">
           <label class="form-label" style="font-size:.7rem">Merchant ID</label>
           <input type="text" name="paypalych_merchant_id" class="form-control" style="font-size:.8rem"
@@ -1062,7 +1062,7 @@
         <div class="d-flex gap-2 mt-3">
           <button type="submit" class="btn btn-accent btn-sm flex-fill"><i class="bi bi-floppy me-1"></i>Сохранить</button>
           <button type="button" class="btn btn-outline-secondary btn-sm" style="font-size:.75rem"
-            hx-post="/panel/telegram/payment-systems/paypalych/test" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'plm-test')">
+            hx-post="{{ panel_base }}/telegram/payment-systems/paypalych/test" hx-swap="none" hx-on::after-request="handlePsResponse(event, 'plm-test')">
             <i class="bi bi-lightning me-1"></i>Тест
           </button>
         </div>
@@ -1086,7 +1086,7 @@
       <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.75rem;padding-left:36px">
         Встроенные звёзды Telegram · не требует настройки
       </div>
-      <form hx-post="/panel/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
+      <form hx-post="{{ panel_base }}/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
         <label class="form-label" style="font-size:.7rem">Курс Stars → ₽</label>
         <div class="input-group" style="max-width:200px">
           <input type="number" name="stars_rate" class="form-control" style="font-size:.8rem"
@@ -1272,7 +1272,7 @@ async function uploadPhoto(key, input) {
   const meta = document.querySelector('meta[name="csrf-token"]');
   const csrf = meta ? meta.getAttribute('content') : '';
   try {
-    const r = await fetch('/panel/telegram/photo/upload', {method:'POST', body:fd, headers:{'X-CSRF-Token':csrf}, credentials:'same-origin'});
+    const r = await fetch(panelUrl('/telegram/photo/upload'), {method:'POST', body:fd, headers:{'X-CSRF-Token':csrf}, credentials:'same-origin'});
     const d = await r.json();
     if (r.ok && d.ok) { el.textContent = '✅ Сохранено'; el.style.color = '#22c55e'; setTimeout(() => location.reload(), 700); }
     else { el.textContent = '❌ ' + (d.message||d.detail||'Ошибка'); el.style.color = '#ef4444'; }
@@ -1298,7 +1298,7 @@ async function psToggle(key, enabled, prefix) {
   const meta = document.querySelector('meta[name="csrf-token"]');
   const csrf = meta ? meta.getAttribute('content') : '';
   try {
-    const r = await fetch('/panel/telegram/payment-systems/toggle', {method:'POST', body:fd, headers:{'X-CSRF-Token':csrf}, credentials:'same-origin'});
+    const r = await fetch(panelUrl('/telegram/payment-systems/toggle'), {method:'POST', body:fd, headers:{'X-CSRF-Token':csrf}, credentials:'same-origin'});
     const d = await r.json();
     if (!d.ok) { showToast(d.message || 'Ошибка', 'error'); return; }
     showToast(d.message, 'success');
@@ -1577,7 +1577,7 @@ function kbReset() { kbLayout = JSON.parse(JSON.stringify(KB_DEFAULT)); kbRender
 async function kbSave() {
   const meta = document.querySelector('meta[name="csrf-token"]');
   const csrf = meta ? meta.getAttribute('content') : '';
-  const r = await fetch('/panel/keyboard/save', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-Token':csrf}, credentials:'same-origin', body: JSON.stringify({layout: kbLayout})});
+  const r = await fetch(panelUrl('/keyboard/save'), {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-Token':csrf}, credentials:'same-origin', body: JSON.stringify({layout: kbLayout})});
   const d = await r.json();
   showToast(d.ok ? '✅ Раскладка сохранена' : '❌ Ошибка', d.ok ? 'success' : 'error');
 }
@@ -1586,7 +1586,7 @@ async function kbSaveStyles() {
   const csrf = meta ? meta.getAttribute('content') : '';
   const styles = {};
   KB_ALL.forEach(b => { const s = document.getElementById('style_'+b.id); if(s) styles[b.id] = s.value; });
-  const r = await fetch('/panel/keyboard/styles', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-Token':csrf}, credentials:'same-origin', body: JSON.stringify({styles})});
+  const r = await fetch(panelUrl('/keyboard/styles'), {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-Token':csrf}, credentials:'same-origin', body: JSON.stringify({styles})});
   const d = await r.json();
   showToast(d.ok ? '✅ Стили сохранены' : '❌ Ошибка', d.ok ? 'success' : 'error');
   kbUpdatePreview();

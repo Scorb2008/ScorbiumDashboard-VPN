@@ -1,6 +1,7 @@
 from starlette.requests import Request
 
 from app.api.middleware.csrf import _should_skip
+from app.core.config import config
 
 
 def _make_request(path: str, method: str = "POST") -> Request:
@@ -28,7 +29,7 @@ def test_should_protect_other_cabinet_posts():
 
 
 def test_should_not_skip_panel_post():
-    assert _should_skip(_make_request("/panel/telegram/send")) is False
+    assert _should_skip(_make_request(config.web.panel_path("telegram/send"))) is False
 
 
 def test_should_skip_cabinet_get():

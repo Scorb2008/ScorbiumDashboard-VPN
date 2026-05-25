@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db
+from app.core.config import config
 from app.models.payment import Payment, PaymentStatus
 
 from app.services.payment import PaymentService
@@ -334,7 +335,7 @@ async def refund_payment_view(
     h = html.escape
     resp = HTMLResponse(f"""<tr>
       <td><code style="color:#00d4aa">#{payment.id}</code></td>
-      <td><a href="/panel/users/{payment.user_id}" style="color:#00d4aa">{payment.user_id}</a></td>
+      <td><a href="{config.web.panel_path(f'users/{payment.user_id}')}" style="color:#00d4aa">{payment.user_id}</a></td>
       <td><span style="color:#8892a4;font-size:.8rem">{h(str(payment.provider))}</span></td>
       <td><b>{payment.amount}</b> {h(str(payment.currency))}</td>
       <td><span class="badge badge-custom badge-open">Возврат</span></td>

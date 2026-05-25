@@ -202,13 +202,13 @@
           <i class="bi bi-download me-1"></i>Экспорт
         </button>
         <ul class="dropdown-menu dropdown-menu-dark" style="background:var(--bg-elevated);border-color:var(--border)">
-          <li><a class="dropdown-item" href="/panel/export/users?format=csv" style="color:var(--text)">CSV</a></li>
-          <li><a class="dropdown-item" href="/panel/export/users?format=xlsx" style="color:var(--text)">Excel</a></li>
+          <li><a class="dropdown-item" href="{{ panel_base }}/export/users?format=csv" style="color:var(--text)">CSV</a></li>
+          <li><a class="dropdown-item" href="{{ panel_base }}/export/users?format=xlsx" style="color:var(--text)">Excel</a></li>
         </ul>
       </div>
       <input type="search" placeholder="Поиск по имени / username..."
       class="form-control form-control-sm" style="width:240px"
-      hx-get="/panel/users/search" hx-trigger="keyup changed delay:400ms"
+      hx-get="{{ panel_base }}/users/search" hx-trigger="keyup changed delay:400ms"
       hx-target="#users-tbody" hx-include="this" name="q" />
     </div>
   </div>
@@ -405,7 +405,7 @@ async function bulkAction(action) {
   if (!confirm(`Выполнить "${action}" для ${ids.length} пользователей?`)) return;
   const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
   try {
-    const r = await fetch('/panel/users/bulk', {
+    const r = await fetch(panelUrl('/users/bulk'), {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf},
       body: JSON.stringify({action, user_ids: ids})
@@ -427,7 +427,7 @@ async function doBulkBalance() {
   const ids = getSelectedIds();
   const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
   try {
-    const r = await fetch('/panel/users/bulk-balance', {
+    const r = await fetch(panelUrl('/users/bulk-balance'), {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf},
       body: JSON.stringify({user_ids: ids, amount: parseFloat(amount)})
@@ -448,7 +448,7 @@ async function doBulkGift() {
   const ids = getSelectedIds();
   const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
   try {
-    const r = await fetch('/panel/users/bulk-gift', {
+    const r = await fetch(panelUrl('/users/bulk-gift'), {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf},
       body: JSON.stringify({user_ids: ids, plan_id: parseInt(planId)})
@@ -482,7 +482,7 @@ async function sendMsg() {
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Отправка...';
     }
-    const r = await fetch('/panel/telegram/send', { method: 'POST', body: fd, headers:{'X-CSRF-Token':csrf}, credentials:'same-origin' });
+    const r = await fetch(panelUrl('/telegram/send'), { method: 'POST', body: fd, headers:{'X-CSRF-Token':csrf}, credentials:'same-origin' });
     bootstrap.Modal.getInstance(document.getElementById('msgModal')).hide();
     showToast(r.ok ? 'Сообщение отправлено' : 'Ошибка отправки', r.ok ? 'success' : 'error');
   } finally {
@@ -506,8 +506,8 @@ async function changeBalance(action) {
   const fd = new FormData();
   fd.append('amount', amount);
   const url = action === 'add'
-    ? `/panel/users/${_balUserId}/add-balance`
-    : `/panel/users/${_balUserId}/deduct-balance`;
+    ? panelUrl(`/users/${_balUserId}/add-balance`)
+    : panelUrl(`/users/${_balUserId}/deduct-balance`);
   const meta = document.querySelector('meta[name="csrf-token"]');
   const csrf = meta ? meta.getAttribute('content') : '';
   const r = await fetch(url, { method: 'POST', body: fd, headers:{'X-CSRF-Token':csrf}, credentials:'same-origin' });
@@ -523,7 +523,7 @@ async function changeBalance(action) {
 
 function openGiftModal(userId) {
   const form = document.getElementById('giftForm');
-  form.setAttribute('hx-post', `/panel/users/${userId}/gift-subscription`);
+  form.setAttribute('hx-post', panelUrl(`/users/${userId}/gift-subscription`));
   htmx.process(form);
   new bootstrap.Modal(document.getElementById('giftModal')).show();
 }

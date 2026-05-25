@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db
+from app.core.config import config
 from app.services.pasarguard.pasarguard import PasarguardService
 
 from .shared import _require_permission, _base_ctx, _toast, templates
@@ -73,7 +74,7 @@ async def nodes_data(request: Request):
               <span><i class="bi bi-people me-1"></i>{html.escape(str(n.get("total_users", 0)))}</span>
             </div>
             <div class="d-flex gap-2 mt-auto">
-              <button class="btn btn-sm btn-outline" hx-post="/panel/nodes/{node_id}/reconnect" hx-target="#nodes-grid" hx-swap="innerHTML">
+              <button class="btn btn-sm btn-outline" hx-post="{config.web.panel_path(f'nodes/{node_id}/reconnect')}" hx-target="#nodes-grid" hx-swap="innerHTML">
                 <i class="bi bi-arrow-clockwise me-1"></i>Переподключить
               </button>
             </div>
@@ -81,7 +82,7 @@ async def nodes_data(request: Request):
         </div>"""
 
     return HTMLResponse(
-        f"""<div class="row g-3" id="nodes-grid" hx-get="/panel/nodes/data" hx-trigger="every 30s" hx-swap="outerHTML">{cards}</div>"""
+        f"""<div class="row g-3" id="nodes-grid" hx-get="{config.web.panel_path('nodes/data')}" hx-trigger="every 30s" hx-swap="outerHTML">{cards}</div>"""
     )
 
 

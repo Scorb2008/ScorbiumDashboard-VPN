@@ -276,7 +276,7 @@ function updatePaymentBlock(paymentItems) {
 
 async function refreshHealth() {
   try {
-    const r = await fetch('/panel/health/json');
+    const r = await fetch(panelUrl('/health/json'));
     const data = await r.json();
     const coreItems = renderGrid('coreHealthCards', CORE_SERVICES, data);
     const paymentItems = PAYMENT_SERVICES

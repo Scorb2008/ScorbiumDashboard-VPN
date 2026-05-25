@@ -26,7 +26,7 @@
   {% endif %}
   {% if bc.status in ['draft', 'failed'] %}
   <button class="btn btn-accent btn-sm"
-    hx-post="/panel/broadcasts/{{ bc.id }}/send"
+    hx-post="{{ panel_base }}/broadcasts/{{ bc.id }}/send"
     hx-target="#bc-{{ bc.id }}"
     hx-swap="outerHTML"
     hx-confirm="Отправить рассылку «{{ bc.title }}»?">

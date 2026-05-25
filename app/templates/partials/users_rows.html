@@ -25,7 +25,7 @@
   </td>
   <td>
     <div class="users-panel-actions">
-      <a href="/panel/users/{{ u.id }}" class="users-panel-action" title="Детали">
+      <a href="{{ panel_base }}/users/{{ u.id }}" class="users-panel-action" title="Детали">
         <i class="bi bi-eye"></i><span>Открыть</span>
       </a>
       <button class="users-panel-action" title="Написать" onclick="openMsgModal({{ u.id }})">
@@ -41,12 +41,12 @@
       </button>
       {% if u.is_banned %}
       <button class="users-panel-action" title="Разбанить"
-        hx-post="/panel/users/{{ u.id }}/unban" hx-target="#user-row-{{ u.id }}" hx-swap="outerHTML">
+        hx-post="{{ panel_base }}/users/{{ u.id }}/unban" hx-target="#user-row-{{ u.id }}" hx-swap="outerHTML">
         <i class="bi bi-unlock"></i><span>Разбанить</span>
       </button>
       {% else %}
       <button class="users-panel-action is-danger" title="Забанить"
-        hx-post="/panel/users/{{ u.id }}/ban" hx-target="#user-row-{{ u.id }}" hx-swap="outerHTML"
+        hx-post="{{ panel_base }}/users/{{ u.id }}/ban" hx-target="#user-row-{{ u.id }}" hx-swap="outerHTML"
         hx-confirm="Забанить пользователя?">
         <i class="bi bi-lock"></i><span>Забанить</span>
       </button>

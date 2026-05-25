@@ -38,7 +38,7 @@
               <i class="bi bi-pencil" style="font-size:.75rem"></i>
             </button>
             <button class="btn btn-sm btn-outline py-1 px-2" style="color:var(--danger);border-color:rgba(239,68,68,.3)"
-              hx-delete="/panel/admins/{{ a.id }}" hx-target="#admins-table" hx-swap="innerHTML"
+              hx-delete="{{ panel_base }}/admins/{{ a.id }}" hx-target="#admins-table" hx-swap="innerHTML"
               hx-confirm="Удалить администратора {{ a.username }}?">
               <i class="bi bi-trash" style="font-size:.75rem"></i>
             </button>
@@ -54,7 +54,7 @@
               <h5 class="modal-title" style="color:var(--text)">Редактировать {{ a.username }}</h5>
               <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form hx-post="/panel/admins/{{ a.id }}/edit" hx-target="#admins-table" hx-swap="innerHTML"
+            <form hx-post="{{ panel_base }}/admins/{{ a.id }}/edit" hx-target="#admins-table" hx-swap="innerHTML"
                   hx-on::after-request="if(event.detail.successful){ bootstrap.Modal.getInstance(document.getElementById('editAdminModal{{ a.id }}')).hide(); }">
               <div class="modal-body">
                 <div class="mb-3">

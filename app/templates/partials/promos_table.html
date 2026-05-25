@@ -51,13 +51,13 @@
           <td>
             <div class="d-flex gap-1">
               <button class="btn btn-sm btn-outline-secondary"
-                hx-post="/panel/promos/{{ promo.id }}/toggle"
+                hx-post="{{ panel_base }}/promos/{{ promo.id }}/toggle"
                 hx-target="#promos-table" hx-swap="outerHTML"
                 title="{{ 'Отключить' if promo.is_active else 'Включить' }}">
                 <i class="bi bi-{{ 'pause' if promo.is_active else 'play' }}"></i>
               </button>
               <button class="btn btn-sm btn-outline-danger"
-                hx-delete="/panel/promos/{{ promo.id }}"
+                hx-delete="{{ panel_base }}/promos/{{ promo.id }}"
                 hx-target="#promos-table" hx-swap="outerHTML"
                 hx-confirm="Удалить промокод {{ promo.code }}?">
                 <i class="bi bi-trash"></i>

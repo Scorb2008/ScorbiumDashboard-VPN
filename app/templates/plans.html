@@ -25,7 +25,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" style="filter:invert(1)"></button>
       </div>
       <form id="planForm"
-            hx-post="/panel/plans"
+            hx-post="{{ panel_base }}/plans"
             hx-target="#plans-grid-wrapper"
             hx-swap="innerHTML">
         <div class="modal-body">
@@ -70,7 +70,7 @@
     form.querySelector('[name=duration_days]').value = '30';
     document.getElementById('plan-id').value = '';
     document.getElementById('planModalTitle').textContent = 'Новый тариф';
-    form.setAttribute('hx-post', '/panel/plans');
+    form.setAttribute('hx-post', panelUrl('/plans'));
     htmx.process(form);
   }
 
@@ -82,7 +82,7 @@
     form.querySelector('[name=price]').value = price;
     form.querySelector('[name=duration_days]').value = days;
     form.querySelector('[name=description]').value = desc || '';
-    form.setAttribute('hx-post', `/panel/plans/${id}/edit`);
+    form.setAttribute('hx-post', panelUrl(`/plans/${id}/edit`));
     htmx.process(form);
     new bootstrap.Modal(document.getElementById('planModal')).show();
   }
@@ -129,7 +129,7 @@
         if (!container) return;
         const order = Array.from(container.querySelectorAll('.plan-item')).map(el => el.dataset.planId).filter(Boolean);
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-        fetch('/panel/plans/reorder', {
+        fetch(panelUrl('/plans/reorder'), {
           method: 'POST',
           headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf},
           body: JSON.stringify({order: order})

@@ -8,7 +8,7 @@
   <p class="mb-0" style="color:var(--text-muted);font-size:.85rem">Управление серверами</p>
 </div>
 
-<div hx-get="/panel/nodes/data" hx-trigger="load, every 30s" hx-swap="outerHTML">
+<div hx-get="{{ panel_base }}/nodes/data" hx-trigger="load, every 30s" hx-swap="outerHTML">
   <div class="text-center py-5 fade-in">
     <div class="spinner-border" style="color:var(--accent);width:1.5rem;height:1.5rem;border-width:.15rem" role="status"></div>
     <p class="mt-2" style="color:var(--text-muted);font-size:.8rem">Загрузка нод...</p>

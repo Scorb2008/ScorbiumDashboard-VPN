@@ -14,7 +14,7 @@
         </span>
         <div class="d-flex gap-1 flex-wrap">
           {% for s, label in [('', 'Все'), ('open', 'Открытые'), ('in_progress', 'В работе'), ('closed', 'Закрытые')] %}
-          <a href="/panel/support{% if s %}?status={{ s }}{% endif %}"
+          <a href="{{ panel_base }}/support{% if s %}?status={{ s }}{% endif %}"
             class="btn btn-sm py-0 px-2 {% if current_status == s %}btn-accent{% else %}btn-outline-secondary{% endif %}"
             style="font-size:.68rem">{{ label }}</a>
           {% endfor %}
@@ -24,7 +24,7 @@
         {% for t in tickets %}
         {% set st = t.status.value if t.status.value is defined else t.status %}
         {% set pr = t.priority.value if t.priority.value is defined else t.priority %}
-        <a href="/panel/support/{{ t.id }}{% if current_status %}?status={{ current_status }}{% endif %}"
+        <a href="{{ panel_base }}/support/{{ t.id }}{% if current_status %}?status={{ current_status }}{% endif %}"
           class="d-block text-decoration-none p-3"
           style="border-bottom:1px solid var(--border);transition:.15s;{% if selected_id == t.id %}background:rgba(0,212,170,.12);border-left:3px solid var(--accent){% endif %}">
           <div class="d-flex align-items-start justify-content-between gap-2 mb-1">
@@ -67,14 +67,14 @@
         </div>
         <div class="d-flex gap-2 flex-wrap">
           <select class="form-select form-select-sm" style="width:130px;font-size:.75rem"
-            hx-patch="/panel/support/{{ ticket.id }}/status"
+            hx-patch="{{ panel_base }}/support/{{ ticket.id }}/status"
             hx-include="this" name="status" hx-swap="none">
             <option value="open" {% if st == 'open' %}selected{% endif %}>🔵 Открыт</option>
             <option value="in_progress" {% if st == 'in_progress' %}selected{% endif %}>🟡 В работе</option>
             <option value="closed" {% if st == 'closed' %}selected{% endif %}>⚫ Закрыт</option>
           </select>
           <select class="form-select form-select-sm" style="width:120px;font-size:.75rem"
-            hx-patch="/panel/support/{{ ticket.id }}/priority"
+            hx-patch="{{ panel_base }}/support/{{ ticket.id }}/priority"
             hx-include="this" name="priority" hx-swap="none">
             <option value="low" {% if pr == 'low' %}selected{% endif %}>🟢 Низкий</option>
             <option value="medium" {% if pr == 'medium' %}selected{% endif %}>🟡 Средний</option>
@@ -82,7 +82,7 @@
           </select>
           {% if st != 'closed' %}
           <button class="btn btn-sm btn-outline-danger"
-            hx-post="/panel/support/{{ ticket.id }}/close"
+            hx-post="{{ panel_base }}/support/{{ ticket.id }}/close"
             hx-swap="none"
             title="Закрыть тикет и уведомить пользователя">
             <i class="bi bi-lock-fill me-1"></i>Закрыть
@@ -113,7 +113,7 @@
 
       <!-- Reply form -->
       <div style="padding:.75rem 1rem;border-top:1px solid var(--border)">
-        <form id="support-reply-form" hx-post="/panel/support/{{ ticket.id }}/reply"
+        <form id="support-reply-form" hx-post="{{ panel_base }}/support/{{ ticket.id }}/reply"
           hx-target="#messages-box" hx-swap="innerHTML"
           class="d-flex gap-2 align-items-center">
           <input type="text" name="text" class="form-control form-control-sm"

@@ -47,7 +47,7 @@
   </ul>
   <div class="tab-content">
     <div class="tab-pane fade show active" id="pane-plan">
-      <form hx-post="/panel/subscriptions/create" hx-swap="none" class="row g-2 align-items-end">
+      <form hx-post="{{ panel_base }}/subscriptions/create" hx-swap="none" class="row g-2 align-items-end">
         <div class="col-sm-4">
           <label class="form-label">Telegram ID пользователя</label>
           <input type="number" name="user_id" class="form-control" placeholder="123456789" required />
@@ -68,7 +68,7 @@
       </form>
     </div>
     <div class="tab-pane fade" id="pane-days">
-      <form hx-post="/panel/subscriptions/create-days" hx-swap="none" class="row g-2 align-items-end">
+      <form hx-post="{{ panel_base }}/subscriptions/create-days" hx-swap="none" class="row g-2 align-items-end">
         <div class="col-sm-3">
           <label class="form-label">Telegram ID пользователя</label>
           <input type="number" name="user_id" class="form-control" placeholder="123456789" required />
@@ -106,8 +106,8 @@
           <i class="bi bi-download me-1"></i>Экспорт
         </button>
         <ul class="dropdown-menu dropdown-menu-dark" style="background:var(--bg-elevated);border-color:var(--border)">
-          <li><a class="dropdown-item" href="/panel/export/subscriptions?format=csv" style="color:var(--text)">CSV</a></li>
-          <li><a class="dropdown-item" href="/panel/export/subscriptions?format=xlsx" style="color:var(--text)">Excel</a></li>
+          <li><a class="dropdown-item" href="{{ panel_base }}/export/subscriptions?format=csv" style="color:var(--text)">CSV</a></li>
+          <li><a class="dropdown-item" href="{{ panel_base }}/export/subscriptions?format=xlsx" style="color:var(--text)">Excel</a></li>
         </ul>
       </div>
       <span class="badge badge-custom badge-active">{{ subscriptions|length }}</span>
@@ -132,7 +132,7 @@
         {% for sub in subscriptions %}
         <tr id="sub-row-{{ sub.id }}" class="sub-row" data-status="{{ sub.status.value if sub.status.value is defined else sub.status }}">
           <td><code style="color:#00d4aa">#{{ sub.id }}</code></td>
-          <td><a href="/panel/users/{{ sub.user_id }}" style="color:#00d4aa">{{ sub.user_id }}</a></td>
+          <td><a href="{{ panel_base }}/users/{{ sub.user_id }}" style="color:#00d4aa">{{ sub.user_id }}</a></td>
           <td>
             {% if sub.plan %}
               <span class="badge badge-custom" style="background:rgba(0,212,170,.15);color:#00d4aa">{{ sub.plan.name }}</span>
@@ -216,7 +216,7 @@
               {% endif %}
               {% if st == 'active' %}
               <button class="btn btn-xs btn-outline-danger" title="Отозвать"
-                hx-post="/panel/subscriptions/{{ sub.id }}/cancel"
+                hx-post="{{ panel_base }}/subscriptions/{{ sub.id }}/cancel"
                 hx-swap="none"
                 hx-confirm="Отозвать подписку?">
                 <i class="bi bi-x-circle me-1"></i>Отозвать
@@ -306,7 +306,7 @@ let extendSubId = null;
 function openExtendModal(subId, subName) {
   extendSubId = subId;
   document.getElementById('extendSubInfo').textContent = 'Подписка #' + subId + (subName ? ' (' + subName + ')' : '');
-  document.getElementById('extendForm').setAttribute('hx-post', '/panel/subscriptions/' + subId + '/extend');
+  document.getElementById('extendForm').setAttribute('hx-post', panelUrl('/subscriptions/' + subId + '/extend'));
   document.getElementById('extendDays').value = '';
   new bootstrap.Modal(document.getElementById('extendModal')).show();
 }

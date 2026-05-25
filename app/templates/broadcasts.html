@@ -8,7 +8,7 @@
   <div class="col-lg-5">
     <div class="card p-3">
       <div class="fw-semibold" style="color:var(--text); margin-bottom: 0.75rem"><i class="bi bi-megaphone me-2 text-muted"></i>Новая рассылка</div>
-      <form hx-post="/panel/broadcasts" hx-target="#broadcasts-list" hx-swap="outerHTML" id="broadcastForm">
+      <form hx-post="{{ panel_base }}/broadcasts" hx-target="#broadcasts-list" hx-swap="outerHTML" id="broadcastForm">
         <div class="mb-3">
           <label class="form-label">Заголовок</label>
           <input type="text" name="title" class="form-control" id="bcTitle" placeholder="Акция на подписку" required />
@@ -107,7 +107,7 @@ async function previewBroadcast() {
   // Estimate audience count via API
   let count = '—';
   try {
-    const r = await fetch(`/panel/broadcasts/estimate?target=${target}`);
+    const r = await fetch(panelUrl(`/broadcasts/estimate?target=${target}`));
     if (r.ok) { const d = await r.json(); count = d.count ?? '—'; }
   } catch {}
 

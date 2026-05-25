@@ -383,7 +383,7 @@ function updatePreview() {
 async function saveLayout() {
   const meta = document.querySelector('meta[name="csrf-token"]');
   const csrf = meta ? meta.getAttribute('content') : '';
-  const resp = await fetch('/panel/keyboard/save', {
+  const resp = await fetch(panelUrl('/keyboard/save'), {
     method: 'POST',
     headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf},
     credentials: 'same-origin',
@@ -401,7 +401,7 @@ async function saveStyles() {
     const sel = document.getElementById('style_' + b.id);
     if (sel) styles[b.id] = sel.value;
   });
-  const resp = await fetch('/panel/keyboard/styles', {
+  const resp = await fetch(panelUrl('/keyboard/styles'), {
     method: 'POST',
     headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf},
     credentials: 'same-origin',

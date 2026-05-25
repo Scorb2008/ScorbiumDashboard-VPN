@@ -1,16 +1,18 @@
 from fastapi import Request
 
 from app.api.panel.routes.dashboard import dashboard
+from app.core.config import config
 
 
 def _make_request() -> Request:
+    panel_root = config.web.panel_root
     scope = {
         "type": "http",
         "http_version": "1.1",
         "method": "GET",
         "scheme": "http",
-        "path": "/panel/",
-        "raw_path": b"/panel/",
+        "path": panel_root,
+        "raw_path": panel_root.encode("utf-8"),
         "query_string": b"",
         "headers": [],
         "client": ("127.0.0.1", 12345),

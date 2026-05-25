@@ -20,7 +20,7 @@
 
 ## Возможности
 
-### Админ-панель `/panel/`
+### Админ-панель `SET_PATH_ADMIN`
 - Дашборд со статистикой, платежами и состоянием сервиса
 - Пользователи: бан, разбан, баланс, сообщения, подарочные подписки
 - Подписки: просмотр, продление, отзыв VPN-ключей
@@ -58,7 +58,7 @@ main.py
   -> app.core.server:create_app()
      -> FastAPI
         -> /api/v1/*       REST API
-        -> /panel/*        админ-панель
+        -> {SET_PATH_ADMIN} админ-панель
         -> /cabinet/*      кабинет пользователя и вход из Telegram Mini App
         -> /webhook/bot    webhook Telegram-бота
 ```
@@ -139,7 +139,7 @@ docker compose up -d app nginx
 ```
 
 После запуска:
-- админка: [http://localhost/panel/](http://localhost/panel/)
+- админка: `http://localhost${SET_PATH_ADMIN}` (по умолчанию `http://localhost/panel/`, но `setup.sh` может сгенерировать скрытый путь)
 - кабинет: [http://localhost/cabinet/](http://localhost/cabinet/)
 - API health: [http://localhost/api/v1/health/](http://localhost/api/v1/health/)
 
@@ -225,7 +225,7 @@ bash update.sh
 - запускает `fix_alembic.py`
 - выполняет `alembic upgrade head`
 - поднимает `app` и `nginx`
-- запускает smoke-check для `/health`, `/api/v1/health/`, `/panel/`, `/cabinet/`
+- запускает smoke-check для `/health`, `/api/v1/health/`, `${SET_PATH_ADMIN}`, `/cabinet/`
 
 Важно:
 - запускать из корня проекта
@@ -286,6 +286,7 @@ DB_PASSWORD=postgres
 JWT_SECRET_KEY=change_me
 HTTPS_PORT=443
 DOMAIN=example.com
+SET_PATH_ADMIN=/x7k/panel/
 ```
 
 Дополнительно могут использоваться:
@@ -299,7 +300,7 @@ DOMAIN=example.com
 ## HTTP-маршруты
 
 Основные пути:
-- `/panel/` — админ-панель
+- `SET_PATH_ADMIN` — админ-панель, например `/x7k/panel/`
 - `/cabinet/` — кабинет пользователя и точка входа для Telegram Mini App
 - `/api/v1/` — REST API
 - `/webhook/bot` — webhook Telegram-бота
@@ -311,11 +312,11 @@ DOMAIN=example.com
 
 ## Известные особенности
 
-- В проекте нет `.env.example`, основная настройка делается через `setup.sh`.
+- В проекте есть `.env.example`, но основная безопасная настройка всё равно удобнее через `setup.sh`.
 - В dev-режиме бот обычно работает через `TELEGRAM_TYPE_PROTOCOL=long`.
 - В prod-режиме бот работает через webhook.
 - Handler-модули бота при сборке диспетчера динамически перезагружаются.
-- Корневой `/` редиректит в `/panel/`.
+- Корневой `/` не обязан редиректить в админку: панель можно держать на скрытом пути из `SET_PATH_ADMIN`.
 - Пользовательский Mini App сейчас работает через `/cabinet/`, а не через отдельный пользовательский `/miniapp/` маршрут.
 - Кабинет и Mini App используют Telegram-аутентификацию, а не обычный логин/пароль панели.
 

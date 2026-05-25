@@ -1099,7 +1099,7 @@
           </div>
         </div>
         <div class="command-grid">
-          <a href="/panel/support" class="quick-tile">
+          <a href="{{ panel_base }}/support" class="quick-tile">
             <div class="quick-tile-icon" style="background:rgba(14,165,233,.12); color:var(--info)">
               <i class="bi bi-headset"></i>
             </div>
@@ -1111,7 +1111,7 @@
             <span class="badge badge-custom badge-open ms-auto">{{ stats.open_tickets }}</span>
             {% endif %}
           </a>
-          <a href="/panel/broadcasts" class="quick-tile">
+          <a href="{{ panel_base }}/broadcasts" class="quick-tile">
             <div class="quick-tile-icon" style="background:rgba(0,212,170,.12); color:var(--accent)">
               <i class="bi bi-megaphone"></i>
             </div>
@@ -1120,7 +1120,7 @@
               <span>Сообщения</span>
             </div>
           </a>
-          <a href="/panel/promos" class="quick-tile">
+          <a href="{{ panel_base }}/promos" class="quick-tile">
             <div class="quick-tile-icon" style="background:rgba(16,185,129,.12); color:var(--success)">
               <i class="bi bi-ticket-perforated"></i>
             </div>
@@ -1129,7 +1129,7 @@
               <span>Скидки</span>
             </div>
           </a>
-          <a href="/panel/vpn" class="quick-tile">
+          <a href="{{ panel_base }}/vpn" class="quick-tile">
             <div class="quick-tile-icon" style="background:rgba(245,158,11,.12); color:var(--warning)">
               <i class="bi bi-key"></i>
             </div>
@@ -1156,7 +1156,7 @@
               <p class="panel-subtitle">Кого команда увидела в системе последним</p>
             </div>
           </div>
-          <a href="/panel/users" class="btn btn-accent btn-sm px-3">Все</a>
+          <a href="{{ panel_base }}/users" class="btn btn-accent btn-sm px-3">Все</a>
         </div>
         <div class="feed-list">
           {% for u in recent_users %}
@@ -1194,7 +1194,7 @@
               <p class="panel-subtitle">Свежие события по биллингу и оплатам</p>
             </div>
           </div>
-          <a href="/panel/payments" class="btn btn-accent btn-sm px-3">Все</a>
+          <a href="{{ panel_base }}/payments" class="btn btn-accent btn-sm px-3">Все</a>
         </div>
         <div class="feed-list">
           {% for p in recent_payments %}

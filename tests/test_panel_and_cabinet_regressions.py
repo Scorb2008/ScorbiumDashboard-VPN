@@ -17,6 +17,7 @@ from app.api.panel.routes import support as support_routes
 from app.api.panel.routes import users as users_routes
 from app.bot.handlers import payments as bot_payments
 from app.bot.middlewares import user_notify as user_notify_middleware
+from app.core.config import config
 from app.models.bot_settings import BotSettings
 from app.models.payment import Payment, PaymentProvider, PaymentStatus, PaymentType
 from app.models.referral import Referral
@@ -51,6 +52,10 @@ def _make_request(
         "server": ("testserver", 443),
     }
     return Request(scope)
+
+
+def _panel_path(suffix: str = "") -> str:
+    return config.web.panel_path(suffix)
 
 
 @pytest.fixture
@@ -140,7 +145,7 @@ async def test_payments_page_htmx_returns_rows_and_ignores_invalid_status(
     monkeypatch.setattr(payments_routes, "_base_ctx", fake_base_ctx)
 
     request = _make_request(
-        "/panel/payments",
+        _panel_path("payments"),
         headers=[(b"hx-request", b"true")],
     )
 
@@ -173,7 +178,7 @@ async def test_payments_stats_json_returns_daily_buckets_without_grouping_errors
     )
 
     response = await payments_routes.payments_stats_json(
-        request=_make_request("/panel/payments/stats/json"),
+        request=_make_request(_panel_path("payments/stats/json")),
         days=30,
         db=session,
     )
@@ -197,7 +202,7 @@ async def test_payments_stats_json_returns_zero_filled_daily_series_without_sale
     )
 
     response = await payments_routes.payments_stats_json(
-        request=_make_request("/panel/payments/stats/json"),
+        request=_make_request(_panel_path("payments/stats/json")),
         days=30,
         db=session,
     )
@@ -235,7 +240,7 @@ async def test_support_reply_deduplicates_double_submit(
     )
     monkeypatch.setattr(support_routes, "TelegramNotifyService", lambda: FakeNotify())
 
-    request = _make_request(f"/panel/support/{ticket.id}/reply")
+    request = _make_request(_panel_path(f"support/{ticket.id}/reply"))
 
     first = await support_routes.reply_ticket(
         ticket_id=ticket.id,
@@ -380,7 +385,7 @@ async def test_subscriptions_page_includes_expired_and_revoked_keys(
     )
 
     response = await subscriptions_routes.subscriptions_page(
-        request=_make_request("/panel/subscriptions"),
+        request=_make_request(_panel_path("subscriptions")),
         db=session,
     )
 
@@ -436,7 +441,7 @@ async def test_user_detail_page_shows_language_and_registration_date(
     response = await users_routes.user_detail_page(
         user_id=sample_user.id,
         request=_make_request(
-            f"/panel/users/{sample_user.id}",
+            _panel_path(f"users/{sample_user.id}"),
             headers=[(b"cookie", b"panel_timezone=Asia/Tehran")],
         ),
         db=session,
@@ -559,7 +564,7 @@ async def test_cancel_subscription_notifies_user(session, sample_vpn_key, monkey
 
     response = await subscriptions_routes.cancel_subscription(
         key_id=sample_vpn_key.id,
-        request=_make_request(f"/panel/subscriptions/{sample_vpn_key.id}/cancel"),
+        request=_make_request(_panel_path(f"subscriptions/{sample_vpn_key.id}/cancel")),
         db=session,
     )
 

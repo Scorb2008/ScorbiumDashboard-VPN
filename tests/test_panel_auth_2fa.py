@@ -10,6 +10,7 @@ from app.api.panel.routes.auth import (
     login_submit,
 )
 from app.api.panel.routes.shared import SESSION_COOKIE, _get_admin_info
+from app.core.config import config
 from app.models.admin import Admin, AdminRole
 from app.models.token_blacklist import BlacklistedToken
 from app.services.admin_auth import authenticate_admin_credentials
@@ -21,13 +22,14 @@ def _make_request(*, cookies: dict[str, str] | None = None) -> Request:
     if cookies:
         cookie_header = "; ".join(f"{key}={value}" for key, value in cookies.items())
         headers.append((b"cookie", cookie_header.encode()))
+    panel_login_path = config.web.panel_login_path
     scope = {
         "type": "http",
         "http_version": "1.1",
         "method": "POST",
         "scheme": "http",
-        "path": "/panel/login",
-        "raw_path": b"/panel/login",
+        "path": panel_login_path,
+        "raw_path": panel_login_path.encode("utf-8"),
         "query_string": b"",
         "headers": headers,
         "client": ("127.0.0.1", 12345),

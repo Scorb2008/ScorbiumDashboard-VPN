@@ -70,7 +70,7 @@ docker compose -f docker-compose.prod.yml ps
 docker compose -f docker-compose.prod.yml logs app --tail=50
 
 # Проверить HTTPS
-curl -I https://your-domain.com/panel/
+curl -I https://your-domain.com/<admin-path>/
 ```
 
 ## Ручная установка (без setup.sh)

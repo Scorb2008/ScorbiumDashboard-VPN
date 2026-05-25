@@ -27,7 +27,7 @@
         <h5 class="modal-title" style="color:var(--text)">Новый администратор</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <form hx-post="/panel/admins" hx-target="#admins-table" hx-swap="innerHTML"
+      <form hx-post="{{ panel_base }}/admins" hx-target="#admins-table" hx-swap="innerHTML"
             hx-on::after-request="if(event.detail.successful){ bootstrap.Modal.getInstance(document.getElementById('addAdminModal')).hide(); this.reset(); }">
         <div class="modal-body">
           <div class="mb-3">
