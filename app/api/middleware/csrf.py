@@ -3,6 +3,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from app.core.config import config
+
 CSRF_COOKIE = "csrf_token"
 CSRF_HEADER = "X-CSRF-Token"
 CSRF_LENGTH = 48
@@ -10,13 +12,13 @@ CSRF_LENGTH = 48
 _STATE_CHANGING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
 _SAFE_PATHS = {
-    "/panel/login",
-    "/panel/login/",
-    "/panel/login-2fa",
-    "/panel/logout",
-    "/panel/2fa-login",
-    "/panel/ws-token",
-    "/panel/ws-token/",
+    config.web.panel_login_path,
+    f"{config.web.panel_login_path}/",
+    config.web.panel_path("login-2fa"),
+    config.web.panel_path("logout"),
+    config.web.panel_path("2fa-login"),
+    config.web.panel_path("ws-token"),
+    f"{config.web.panel_path('ws-token')}/",
     "/cabinet/auth",
     "/cabinet/auth/",
     "/health",

@@ -178,6 +178,15 @@ prepare_generated_nginx_conf() {
     : > "${NGINX_GENERATED_CONF}"
 }
 
+normalize_admin_path() {
+    python3 - "$1" <<'PY'
+import sys
+from app.core.panel_path import normalize_panel_path
+
+print(normalize_panel_path(sys.argv[1]))
+PY
+}
+
 sql_quote_literal() {
     python3 - "$1" <<'PY'
 import sys
@@ -428,7 +437,7 @@ run_smoke_checks() {
     docker compose -f "${COMPOSE_FILE}" exec -T nginx nginx -t
     run_app_http_check "/health" "200"
     run_app_http_check "/api/v1/health/" "200"
-    run_app_http_check "/panel/" "200,302,303,307"
+    run_app_http_check "${SET_PATH_ADMIN}" "200,302,303,307"
     run_app_http_check "/cabinet/" "200,302,303,307"
     success "Smoke-check пройден"
 }
@@ -449,6 +458,9 @@ validate_required_env
 DOMAIN="$(read_env_trimmed "DOMAIN")"
 HTTPS_PORT="$(read_env_trimmed "HTTPS_PORT")"
 HTTPS_PORT=${HTTPS_PORT:-443}
+SET_PATH_ADMIN_RAW="$(read_env_trimmed "SET_PATH_ADMIN")"
+SET_PATH_ADMIN_RAW=${SET_PATH_ADMIN_RAW:-/panel/}
+SET_PATH_ADMIN="$(normalize_admin_path "${SET_PATH_ADMIN_RAW}")"
 
 [[ -z "$DOMAIN" || "$DOMAIN" == "localhost" ]] && error "DOMAIN не задан в .env (нужен продакшен-домен)"
 
@@ -470,6 +482,7 @@ ensure_env_var "DB_ENGINE" "postgresql"
 ensure_env_var "VPN_PANEL_TYPE" "marzban"
 ensure_env_var "APP_VERSION" "1.0.0"
 ensure_env_var "LE_EMAIL" ""
+ensure_env_var "SET_PATH_ADMIN" "${SET_PATH_ADMIN}"
 if ! grep -q "^ENCRYPTION_KEY=" .env || [[ -z "$(grep "^ENCRYPTION_KEY=" .env | cut -d= -f2- | xargs)" ]]; then
     warn "ENCRYPTION_KEY не найден в .env — генерирую..."
     NEW_KEY=$(python3 -c "from app.services.encryption import generate_key; print(generate_key())" 2>/dev/null \
@@ -483,7 +496,7 @@ fi
 PASARGUARD_ADMIN_PANEL="$(read_env_trimmed "PASARGUARD_ADMIN_PANEL")"
 validate_pasarguard_url "${PASARGUARD_ADMIN_PANEL}"
 
-info "Домен: ${DOMAIN}, HTTPS порт: ${HTTPS_PORT}"
+info "Домен: ${DOMAIN}, HTTPS порт: ${HTTPS_PORT}, админ путь: ${SET_PATH_ADMIN}"
 
 # ── [1/4] GitHub update ───────────────────────────────────────────────────────
 info "[1/4] Проверка обновлений кода..."
@@ -604,7 +617,10 @@ http {
         proxy_next_upstream   error timeout http_502 http_503;
         proxy_next_upstream_tries 2;
 
-        location /panel/ {
+        location = ${SET_PATH_ADMIN%/} {
+            return 301 ${SET_PATH_ADMIN};
+        }
+        location ${SET_PATH_ADMIN} {
             limit_req zone=panel burst=20 nodelay;
             proxy_pass http://vpn_app;
             proxy_set_header Host              \$host;
@@ -678,7 +694,6 @@ http {
             proxy_read_timeout 86400s;
             proxy_send_timeout 86400s;
         }
-        location = / { return 301 /panel/; }
         location / {
             proxy_pass http://vpn_app;
             proxy_set_header Host              \$host;
@@ -743,9 +758,9 @@ echo -e "${GREEN}║  ✅  Обновление завершено              
 echo -e "${GREEN}╚══════════════════════════════════════════════════╝${RESET}"
 echo ""
 if [[ "$HTTPS_PORT" == "443" ]]; then
-    echo -e "  🌐 Панель: ${CYAN}https://${DOMAIN}/panel/${RESET}"
+    echo -e "  🌐 Панель: ${CYAN}https://${DOMAIN}${SET_PATH_ADMIN}${RESET}"
 else
-    echo -e "  🌐 Панель: ${CYAN}https://${DOMAIN}:${HTTPS_PORT}/panel/${RESET}"
+    echo -e "  🌐 Панель: ${CYAN}https://${DOMAIN}:${HTTPS_PORT}${SET_PATH_ADMIN}${RESET}"
 fi
 echo -e "  Логи:  docker compose -f docker-compose.prod.yml logs -f app"
 echo ""

@@ -682,7 +682,7 @@
         </div>
         {% endif %}
 
-        <form method="post" action="/panel/login" id="login-form">
+        <form method="post" action="{{ panel_base }}/login" id="login-form">
           <div class="mb-3">
             <label class="form-label">Логин</label>
             <div class="input-group">
@@ -733,7 +733,7 @@
         </div>
         {% endif %}
 
-        <form method="post" action="/panel/2fa-login" id="login-2fa-form">
+        <form method="post" action="{{ panel_base }}/2fa-login" id="login-2fa-form">
           <div class="mb-4">
             <label class="form-label">Код 2FA или резервный код</label>
             <div class="input-group">

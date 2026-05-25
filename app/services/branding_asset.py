@@ -5,12 +5,13 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import config
 from app.models.bot_settings import BotSettings
 from app.models.branding_asset import BrandingAsset
 
 
 LOGO_ASSET_KEY = "custom_logo"
-LOGO_ROUTE_PATH = "/panel/logo/current"
+LOGO_ROUTE_PATH = config.web.panel_path("logo/current")
 
 
 class BrandingAssetService:

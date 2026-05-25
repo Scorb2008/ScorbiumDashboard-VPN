@@ -406,10 +406,10 @@
               <p style="font-size:.7rem;color:var(--text-muted);margin-bottom:.75rem">Кнопка «Админ панель» в меню бота (только для админов)</p>
               <form hx-post="/panel/telegram/bot-settings" hx-swap="none" hx-on::after-request="showToast('Сохранено', 'success')">
                 <input type="text" name="admin_panel_url" class="form-control" style="font-size:.8rem"
-                  placeholder="https://example.com:8443/panel/"
+                  placeholder="https://example.com:8443{{ panel_root }}"
                   value="{{ bot_settings.get('admin_panel_url', '') }}" />
                 <div style="font-size:.65rem;color:var(--text-muted);margin-top:.2rem">
-                  Пусто = авто: <code>{{ config.web.site_url ~ '/panel/' if config.web.site_url else 'SITE_URL + /panel/' }}</code>
+                  Пусто = авто: <code>{{ config.web.absolute_panel_url() if config.web.site_url else 'SITE_URL + ' ~ panel_root }}</code>
                 </div>
                 <button type="submit" class="btn btn-accent btn-sm mt-2"><i class="bi bi-floppy me-1"></i>Сохранить</button>
               </form>

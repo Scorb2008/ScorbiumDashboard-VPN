@@ -6,6 +6,7 @@ import re
 
 from app.utils.path import env_file
 from app.core.exceptions import WebException
+from app.core.panel_path import normalize_panel_path, panel_path, panel_prefix
 from app.utils.log import log
 
 
@@ -63,6 +64,11 @@ class _WebConfig(BaseSettings):
         ge=1,
         le=65535,
     )
+    set_path_admin: str = Field(
+        default="/panel/",
+        description="Admin panel path, e.g. /x7k/panel/",
+        validation_alias="SET_PATH_ADMIN",
+    )
 
     @field_validator("allowed_origins")
     @classmethod
@@ -95,6 +101,14 @@ class _WebConfig(BaseSettings):
             )
         return value
 
+    @field_validator("set_path_admin")
+    @classmethod
+    def validate_set_path_admin(cls, value: str) -> str:
+        try:
+            return normalize_panel_path(value)
+        except ValueError as exc:
+            raise WebException(str(exc)) from exc
+
     @field_validator("web_superadmin_password")
     @classmethod
     def validate_superadmin_password(cls, value: SecretStr) -> SecretStr:
@@ -117,6 +131,27 @@ class _WebConfig(BaseSettings):
             object.__setattr__(self, "site_url", derived)
             log.info(f"Auto-derived SITE_URL from DOMAIN+HTTPS_PORT: {derived}")
         return self
+
+    @property
+    def panel_root(self) -> str:
+        return self.set_path_admin
+
+    @property
+    def panel_prefix(self) -> str:
+        return panel_prefix(self.panel_root)
+
+    @property
+    def panel_login_path(self) -> str:
+        return self.panel_path("login")
+
+    def panel_path(self, suffix: str = "") -> str:
+        return panel_path(self.panel_root, suffix)
+
+    def absolute_panel_url(self) -> str:
+        site_url = (self.site_url or "").strip().rstrip("/")
+        if not site_url:
+            return ""
+        return f"{site_url}{self.panel_prefix}"
 
 
 @lru_cache()

@@ -49,7 +49,7 @@ try {
           <a href="/cabinet/support" class="nav-lnk {% if cp.startswith('/cabinet/support') %}on{% endif %}"><i class="bi bi-chat-left-dots"></i><span>Поддержка</span></a>
           <a href="/cabinet/profile" class="nav-lnk {% if cp.startswith('/cabinet/profile') %}on{% endif %}"><i class="bi bi-person-circle"></i><span>Профиль</span></a>
           {% if user is defined and is_admin_user(user) %}
-          <a href="/panel/" class="nav-lnk admin"><i class="bi bi-shield-lock"></i><span>Админ</span></a>
+          <a href="{{ panel_root }}" class="nav-lnk admin"><i class="bi bi-shield-lock"></i><span>Админ</span></a>
           {% endif %}
         </nav>
 

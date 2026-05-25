@@ -26,12 +26,6 @@ _CACHE_TTL = 300
 _cache: Optional[dict] = None
 _cache_ts: float = 0
 _cache_lock = asyncio.Lock()
-_DEPLOYMENT_URL_PATHS = {
-    "panel_url": "/panel/",
-    "admin_panel_url": "/panel/",
-    "cabinet_url": "/cabinet/",
-}
-
 DEFAULTS = {
     "welcome_message": "👋 Привет, {name}!\n\nЭто VPN-бот. Выбери действие:",
     "btn_my_keys": "🔑 Мои ключи",
@@ -255,6 +249,15 @@ def canonical_site_url(path: str) -> str:
     return f"{site_url}{normalized_path}"
 
 
+def _deployment_url_paths() -> dict[str, str]:
+    panel_root = getattr(config.web, "panel_root", "/panel/")
+    return {
+        "panel_url": panel_root,
+        "admin_panel_url": panel_root,
+        "cabinet_url": "/cabinet/",
+    }
+
+
 async def sync_deployment_url_settings(
     session: AsyncSession,
     *,
@@ -268,7 +271,7 @@ async def sync_deployment_url_settings(
     svc = BotSettingsService(session)
     applied: dict[str, str] = {}
 
-    for key, path in _DEPLOYMENT_URL_PATHS.items():
+    for key, path in _deployment_url_paths().items():
         target = canonical_site_url(path)
         if not target:
             continue

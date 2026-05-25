@@ -26,6 +26,11 @@ from app.core.permissions import PERMISSIONS, has_permission
 
 _tpl_path = Path(__file__).resolve().parent.parent.parent.parent / "templates"
 templates = Jinja2Templates(directory=str(_tpl_path))
+templates.env.globals["panel_base"] = config.web.panel_prefix
+templates.env.globals["panel_root"] = config.web.panel_root
+templates.env.globals["panel_url"] = lambda suffix="": config.web.panel_path(suffix)
+templates.env.globals["absolute_panel_url"] = config.web.absolute_panel_url
+templates.env.globals["legacy_panel_base"] = "/panel"
 
 DEFAULT_PANEL_TIMEZONE = "Europe/Moscow"
 PANEL_TIMEZONES = {
@@ -253,9 +258,9 @@ def _require_auth(request: Request) -> dict:
 
             raise HTTPException(
                 status_code=200,
-                headers={"HX-Redirect": "/panel/login"},
+                headers={"HX-Redirect": config.web.panel_login_path},
             )
-        raise _redirect("/panel/login")
+        raise _redirect(config.web.panel_login_path)
     return info
 
 

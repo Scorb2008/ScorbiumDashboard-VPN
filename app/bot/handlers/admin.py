@@ -73,7 +73,7 @@ async def _resolve_admin_panel_url(session) -> str:
         return url.rstrip("/")
     site_url = (config.web.site_url or "").strip()
     if site_url:
-        return site_url.rstrip("/") + "/panel"
+        return site_url.rstrip("/") + config.web.panel_prefix
     return ""
 
 
