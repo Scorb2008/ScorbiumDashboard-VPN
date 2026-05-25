@@ -134,7 +134,7 @@ def _resolve_layout_urls(layout: list, settings: dict, is_admin: bool) -> list:
             elif bid == "admin_panel":
                 if not is_admin:
                     continue
-                url = _resolve_url(settings, "admin_panel_url", "/panel/")
+                url = _resolve_url(settings, "admin_panel_url", config.web.panel_root)
                 if not url:
                     continue
                 new_row.append({**b, "url": url, "web_app": "", "callback": ""})

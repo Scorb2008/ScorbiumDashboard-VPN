@@ -44,6 +44,9 @@ templates = Jinja2Templates(directory=str(_tpl_path))
 templates.env.globals["is_admin_user"] = lambda u: bool(
     u and u.id in config.telegram.telegram_admin_ids
 )
+templates.env.globals["panel_base"] = config.web.panel_prefix
+templates.env.globals["panel_root"] = config.web.panel_root
+templates.env.globals["panel_url"] = lambda suffix="": config.web.panel_path(suffix)
 _MONEY_STEP = Decimal("0.01")
 _HOST_RE = re.compile(
     r"^(?:"

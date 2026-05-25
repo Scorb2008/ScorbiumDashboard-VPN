@@ -160,7 +160,7 @@ async def login_submit(
         return resp
 
     token = create_access_token(subject=admin.username, role=admin.role)
-    resp = RedirectResponse(url="/panel/", status_code=302)
+    resp = RedirectResponse(url=config.web.panel_root, status_code=302)
     _set_cookie(resp, request, SESSION_COOKIE, token, max_age=86400)
     _clear_cookie(resp, request, PREAUTH_COOKIE)
     return resp
@@ -183,7 +183,7 @@ async def _blacklist_cookie_token(db: AsyncSession, token: str | None) -> None:
 async def logout(request: Request, db: AsyncSession = Depends(get_db)):
     await _blacklist_cookie_token(db, request.cookies.get(SESSION_COOKIE))
     await _blacklist_cookie_token(db, request.cookies.get(PREAUTH_COOKIE))
-    resp = RedirectResponse(url="/panel/login", status_code=302)
+    resp = RedirectResponse(url=config.web.panel_login_path, status_code=302)
     _clear_cookie(resp, request, SESSION_COOKIE)
     _clear_cookie(resp, request, PREAUTH_COOKIE)
     return resp
@@ -241,7 +241,7 @@ async def twofa_login_submit(
         )
 
     token = create_access_token(subject=admin.username, role=admin.role)
-    resp = RedirectResponse(url="/panel/", status_code=302)
+    resp = RedirectResponse(url=config.web.panel_root, status_code=302)
     _set_cookie(resp, request, SESSION_COOKIE, token, max_age=86400)
     _clear_cookie(resp, request, PREAUTH_COOKIE)
     return resp

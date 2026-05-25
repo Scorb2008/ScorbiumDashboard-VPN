@@ -121,12 +121,12 @@
     {% if error %}
     <div class="error-msg text-center mb-3"><i class="bi bi-x-circle me-1"></i>{{ error }}</div>
     {% endif %}
-    <form method="POST" action="/panel/2fa-login">
+    <form method="POST" action="{{ panel_base }}/2fa-login">
       <input type="text" name="code" class="form-control code-input mb-3" maxlength="6" placeholder="000000" inputmode="numeric" pattern="[0-9]*" autofocus required />
       <button type="submit" class="btn btn-2fa w-100"><i class="bi bi-unlock me-1"></i>Войти</button>
     </form>
     <div class="text-center mt-3">
-      <a href="/panel/logout" class="text-decoration-none" style="color:#6b7280;font-size:.8rem">← Вернуться к входу</a>
+      <a href="{{ panel_base }}/logout" class="text-decoration-none" style="color:#6b7280;font-size:.8rem">← Вернуться к входу</a>
     </div>
   </div>
   <script>

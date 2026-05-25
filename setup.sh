@@ -75,6 +75,8 @@ run_prod_migrations() {
 }
 
 NGINX_GENERATED_CONF="nginx/nginx.generated.conf"
+NGINX_LOCAL_TEMPLATE="nginx/nginx.local.template.conf"
+NGINX_LOCAL_CONF="nginx/nginx.local.conf"
 
 prepare_generated_nginx_conf() {
     mkdir -p "$(dirname "$NGINX_GENERATED_CONF")"
@@ -83,6 +85,34 @@ prepare_generated_nginx_conf() {
         rm -rf "$NGINX_GENERATED_CONF"
     fi
     : > "$NGINX_GENERATED_CONF"
+}
+
+generate_admin_path() {
+    python3 - <<'PY'
+from app.core.panel_path import generate_panel_path
+print(generate_panel_path())
+PY
+}
+
+normalize_admin_path() {
+    python3 - "$1" <<'PY'
+import sys
+from app.core.panel_path import normalize_panel_path
+
+print(normalize_panel_path(sys.argv[1]))
+PY
+}
+
+generate_local_nginx_conf() {
+    local admin_root="$1"
+    local admin_prefix="${admin_root%/}"
+
+    [[ -f "${NGINX_LOCAL_TEMPLATE}" ]] || error "Не найден ${NGINX_LOCAL_TEMPLATE}"
+
+    sed \
+        -e "s|ADMIN_PATH_ROOT_PLACEHOLDER|${admin_root}|g" \
+        -e "s|ADMIN_PATH_PREFIX_PLACEHOLDER|${admin_prefix}|g" \
+        "${NGINX_LOCAL_TEMPLATE}" > "${NGINX_LOCAL_CONF}"
 }
 
 echo -e "${BOLD}${CYAN}"
@@ -335,18 +365,32 @@ if [[ "$MODE" == "1" ]]; then
         WEBHOOK_URL="https://${DOMAIN}:${HTTPS_PORT}/webhook/bot"
     fi
     ALLOWED_ORIGINS='["https://'"${DOMAIN}"'"]'
-    if [[ "$HTTPS_PORT" == "443" ]]; then
-        PANEL_URL="https://${DOMAIN}/panel/"
-    else
-        PANEL_URL="https://${DOMAIN}:${HTTPS_PORT}/panel/"
-    fi
 else
     DOMAIN="localhost"
     HTTPS_PORT=443
     TG_PROTOCOL=long
     WEBHOOK_URL="https://localhost/webhook/bot"
     ALLOWED_ORIGINS='["http://localhost:8000"]'
-    PANEL_URL="http://localhost/panel/"
+fi
+
+echo ""
+echo -e "${BOLD}── Админ-путь ──────────────────────────────────────${RESET}"
+DEFAULT_SET_PATH_ADMIN="$(generate_admin_path)"
+read -rp "SET_PATH_ADMIN [${DEFAULT_SET_PATH_ADMIN}]: " SET_PATH_ADMIN
+SET_PATH_ADMIN=${SET_PATH_ADMIN:-$DEFAULT_SET_PATH_ADMIN}
+if ! SET_PATH_ADMIN="$(normalize_admin_path "${SET_PATH_ADMIN}")"; then
+    error "Некорректный SET_PATH_ADMIN. Используйте путь вида /x7k/panel/"
+fi
+success "Админка будет доступна по ${SET_PATH_ADMIN}"
+
+if [[ "$MODE" == "1" ]]; then
+    if [[ "$HTTPS_PORT" == "443" ]]; then
+        PANEL_URL="https://${DOMAIN}${SET_PATH_ADMIN}"
+    else
+        PANEL_URL="https://${DOMAIN}:${HTTPS_PORT}${SET_PATH_ADMIN}"
+    fi
+else
+    PANEL_URL="http://localhost${SET_PATH_ADMIN}"
 fi
 
 # ── Read version ──────────────────────────────────────────────────────────────
@@ -416,6 +460,7 @@ CRYPTOBOT_TOKEN=
 # ── Domain / SSL ──────────────────────────────────────────────────────────────
 HTTPS_PORT=${HTTPS_PORT}
 DOMAIN=${DOMAIN}
+SET_PATH_ADMIN=${SET_PATH_ADMIN}
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 LOG_PATH=logs
@@ -435,6 +480,10 @@ success ".env создан (chmod 600)"
 
 # ── Создание директорий ───────────────────────────────────────────────────────
 mkdir -p logs nginx/ssl certbot_www
+
+info "Генерирую локальный nginx конфиг..."
+generate_local_nginx_conf "${SET_PATH_ADMIN}"
+success "Локальный nginx конфиг обновлён → ${NGINX_LOCAL_CONF}"
 
 # ── Генерация nginx.conf (продакшен) ──────────────────────────────────────────
 if [[ "$MODE" == "1" ]]; then
@@ -504,10 +553,10 @@ http {
         proxy_next_upstream   error timeout http_502 http_503;
         proxy_next_upstream_tries 2;
 
-        location = /panel {
-            return 301 /panel/;
+        location = ${SET_PATH_ADMIN%/} {
+            return 301 ${SET_PATH_ADMIN};
         }
-        location /panel/ {
+        location ${SET_PATH_ADMIN} {
             limit_req zone=panel burst=20 nodelay;
             proxy_pass http://vpn_app;
             proxy_set_header Host              \$host;
@@ -561,7 +610,6 @@ http {
             proxy_read_timeout 86400s;
             proxy_send_timeout 86400s;
         }
-        location = / { return 301 /panel/; }
         location / {
             proxy_pass http://vpn_app;
             proxy_set_header Host              \$host;

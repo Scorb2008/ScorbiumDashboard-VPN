@@ -4,6 +4,7 @@
 
 ## Какие файлы используются
 
+- `nginx/nginx.local.template.conf` — шаблон dev-конфига
 - `nginx/nginx.local.conf` — dev-конфиг для локального `docker compose`
 - `nginx/nginx.generated.conf` — prod-конфиг, который генерируют скрипты
 - `nginx/nginx.conf` — больше не используется в деплое и может оставаться только как справочный пример
@@ -17,7 +18,7 @@
 
 ## Какой роутинг ожидается
 
-- `/panel/` → админ-панель
+- `SET_PATH_ADMIN` из `.env` → админ-панель
 - `/api/` → REST API
 - `/cabinet/` → пользовательский кабинет
 - `/webhook/bot` → Telegram webhook
@@ -31,9 +32,12 @@
 ./nginx/nginx.local.conf:/etc/nginx/nginx.conf
 ```
 
+Путь админки берётся из `.env` (`SET_PATH_ADMIN`) или генерируется `setup.sh`.
+
 Обычно панель доступна на:
 
-- [http://localhost/panel/](http://localhost/panel/)
+- `http://localhost${SET_PATH_ADMIN}`
+  например `http://localhost/x7k/panel/`
 
 ## Продакшен
 
@@ -44,6 +48,7 @@
 ```
 
 HTTPS-порт берется из `.env` через `HTTPS_PORT`, по умолчанию `443`.
+Путь админки берется из `.env` через `SET_PATH_ADMIN`.
 
 ## Опциональный Redis
 
@@ -73,5 +78,5 @@ REDIS_URL=redis://redis:6379/0
 ## Что не забыть
 
 - не редактировать `nginx.generated.conf` вручную перед обычным деплоем
-- после смены домена обновить `.env`
+- после смены домена или `SET_PATH_ADMIN` обновить `.env`
 - использовать `setup.sh` для первичной настройки и `update.sh` для обновлений

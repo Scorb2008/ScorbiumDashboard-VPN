@@ -488,58 +488,58 @@
   </div>
   <nav class="sidebar-nav">
     <div class="nav-section">Обзор</div>
-    <div class="nav-item"><a href="/panel/" class="{% if active == 'dashboard' %}active{% endif %}"><i class="bi bi-grid-1x2-fill"></i> Дашборд</a></div>
+    <div class="nav-item"><a href="{{ panel_root }}" class="{% if active == 'dashboard' %}active{% endif %}"><i class="bi bi-grid-1x2-fill"></i> Дашборд</a></div>
 
     <div class="nav-section">Управление</div>
     {% if has_perm(admin_role, 'users.read') %}
-    <div class="nav-item"><a href="/panel/users" class="{% if active == 'users' %}active{% endif %}"><i class="bi bi-people-fill"></i> Пользователи</a></div>
+    <div class="nav-item"><a href="{{ panel_base }}/users" class="{% if active == 'users' %}active{% endif %}"><i class="bi bi-people-fill"></i> Пользователи</a></div>
     {% endif %}
     {% if has_perm(admin_role, 'plans') %}
-    <div class="nav-item"><a href="/panel/plans" class="{% if active == 'plans' %}active{% endif %}"><i class="bi bi-tags-fill"></i> Тарифы</a></div>
+    <div class="nav-item"><a href="{{ panel_base }}/plans" class="{% if active == 'plans' %}active{% endif %}"><i class="bi bi-tags-fill"></i> Тарифы</a></div>
     {% endif %}
     {% if has_perm(admin_role, 'subscriptions.read') %}
-    <div class="nav-item"><a href="/panel/subscriptions" class="{% if active == 'subscriptions' %}active{% endif %}"><i class="bi bi-calendar-check-fill"></i> Подписки</a></div>
+    <div class="nav-item"><a href="{{ panel_base }}/subscriptions" class="{% if active == 'subscriptions' %}active{% endif %}"><i class="bi bi-calendar-check-fill"></i> Подписки</a></div>
     {% endif %}
     {% if has_perm(admin_role, 'payments') %}
-    <div class="nav-item"><a href="/panel/payments" class="{% if active == 'payments' %}active{% endif %}"><i class="bi bi-credit-card-fill"></i> Платежи{% if pending_payments %}<span class="nav-badge nav-badge-warn">{{ pending_payments }}</span>{% endif %}</a></div>
-    <div class="nav-item"><a href="/panel/payments/stats" class="{% if active == 'payments_stats' %}active{% endif %}"><i class="bi bi-bar-chart-fill"></i> Аналитика</a></div>
+    <div class="nav-item"><a href="{{ panel_base }}/payments" class="{% if active == 'payments' %}active{% endif %}"><i class="bi bi-credit-card-fill"></i> Платежи{% if pending_payments %}<span class="nav-badge nav-badge-warn">{{ pending_payments }}</span>{% endif %}</a></div>
+    <div class="nav-item"><a href="{{ panel_base }}/payments/stats" class="{% if active == 'payments_stats' %}active{% endif %}"><i class="bi bi-bar-chart-fill"></i> Аналитика</a></div>
     {% endif %}
 
     <div class="nav-section">Сервис</div>
     {% if has_perm(admin_role, 'support') %}
-    <div class="nav-item"><a href="/panel/support" class="{% if active == 'support' %}active{% endif %}"><i class="bi bi-headset"></i> Поддержка{% if open_tickets %}<span class="nav-badge">{{ open_tickets }}</span>{% endif %}</a></div>
+    <div class="nav-item"><a href="{{ panel_base }}/support" class="{% if active == 'support' %}active{% endif %}"><i class="bi bi-headset"></i> Поддержка{% if open_tickets %}<span class="nav-badge">{{ open_tickets }}</span>{% endif %}</a></div>
     {% endif %}
     {% if has_perm(admin_role, 'broadcasts') %}
-    <div class="nav-item"><a href="/panel/broadcasts" class="{% if active == 'broadcasts' %}active{% endif %}"><i class="bi bi-megaphone-fill"></i> Рассылки</a></div>
+    <div class="nav-item"><a href="{{ panel_base }}/broadcasts" class="{% if active == 'broadcasts' %}active{% endif %}"><i class="bi bi-megaphone-fill"></i> Рассылки</a></div>
     {% endif %}
     {% if has_perm(admin_role, 'promos') %}
-    <div class="nav-item"><a href="/panel/promos" class="{% if active == 'promos' %}active{% endif %}"><i class="bi bi-ticket-perforated-fill"></i> Промокоды</a></div>
+    <div class="nav-item"><a href="{{ panel_base }}/promos" class="{% if active == 'promos' %}active{% endif %}"><i class="bi bi-ticket-perforated-fill"></i> Промокоды</a></div>
     {% endif %}
     {% if has_perm(admin_role, 'referrals') %}
-    <div class="nav-item"><a href="/panel/referrals" class="{% if active == 'referrals' %}active{% endif %}"><i class="bi bi-diagram-3-fill"></i> Рефералы</a></div>
+    <div class="nav-item"><a href="{{ panel_base }}/referrals" class="{% if active == 'referrals' %}active{% endif %}"><i class="bi bi-diagram-3-fill"></i> Рефералы</a></div>
     {% endif %}
 
     <div class="nav-section">Система</div>
     {% if has_perm(admin_role, 'vpn.read') %}
-    <div class="nav-item"><a href="/panel/nodes" class="{% if active == 'nodes' %}active{% endif %}"><i class="bi bi-server"></i> Серверы</a></div>
+    <div class="nav-item"><a href="{{ panel_base }}/nodes" class="{% if active == 'nodes' %}active{% endif %}"><i class="bi bi-server"></i> Серверы</a></div>
     {% endif %}
     {% if has_perm(admin_role, 'system') %}
-    <div class="nav-item"><a href="/panel/telegram" class="{% if active == 'telegram' %}active{% endif %}"><i class="bi bi-telegram"></i> Telegram</a></div>
+    <div class="nav-item"><a href="{{ panel_base }}/telegram" class="{% if active == 'telegram' %}active{% endif %}"><i class="bi bi-telegram"></i> Telegram</a></div>
     {% if vpn_panel_type == 'remnawave' %}
-    <div class="nav-item"><a href="/panel/remnawave" class="{% if active == 'remnawave' %}active{% endif %}"><i class="bi bi-shield-lock-fill"></i> Remnawave</a></div>
+    <div class="nav-item"><a href="{{ panel_base }}/remnawave" class="{% if active == 'remnawave' %}active{% endif %}"><i class="bi bi-shield-lock-fill"></i> Remnawave</a></div>
     {% else %}
-    <div class="nav-item"><a href="/panel/pasarguard" class="{% if active == 'pasarguard' %}active{% endif %}"><i class="bi bi-hdd-network-fill"></i> PasarGuard</a></div>
+    <div class="nav-item"><a href="{{ panel_base }}/pasarguard" class="{% if active == 'pasarguard' %}active{% endif %}"><i class="bi bi-hdd-network-fill"></i> PasarGuard</a></div>
     {% endif %}
-    <div class="nav-item"><a href="/panel/backup" class="{% if active == 'backup' %}active{% endif %}"><i class="bi bi-database-fill-gear"></i> База данных</a></div>
+    <div class="nav-item"><a href="{{ panel_base }}/backup" class="{% if active == 'backup' %}active{% endif %}"><i class="bi bi-database-fill-gear"></i> База данных</a></div>
     {% endif %}
     {% if admin_role == 'superadmin' %}
-    <div class="nav-item"><a href="/panel/admins" class="{% if active == 'admins' %}active{% endif %}"><i class="bi bi-shield-lock"></i> Администраторы</a></div>
+    <div class="nav-item"><a href="{{ panel_base }}/admins" class="{% if active == 'admins' %}active{% endif %}"><i class="bi bi-shield-lock"></i> Администраторы</a></div>
     {% endif %}
     {% if has_perm(admin_role, 'system') %}
-    <div class="nav-item"><a href="/panel/audit" class="{% if active == 'audit' %}active{% endif %}"><i class="bi bi-journal-text"></i> Аудит</a></div>
-    <div class="nav-item"><a href="/panel/2fa" class="{% if active == '2fa' %}active{% endif %}"><i class="bi bi-shield-lock-fill"></i> 2FA</a></div>
-    <div class="nav-item"><a href="/panel/monitoring" class="{% if active == 'monitoring' %}active{% endif %}"><i class="bi bi-activity"></i> Мониторинг</a></div>
-    <div class="nav-item"><a href="/panel/notifications" class="{% if active == 'notifications' %}active{% endif %}"><i class="bi bi-bell-fill"></i> Уведомления{% if open_alerts %}<span class="nav-badge nav-badge-warn">{{ open_alerts }}</span>{% endif %}</a></div>
+    <div class="nav-item"><a href="{{ panel_base }}/audit" class="{% if active == 'audit' %}active{% endif %}"><i class="bi bi-journal-text"></i> Аудит</a></div>
+    <div class="nav-item"><a href="{{ panel_base }}/2fa" class="{% if active == '2fa' %}active{% endif %}"><i class="bi bi-shield-lock-fill"></i> 2FA</a></div>
+    <div class="nav-item"><a href="{{ panel_base }}/monitoring" class="{% if active == 'monitoring' %}active{% endif %}"><i class="bi bi-activity"></i> Мониторинг</a></div>
+    <div class="nav-item"><a href="{{ panel_base }}/notifications" class="{% if active == 'notifications' %}active{% endif %}"><i class="bi bi-bell-fill"></i> Уведомления{% if open_alerts %}<span class="nav-badge nav-badge-warn">{{ open_alerts }}</span>{% endif %}</a></div>
     {% endif %}
     <div class="nav-item"><a href="/docs" target="_blank"><i class="bi bi-code-slash"></i> API Docs</a></div>
   </nav>
@@ -547,7 +547,7 @@
     <div class="d-flex align-items-center justify-content-between mb-3">
       <button class="theme-toggle" onclick="toggleTheme()" title="Сменить тему"><i class="bi bi-moon-stars-fill" id="themeIcon"></i></button>
       <span style="font-size:.65rem;color:var(--text-muted)">v{{ app_version | default('1.0') }}</span>
-      <a href="/panel/logout" title="Выйти"><i class="bi bi-box-arrow-left"></i></a>
+      <a href="{{ panel_base }}/logout" title="Выйти"><i class="bi bi-box-arrow-left"></i></a>
     </div>
   </div>
 </aside>
@@ -578,7 +578,7 @@
         </ul>
       </div>
       {% if open_tickets %}
-      <a href="/panel/support" class="text-decoration-none" style="font-size:.75rem;color:var(--danger)"><i class="bi bi-bell-fill me-1"></i>{{ open_tickets }}</a>
+      <a href="{{ panel_base }}/support" class="text-decoration-none" style="font-size:.75rem;color:var(--danger)"><i class="bi bi-bell-fill me-1"></i>{{ open_tickets }}</a>
       {% endif %}
       <button class="btn btn-sm p-0" style="color:var(--text-muted);background:none;border:none" id="notifBell" onclick="toggleBrowserNotif()" title="Уведомления браузера">
         <i class="bi bi-bell" id="notifBellIcon"></i>
@@ -588,6 +588,118 @@
   <main class="page-content">{% block content %}{% endblock %}</main>
 </div>
 <div id="toast-container"></div>
+<script>
+  window.PANEL_BASE = {{ panel_base|tojson }};
+  window.PANEL_ROOT = {{ panel_root|tojson }};
+  window.LEGACY_PANEL_BASE = {{ legacy_panel_base|tojson }};
+
+  (function() {
+    var trackedAttrs = new Set([
+      'action',
+      'data-hx-delete',
+      'data-hx-get',
+      'data-hx-patch',
+      'data-hx-post',
+      'data-hx-put',
+      'href',
+      'hx-delete',
+      'hx-get',
+      'hx-patch',
+      'hx-post',
+      'hx-put'
+    ]);
+
+    function rewritePanelPath(value) {
+      if (typeof value !== 'string' || window.PANEL_BASE === window.LEGACY_PANEL_BASE) {
+        return value;
+      }
+      if (value === window.LEGACY_PANEL_BASE) {
+        return window.PANEL_BASE;
+      }
+      if (value === window.LEGACY_PANEL_BASE + '/') {
+        return window.PANEL_ROOT;
+      }
+      if (value.indexOf(window.LEGACY_PANEL_BASE + '/') === 0) {
+        return window.PANEL_BASE + value.slice(window.LEGACY_PANEL_BASE.length);
+      }
+      return value;
+    }
+
+    function rewriteAttrOnElement(node, attr) {
+      if (!node || !node.getAttribute || !node.hasAttribute(attr)) {
+        return;
+      }
+      var current = node.getAttribute(attr);
+      var updated = rewritePanelPath(current);
+      if (updated !== current) {
+        node.setAttribute(attr, updated);
+      }
+    }
+
+    function rewritePanelAttrs(root) {
+      if (!root) {
+        return;
+      }
+      trackedAttrs.forEach(function(attr) {
+        rewriteAttrOnElement(root, attr);
+      });
+      if (!root.querySelectorAll) {
+        return;
+      }
+      trackedAttrs.forEach(function(attr) {
+        root.querySelectorAll('[' + attr + ']').forEach(function(node) {
+          rewriteAttrOnElement(node, attr);
+        });
+      });
+    }
+
+    window.panelUrl = function(path) {
+      var value = typeof path === 'string' ? path.trim() : '';
+      if (!value || value === '/') {
+        return window.PANEL_ROOT;
+      }
+      if (value.indexOf(window.PANEL_BASE) === 0) {
+        return value;
+      }
+      if (value.indexOf(window.LEGACY_PANEL_BASE) === 0) {
+        return rewritePanelPath(value);
+      }
+      if (value.charAt(0) === '/') {
+        return window.PANEL_BASE + value;
+      }
+      return window.PANEL_ROOT + value.replace(/^\/+/, '');
+    };
+    window.rewritePanelAttrs = rewritePanelAttrs;
+
+    var originalSetAttribute = Element.prototype.setAttribute;
+    Element.prototype.setAttribute = function(name, value) {
+      if (trackedAttrs.has(name)) {
+        value = rewritePanelPath(String(value));
+      }
+      return originalSetAttribute.call(this, name, value);
+    };
+
+    var originalFetch = window.fetch.bind(window);
+    window.fetch = function(input, init) {
+      if (typeof input === 'string') {
+        input = rewritePanelPath(input);
+      }
+      return originalFetch(input, init);
+    };
+
+    rewritePanelAttrs(document);
+    document.addEventListener('htmx:beforeProcessNode', function(event) {
+      if (event.detail && event.detail.elt) {
+        rewritePanelAttrs(event.detail.elt);
+      }
+    });
+    document.addEventListener('htmx:afterSwap', function(event) {
+      if (event.detail && event.detail.elt) {
+        rewritePanelAttrs(event.detail.elt);
+      }
+    });
+  })();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js"></script>
 <script>
@@ -767,7 +879,7 @@
 
     async function connect() {
       try {
-        const resp = await fetch('/panel/ws-token');
+        const resp = await fetch(panelUrl('/ws-token'));
         if (!resp.ok) { setStatus('var(--warning)', 'WS: нет токена'); return; }
         const { token } = await resp.json();
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';

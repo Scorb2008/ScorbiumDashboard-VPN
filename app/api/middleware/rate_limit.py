@@ -5,6 +5,7 @@ from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.core.config import config
 from app.utils.rate_limit import disable_redis_client, get_redis_client
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -19,6 +20,10 @@ BLOCK_DURATION = 300
 
 _WHITELIST_PREFIXES = ("/docs", "/redoc", "/openapi")
 _WHITELIST_EXACT = {"/health", "/api/v1/health/", "/favicon.ico"}
+_PANEL_LOGIN_PATHS = {
+    config.web.panel_login_path,
+    f"{config.web.panel_prefix}/api/login",
+}
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -81,11 +86,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 return True
             del self._blocked[ip]
 
-        if (
-            path
-            in ("/panel/api/login", "/panel/login", "/cabinet/auth", "/cabinet/auth/")
-            and method == "POST"
-        ):
+        if path in _PANEL_LOGIN_PATHS.union({"/cabinet/auth", "/cabinet/auth/"}) and method == "POST":
             return self._check(
                 self._login_hits[ip], LOGIN_WINDOW, LOGIN_MAX_ATTEMPTS, ip
             )
@@ -100,11 +101,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if not redis:
             return self._is_rate_limited(ip, path, method)
 
-        if (
-            path
-            in ("/panel/api/login", "/panel/login", "/cabinet/auth", "/cabinet/auth/")
-            and method == "POST"
-        ):
+        if path in _PANEL_LOGIN_PATHS.union({"/cabinet/auth", "/cabinet/auth/"}) and method == "POST":
             scope = "login"
             window = LOGIN_WINDOW
             max_requests = LOGIN_MAX_ATTEMPTS

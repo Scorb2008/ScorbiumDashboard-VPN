@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
 from app.core.config import config
+from app.core.panel_path import is_panel_path
 from app.core.database import AsyncSessionFactory, init_db, close_db
 from app.api.v1 import get_router
 from app.api.panel import get_panel_router
@@ -397,7 +398,7 @@ def create_app() -> FastAPI:
             request.state.panel_admin_info = None
             request.state.revoked_panel_session = False
 
-            if request.url.path.startswith("/panel"):
+            if is_panel_path(request.url.path, config.web.panel_root):
                 token = request.cookies.get("vpn_session", "")
                 if token:
                     from app.core.permissions import PERMISSIONS
@@ -436,9 +437,9 @@ def create_app() -> FastAPI:
         async def dispatch(self, request: Request, call_next):
             resp = await call_next(request)
             path = request.url.path
-            is_html_panel = path.startswith("/panel") and not path.startswith(
-                "/panel/api"
-            )
+            is_html_panel = is_panel_path(
+                path, config.web.panel_root
+            ) and not path.startswith(f"{config.web.panel_prefix}/api")
             is_html_cabinet = path.startswith("/cabinet")
             if is_html_panel or is_html_cabinet:
                 if not request.cookies.get(_CC):
@@ -478,6 +479,7 @@ def create_app() -> FastAPI:
                 "request": request,
                 "app_name": config.web.app_name,
                 "app_version": config.web.app_version,
+                "panel_root": config.web.panel_root,
             },
             status_code=403,
         )
@@ -489,7 +491,7 @@ def create_app() -> FastAPI:
             resp.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
             path = request.url.path
-            is_panel = path.startswith("/panel")
+            is_panel = is_panel_path(path, config.web.panel_root)
             is_cabinet = path.startswith("/cabinet")
             is_docs = path in ("/docs", "/redoc", "/openapi.json")
 
@@ -693,17 +695,11 @@ def create_app() -> FastAPI:
             return JSONResponse({"ok": True})
         return JSONResponse({"ok": True})
 
-    @app.get("/panel", include_in_schema=False)
+    @app.get(config.web.panel_prefix, include_in_schema=False)
     async def panel_redirect():
         from fastapi.responses import RedirectResponse
 
-        return RedirectResponse(url="/panel/")
-
-    @app.get("/panel-root", include_in_schema=False)
-    async def panel_root():
-        from fastapi.responses import RedirectResponse
-
-        return RedirectResponse(url="/panel/")
+        return RedirectResponse(url=config.web.panel_root)
 
     @app.get("/health", include_in_schema=False)
     async def health_check():
