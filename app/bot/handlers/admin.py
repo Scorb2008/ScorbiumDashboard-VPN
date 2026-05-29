@@ -27,7 +27,7 @@ from app.services.bot_settings import BotSettingsService, parse_int_list_setting
 from app.models.payment import PaymentStatus, PaymentType
 from app.bot.utils.subscription_links import subscription_link_kb
 from app.utils.log import log
-from app.utils.html_utils import sanitize_search_query
+from app.utils.html_utils import html_code, sanitize_search_query
 
 router = Router()
 
@@ -328,48 +328,98 @@ async def _show_user_keys(callback: CallbackQuery, user_id: int) -> None:
             pass
         return
 
-    lines = [f"🔑 <b>Ключи пользователя {user_id}</b>\n"]
+    lines = [
+        f"🔑 <b>Ключи пользователя {user_id}</b>\n",
+        "Выберите подписку, чтобы открыть её карточку.",
+        "",
+    ]
     for k in keys:
         st = str(k.status.value if hasattr(k.status, "value") else k.status)
         icon = {"active": "✅", "revoked": "🚫", "expired": "⏰"}.get(st, "❓")
         exp = k.expires_at.strftime("%d.%m.%Y") if k.expires_at else "—"
-        lines.append(f"{icon} #{k.id} — {(k.name or '')[:25]} до {exp}")
-        if k.access_url:
-            safe_url = (
-                str(k.access_url)
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-            )
-            lines.append(f"   <code>{safe_url}</code>")
-            builder.row(
-                InlineKeyboardButton(
-                    text=f"🔑 Подписка #{k.id}",
-                    callback_data="adm:noop",
-                )
-            )
-            for row in subscription_link_kb(k.access_url, lang="ru").inline_keyboard:
-                builder.row(*row)
-        if st == "active":
-            builder.row(
-                InlineKeyboardButton(
-                    text=f"🚫 Отозвать #{k.id}",
-                    callback_data=f"adm:revokekey:{k.id}:{user_id}",
-                )
-            )
+        name = (k.name or f"Подписка #{k.id}")[:24]
+        lines.append(f"{icon} #{k.id} — {name} до {exp}")
         builder.row(
             InlineKeyboardButton(
-                text=f"🔁 Заменить #{k.id}",
-                callback_data=f"adm:replacekey:{k.id}:{user_id}",
+                text=f"{icon} #{k.id} • {name}",
+                callback_data=f"adm:keydetail:{k.id}:{user_id}",
             )
         )
-        lines.append("")
     builder.row(
         InlineKeyboardButton(text="◀️ Назад", callback_data=f"adm:user:{user_id}")
     )
     try:
         await callback.message.edit_text(
             "\n".join(lines), reply_markup=builder.as_markup(), parse_mode="HTML"
+        )
+    except Exception:
+        pass
+
+
+async def _show_admin_key_detail(
+    callback: CallbackQuery, key_id: int, user_id: int
+) -> None:
+    async with AsyncSessionFactory() as session:
+        key = await VpnKeyService(session).get_by_id(key_id)
+
+    if not key or key.user_id != user_id:
+        await callback.answer("❌ Ключ не найден", show_alert=True)
+        await _show_user_keys(callback, user_id)
+        return
+
+    status_val = key.status.value if hasattr(key.status, "value") else str(key.status)
+    status_label = {
+        "active": "✅ Активна",
+        "expired": "⏰ Истекла",
+        "revoked": "🚫 Отозвана",
+    }.get(status_val, "❓ Неизвестно")
+    exp = key.expires_at.strftime("%d.%m.%Y %H:%M") if key.expires_at else "—"
+    name = key.name or f"Подписка #{key.id}"
+    plan_name = key.plan.name if key.plan else name
+    price = str(key.price or "")
+    access_url = key.access_url or ""
+
+    text = (
+        f"🔑 <b>{plan_name}</b>\n\n"
+        f"ID ключа: <code>{key.id}</code>\n"
+        f"Пользователь: <code>{user_id}</code>\n"
+        f"Статус: {status_label}\n"
+        f"Истекает: <b>{exp}</b>\n"
+    )
+    if price:
+        text += f"Цена: <b>{price} ₽</b>\n"
+    if access_url:
+        text += f"\nURL подписки:\n{html_code(access_url)}"
+    else:
+        text += "\nURL подписки отсутствует."
+
+    builder = InlineKeyboardBuilder()
+    if access_url:
+        for row in subscription_link_kb(access_url, lang="ru").inline_keyboard:
+            builder.row(*row)
+    if status_val == "active":
+        builder.row(
+            InlineKeyboardButton(
+                text=f"🚫 Отозвать #{key.id}",
+                callback_data=f"adm:revokekey:{key.id}:{user_id}",
+            )
+        )
+    builder.row(
+        InlineKeyboardButton(
+            text=f"🔁 Заменить #{key.id}",
+            callback_data=f"adm:replacekey:{key.id}:{user_id}",
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text="◀️ К списку ключей",
+            callback_data=f"adm:userkeys:{user_id}",
+        )
+    )
+
+    try:
+        await callback.message.edit_text(
+            text, reply_markup=builder.as_markup(), parse_mode="HTML"
         )
     except Exception:
         pass
@@ -1149,6 +1199,16 @@ async def admin_user_keys(callback: CallbackQuery) -> None:
     await _show_user_keys(callback, user_id)
 
 
+@router.callback_query(F.data.startswith("adm:keydetail:"))
+async def admin_key_detail(callback: CallbackQuery) -> None:
+    if not _is_admin(callback.from_user.id):
+        return
+    await callback.answer()
+    parts = callback.data.split(":")
+    key_id, user_id = int(parts[2]), int(parts[3])
+    await _show_admin_key_detail(callback, key_id, user_id)
+
+
 @router.callback_query(F.data.startswith("adm:revokekey:"))
 async def admin_revoke_key(callback: CallbackQuery) -> None:
     if not _is_admin(callback.from_user.id):
@@ -1161,6 +1221,9 @@ async def admin_revoke_key(callback: CallbackQuery) -> None:
     await callback.answer(
         f"✅ Ключ #{key_id} отозван" if key else "❌ Ключ не найден", show_alert=True
     )
+    if key:
+        await _show_admin_key_detail(callback, key_id, user_id)
+        return
     await _show_user_keys(callback, user_id)
 
 
@@ -1176,7 +1239,9 @@ async def admin_replace_key_start(callback: CallbackQuery, state: FSMContext) ->
 
     builder = InlineKeyboardBuilder()
     builder.row(
-        InlineKeyboardButton(text="Отмена", callback_data=f"adm:userkeys:{user_id}")
+        InlineKeyboardButton(
+            text="Отмена", callback_data=f"adm:keydetail:{key_id}:{user_id}"
+        )
     )
 
     await callback.message.edit_text(
