@@ -22,6 +22,8 @@ from app.services.referral import ReferralService
 from app.services.bot_settings import BotSettingsService
 from app.services.payment import PaymentService
 from app.services.i18n import t, get_lang
+from app.bot.utils.subscription_links import subscription_link_kb
+from app.utils.html_utils import escape_html, html_code
 
 router = Router()
 
@@ -82,7 +84,7 @@ async def cmd_status(message: Message) -> None:
     lines = [f"{t('status_title', lang)}\n"]
 
     for k in keys:
-        name = k.name or f"Подписка #{k.id}"
+        name = escape_html(k.name or f"Подписка #{k.id}")
         lines.append(f"🔑 <b>{name}</b>")
 
         if k.expires_at:
@@ -257,7 +259,7 @@ async def cmd_ping(message: Message) -> None:
         lines = ["🌐 <b>Статус серверов:</b>\n"]
         for node in nodes[:8]:
             status = node.get("status", "unknown")
-            name = node.get("name", "Сервер")
+            name = escape_html(node.get("name", "Сервер"))
             addr = node.get("address", "")
             icon = {
                 "connected": "🟢",
@@ -265,9 +267,7 @@ async def cmd_ping(message: Message) -> None:
                 "error": "🔴",
                 "disabled": "⚫",
             }.get(status, "❓")
-            lines.append(
-                f"{icon} <b>{name}</b>" + (f" — <code>{addr}</code>" if addr else "")
-            )
+            lines.append(f"{icon} <b>{name}</b>" + (f" — {html_code(addr)}" if addr else ""))
         text = "\n".join(lines)
 
     try:
@@ -297,7 +297,7 @@ async def _build_top_text(user_id: int) -> str:
         uname = (
             f"@{r['username']}"
             if r.get("username")
-            else r.get("full_name") or f"<code>{r['user_id']}</code>"
+            else escape_html(r.get("full_name")) or html_code(r["user_id"])
         )
         is_me = " ← вы" if r["user_id"] == user_id else ""
         lines.append(f"{medal} {uname} — <b>{r['referral_count']}</b> реф.{is_me}")
@@ -305,7 +305,7 @@ async def _build_top_text(user_id: int) -> str:
     lines.append(f"\n👤 Ваш результат: <b>{my_count}</b> рефералов")
 
     if ref_code:
-        lines.append(f"\n🔗 Ваш реф. код: <code>{ref_code}</code>")
+        lines.append(f"\n🔗 Ваш реф. код: {html_code(ref_code)}")
 
     return "\n".join(lines)
 
@@ -446,22 +446,27 @@ async def gift_buy(callback: CallbackQuery) -> None:
         target_name = (
             f"@{target.username}"
             if target and target.username
-            else f"<code>{target_id}</code>"
+            else html_code(target_id)
         )
 
     if key:
+        sender_name = callback.from_user.username or callback.from_user.first_name or "admin"
         await TelegramNotifyService().send_message(
             target_id,
             f"🎁 <b>Вам подарена подписка!</b>\n\n"
-            f"От: @{callback.from_user.username or callback.from_user.first_name}\n"
-            f"Тариф: <b>{plan.name}</b> ({plan.duration_days} дней)\n\n"
-            f"🔑 <b>Ссылка подписки:</b>\n<code>{key.access_url}</code>",
+            f"От: {escape_html('@' + sender_name if callback.from_user.username else sender_name)}\n"
+            f"Тариф: <b>{escape_html(plan.name)}</b> ({plan.duration_days} дней)\n\n"
+            f"🔑 <b>Ссылка подписки:</b>\n{html_code(key.access_url)}",
+            reply_markup=subscription_link_kb(
+                key.access_url,
+                lang="ru",
+            ).model_dump(exclude_none=True),
         )
         try:
             await callback.message.edit_text(
                 f"✅ <b>Подарок отправлен!</b>\n\n"
                 f"Получатель: {target_name}\n"
-                f"Тариф: <b>{plan.name}</b>\n"
+                f"Тариф: <b>{escape_html(plan.name)}</b>\n"
                 f"Списано: <b>{plan.price} ₽</b>",
                 parse_mode="HTML",
             )
@@ -497,7 +502,9 @@ async def cmd_autorenew(message: Message) -> None:
     for k in keys:
         exp = k.expires_at.strftime("%d.%m.%Y") if k.expires_at else "—"
         price = f"{k.price} ₽" if k.price else "—"
-        lines.append(f"• {k.name or f'Подписка #{k.id}'} — до {exp}, цена: {price}")
+        lines.append(
+            f"• {escape_html(k.name or f'Подписка #{k.id}')} — до {exp}, цена: {price}"
+        )
 
     lines.append("\n💡 Пополни баланс чтобы автопродление работало.")
 
@@ -569,13 +576,13 @@ async def cb_servers(callback: CallbackQuery) -> None:
             ]
 
             for node in nodes:
-                name = node.get("name", "—")
+                name = escape_html(node.get("name", "—"))
                 status = node.get("status", "")
                 address = node.get("address", "")
                 icon = "🟢" if status in ("connected", "healthy", "online") else "🔴"
                 lines.append(
                     f"{icon} <b>{name}</b>"
-                    + (f"\n   <code>{address}</code>" if address else "")
+                    + (f"\n   {html_code(address)}" if address else "")
                 )
 
             text = "\n".join(lines)

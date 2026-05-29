@@ -694,8 +694,13 @@ async def support_open_ticket(callback: CallbackQuery, state: FSMContext) -> Non
         )
     builder.row(InlineKeyboardButton(text=t("back", lang), callback_data="support"))
 
-    await callback.message.edit_text(
-        text, reply_markup=builder.as_markup(), parse_mode="HTML"
+    from app.bot.utils.media import edit_with_photo
+
+    await edit_with_photo(
+        callback,
+        text,
+        reply_markup=builder.as_markup(),
+        parse_mode="HTML",
     )
     await _safe_answer(callback)
 

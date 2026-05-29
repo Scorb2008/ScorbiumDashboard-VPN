@@ -3,10 +3,11 @@
 import time
 import asyncio
 from collections import deque
+from contextlib import suppress
 from typing import Any, Callable, Awaitable
 
 from aiogram import BaseMiddleware
-from aiogram.types import Update
+from aiogram.types import CallbackQuery, Message, Update
 
 from app.services.metrics import (
     bot_messages_received_total,
@@ -59,16 +60,17 @@ class BotMetricsMiddleware(BaseMiddleware):
         event: Update,
         data: dict[str, Any],
     ) -> Any:
-        # Track received messages
-        command = self._get_command(event)
-        if command:
-            bot_messages_received_total.labels(command=command).inc()
-            _message_timestamps.append(time.time())
+        # Metrics should never break update processing.
+        with suppress(Exception):
+            command = self._get_command(event)
+            if command:
+                bot_messages_received_total.labels(command=command).inc()
+                _message_timestamps.append(time.time())
 
-        # Track user online — get user from the appropriate sub-event
-        user = self._get_user(event)
-        if user:
-            _last_seen[user.id] = time.time()
+        with suppress(Exception):
+            user = self._get_user(event)
+            if user:
+                _last_seen[user.id] = time.time()
 
         # Time handler execution
         handler_name = handler.__name__ if hasattr(handler, "__name__") else "unknown"
@@ -77,30 +79,48 @@ class BotMetricsMiddleware(BaseMiddleware):
             result = await handler(event, data)
             return result
         finally:
-            duration = time.time() - start
-            bot_handler_duration_seconds.labels(handler=handler_name).observe(duration)
+            with suppress(Exception):
+                duration = time.time() - start
+                bot_handler_duration_seconds.labels(handler=handler_name).observe(
+                    duration
+                )
 
     @staticmethod
     def _get_user(event: Update):
         """Extract user from any update type."""
-        if event.message and event.message.from_user:
-            return event.message.from_user
-        if event.callback_query and event.callback_query.from_user:
-            return event.callback_query.from_user
-        if event.inline_query and event.inline_query.from_user:
-            return event.inline_query.from_user
-        if event.chosen_inline_result and event.chosen_inline_result.from_user:
-            return event.chosen_inline_result.from_user
-        if event.my_chat_member and event.my_chat_member.from_user:
-            return event.my_chat_member.from_user
-        if event.chat_member and event.chat_member.from_user:
-            return event.chat_member.from_user
+        for attr in (
+            "message",
+            "edited_message",
+            "business_message",
+            "edited_business_message",
+            "callback_query",
+            "inline_query",
+            "chosen_inline_result",
+            "my_chat_member",
+            "chat_member",
+            "pre_checkout_query",
+            "shipping_query",
+        ):
+            obj = getattr(event, attr, None)
+            user = getattr(obj, "from_user", None)
+            if user:
+                return user
+
+        poll_answer = getattr(event, "poll_answer", None)
+        if poll_answer and poll_answer.user:
+            return poll_answer.user
+
+        business_connection = getattr(event, "business_connection", None)
+        if business_connection and getattr(business_connection, "user", None):
+            return business_connection.user
+
         return None
 
     @staticmethod
     def _get_command(event: Update) -> str | None:
-        if event.message and event.message.text:
-            text = event.message.text.strip()
+        message = BotMetricsMiddleware._get_message_event(event)
+        if message and message.text:
+            text = message.text.strip()
             if text.startswith("/"):
                 cmd = text.split()[0].split("@")[0]
                 return cmd
@@ -109,6 +129,24 @@ class BotMetricsMiddleware(BaseMiddleware):
             return "callback"
         if event.inline_query:
             return "inline"
+        return None
+
+    @staticmethod
+    def _get_message_event(event: Update) -> Message | None:
+        for attr in (
+            "message",
+            "edited_message",
+            "business_message",
+            "edited_business_message",
+        ):
+            obj = getattr(event, attr, None)
+            if isinstance(obj, Message):
+                return obj
+
+        callback_query = getattr(event, "callback_query", None)
+        if isinstance(callback_query, CallbackQuery) and callback_query.message:
+            return callback_query.message
+
         return None
 
 

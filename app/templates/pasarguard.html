@@ -313,8 +313,13 @@
             Группы назначаются при создании подписки
           </div>
           <form hx-post="{{ panel_base }}/telegram/groups" hx-swap="none">
-            <div id="pg-groups-list" style="min-height:40px;font-size:.8rem;color:var(--text-muted)">
-              <i class="bi bi-arrow-down-circle me-1"></i>Нажмите «Загрузить»
+            <div id="pg-groups-list"
+                 style="min-height:40px;font-size:.8rem;color:var(--text-muted)"
+                 hx-get="{{ panel_base }}/telegram/groups"
+                 hx-trigger="load"
+                 hx-target="this"
+                 hx-swap="innerHTML">
+              <i class="bi bi-arrow-repeat me-1"></i>Загружаем группы...
             </div>
             <div class="d-flex gap-2 mt-3">
               <button type="button" class="btn btn-sm btn-outline-secondary"

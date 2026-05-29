@@ -11,6 +11,7 @@ from app.services.plan import PlanService
 from app.services.vpn_key import VpnKeyService
 from app.services.bot_settings import BotSettingsService
 from app.services.telegram_notify import TelegramNotifyService
+from app.bot.utils.subscription_links import subscription_link_kb
 from app.utils.log import log
 
 CHECK_INTERVAL = 60
@@ -247,7 +248,16 @@ async def check_pending_yookassa_payments() -> None:
                             f"Платеж подтвержден, но ключ не создан. Проверьте Pasarguard.",
                         )
 
-                await TelegramNotifyService().send_message(pd["user_id"], text)
+                reply_markup = None
+                if key_data and key_data["access_url"]:
+                    reply_markup = subscription_link_kb(
+                        key_data["access_url"], lang="ru"
+                    ).model_dump(exclude_none=True)
+                await TelegramNotifyService().send_message(
+                    pd["user_id"],
+                    text,
+                    reply_markup=reply_markup,
+                )
 
                 if key_data:
                     try:

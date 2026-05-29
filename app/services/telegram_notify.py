@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 import httpx
 
 from app.core.config import config
@@ -26,6 +26,7 @@ class TelegramNotifyService:
         text: str,
         parse_mode: str = "HTML",
         disable_notification: bool = False,
+        reply_markup: dict[str, Any] | None = None,
     ) -> bool:
         payload = {
             "chat_id": chat_id,
@@ -33,6 +34,8 @@ class TelegramNotifyService:
             "parse_mode": parse_mode,
             "disable_notification": disable_notification,
         }
+        if reply_markup:
+            payload["reply_markup"] = reply_markup
         try:
             client = await self._get_client()
             resp = await client.post(f"{self._base}/sendMessage", json=payload)

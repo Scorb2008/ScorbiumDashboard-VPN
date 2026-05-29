@@ -86,13 +86,13 @@ class YookassaService:
                 ),
                 timeout=30,
             )
-            log.info("Yookassa payment created: %s", payment.id)
+            log.info(f"Yookassa payment created: {payment.id}")
             return payment
         except asyncio.TimeoutError:
             log.error("Yookassa payment creation timed out")
             raise YookassaPaymentError("Payment service timed out. Please try again.")
         except Exception as e:
-            log.error("Yookassa payment creation failed: %s", e)
+            log.error(f"Yookassa payment creation failed: {e}")
             raise YookassaPaymentError("Payment service unavailable. Please try again.")
 
     async def create_sbp_payment(
@@ -117,10 +117,10 @@ class YookassaService:
                 timeout=15,
             )
         except asyncio.TimeoutError:
-            log.error("Yookassa payment lookup timed out: %s", payment_id)
+            log.error(f"Yookassa payment lookup timed out: {payment_id}")
             raise YookassaPaymentError("Payment service timed out.")
         except Exception as e:
-            log.error("Yookassa payment lookup failed: %s", e)
+            log.error(f"Yookassa payment lookup failed: {e}")
             raise YookassaPaymentError("Payment service unavailable.")
 
     @staticmethod
@@ -132,10 +132,10 @@ class YookassaService:
                 timeout=15,
             )
         except asyncio.TimeoutError:
-            log.error("Yookassa payment lookup timed out: %s", payment_id)
+            log.error(f"Yookassa payment lookup timed out: {payment_id}")
             raise YookassaPaymentError("Payment service timed out.")
         except Exception as e:
-            log.error("Yookassa payment lookup failed: %s", e)
+            log.error(f"Yookassa payment lookup failed: {e}")
             raise YookassaPaymentError("Payment service unavailable.")
 
     async def is_succeeded(self, payment_id: str) -> bool:

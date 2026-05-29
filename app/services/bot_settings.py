@@ -1,4 +1,5 @@
 from typing import Any, Optional
+import json
 import time
 import asyncio
 from sqlalchemy import select
@@ -136,6 +137,35 @@ DEFAULTS = {
     # ── Telegram Chat ID для уведомлений ──────────────────────────────────────
     "notify_chat_ids": "",
 }
+
+
+def parse_int_list_setting(raw: str | None) -> list[int]:
+    if not raw:
+        return []
+
+    value = raw.strip()
+    if not value or value == "[]":
+        return []
+
+    items: list[object]
+    try:
+        parsed = json.loads(value)
+    except Exception:
+        parsed = None
+
+    if isinstance(parsed, list):
+        items = parsed
+    elif isinstance(parsed, str):
+        items = parsed.split(",")
+    else:
+        items = value.split(",")
+
+    result: list[int] = []
+    for item in items:
+        text = str(item).strip()
+        if text.isdigit():
+            result.append(int(text))
+    return result
 
 
 class BotSettingsService:

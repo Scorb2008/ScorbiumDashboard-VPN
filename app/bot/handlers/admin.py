@@ -1,4 +1,5 @@
 import asyncio
+import json as _json
 
 from aiogram import Router, F
 from aiogram.filters import Command
@@ -22,8 +23,9 @@ from app.services.promo import PromoService
 from app.services.referral import ReferralService
 from app.services.broadcast import BroadcastService
 from app.services.plan import PlanService
-from app.services.bot_settings import BotSettingsService
+from app.services.bot_settings import BotSettingsService, parse_int_list_setting
 from app.models.payment import PaymentStatus, PaymentType
+from app.bot.utils.subscription_links import subscription_link_kb
 from app.utils.log import log
 from app.utils.html_utils import sanitize_search_query
 
@@ -54,6 +56,10 @@ class SearchState(StatesGroup):
 class GiftKeyState(StatesGroup):
     waiting_user_id = State()
     waiting_plan = State()
+
+
+class ReplaceKeyState(StatesGroup):
+    waiting_access_url = State()
 
 
 def _is_admin(user_id: int) -> bool:
@@ -328,6 +334,15 @@ async def _show_user_keys(callback: CallbackQuery, user_id: int) -> None:
         icon = {"active": "✅", "revoked": "🚫", "expired": "⏰"}.get(st, "❓")
         exp = k.expires_at.strftime("%d.%m.%Y") if k.expires_at else "—"
         lines.append(f"{icon} #{k.id} — {(k.name or '')[:25]} до {exp}")
+        if k.access_url:
+            builder.row(
+                InlineKeyboardButton(
+                    text=f"🔑 Подписка #{k.id}",
+                    callback_data="adm:noop",
+                )
+            )
+            for row in subscription_link_kb(k.access_url, lang="ru").inline_keyboard:
+                builder.row(*row)
         if st == "active":
             builder.row(
                 InlineKeyboardButton(
@@ -335,6 +350,13 @@ async def _show_user_keys(callback: CallbackQuery, user_id: int) -> None:
                     callback_data=f"adm:revokekey:{k.id}:{user_id}",
                 )
             )
+        builder.row(
+            InlineKeyboardButton(
+                text=f"🔁 Заменить #{k.id}",
+                callback_data=f"adm:replacekey:{k.id}:{user_id}",
+            )
+        )
+        lines.append("")
     builder.row(
         InlineKeyboardButton(text="◀️ Назад", callback_data=f"adm:user:{user_id}")
     )
@@ -1135,6 +1157,66 @@ async def admin_revoke_key(callback: CallbackQuery) -> None:
     await _show_user_keys(callback, user_id)
 
 
+@router.callback_query(F.data.startswith("adm:replacekey:"))
+async def admin_replace_key_start(callback: CallbackQuery, state: FSMContext) -> None:
+    if not _is_admin(callback.from_user.id):
+        return
+    parts = callback.data.split(":")
+    key_id, user_id = int(parts[2]), int(parts[3])
+
+    await state.update_data(replace_key_id=key_id, replace_user_id=user_id)
+    await state.set_state(ReplaceKeyState.waiting_access_url)
+
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="Отмена", callback_data=f"adm:userkeys:{user_id}")
+    )
+
+    await callback.message.edit_text(
+        f"🔁 Заменить ключ #{key_id}\n\n"
+        f"Отправьте новую ссылку ключа одним сообщением.",
+        reply_markup=builder.as_markup(),
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@router.message(ReplaceKeyState.waiting_access_url)
+async def admin_replace_key_confirm(message: Message, state: FSMContext) -> None:
+    if not _is_admin(message.from_user.id):
+        return
+
+    data = await state.get_data()
+    key_id = data.get("replace_key_id")
+    user_id = data.get("replace_user_id")
+    new_access_url = (message.text or "").strip()
+
+    if not key_id or not user_id:
+        await state.clear()
+        await message.answer("Сессия замены ключа устарела. Откройте раздел ключей заново.")
+        return
+
+    if not new_access_url:
+        await message.answer("Отправьте непустую ссылку ключа.")
+        return
+
+    async with AsyncSessionFactory() as session:
+        key = await VpnKeyService(session).get_by_id(key_id)
+        if not key or key.user_id != user_id:
+            await state.clear()
+            await message.answer("Ключ не найден.")
+            return
+
+        key.access_url = new_access_url
+        await session.commit()
+
+    await state.clear()
+    await message.answer(
+        f"✅ Ссылка ключа #{key_id} обновлена.\n\n<code>{new_access_url}</code>",
+        parse_mode="HTML",
+    )
+
+
 @router.callback_query(F.data == "adm:keys")
 async def admin_keys(callback: CallbackQuery) -> None:
     if not _is_admin(callback.from_user.id):
@@ -1208,6 +1290,10 @@ async def admin_gift_key_confirm(callback: CallbackQuery) -> None:
             f"🎁 <b>Вам подарена подписка!</b>\n\n"
             f"Тариф: <b>{plan.name}</b> ({plan.duration_days} дней)\n\n"
             f"🔑 <b>Ссылка подписки:</b>\n<code>{key.access_url}</code>",
+            reply_markup=subscription_link_kb(
+                key.access_url,
+                lang="ru",
+            ).model_dump(exclude_none=True),
         )
         await callback.answer(f"✅ Ключ #{key.id} выдан", show_alert=True)
     else:
@@ -2956,16 +3042,13 @@ async def admin_groups(callback: CallbackQuery) -> None:
         return
     await callback.answer()
 
-    import json as _json
-    from app.services.bot_settings import BotSettingsService
-
     async with AsyncSessionFactory() as session:
         saved_raw = await BotSettingsService(session).get("vpn_group_ids")
 
     saved_ids: list[int] = []
     try:
         if saved_raw:
-            saved_ids = [int(x) for x in _json.loads(saved_raw)]
+            saved_ids = parse_int_list_setting(saved_raw)
     except Exception:
         pass
 
@@ -2977,9 +3060,6 @@ async def admin_group_toggle(callback: CallbackQuery) -> None:
     if not _is_admin(callback.from_user.id):
         return
 
-    import json as _json
-    from app.services.bot_settings import BotSettingsService
-
     gid = int(callback.data.split(":")[3])
 
     async with AsyncSessionFactory() as session:
@@ -2988,7 +3068,7 @@ async def admin_group_toggle(callback: CallbackQuery) -> None:
         saved_ids: list[int] = []
         try:
             if saved_raw:
-                saved_ids = [int(x) for x in _json.loads(saved_raw)]
+                saved_ids = parse_int_list_setting(saved_raw)
         except Exception:
             pass
 
@@ -3171,6 +3251,10 @@ async def givekey_cmd(message: Message) -> None:
             user_id,
             f"🎁 <b>Вам выдана подписка!</b>\n\nТариф: <b>{plan.name}</b> ({plan.duration_days} дней)\n\n"
             f"🔑 <b>Ссылка:</b>\n<code>{key.access_url}</code>",
+            reply_markup=subscription_link_kb(
+                key.access_url,
+                lang="ru",
+            ).model_dump(exclude_none=True),
         )
         await message.answer(f"✅ Ключ #{key.id} выдан пользователю {user_id}")
     else:

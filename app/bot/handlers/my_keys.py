@@ -11,6 +11,8 @@ from app.models.payment import PaymentStatus
 from app.services.vpn_key import VpnKeyService
 from app.services.bot_settings import BotSettingsService
 from app.services.i18n import t
+from app.bot.utils.subscription_links import subscription_link_kb
+from app.utils.html_utils import escape_html, html_code
 
 router = Router()
 
@@ -288,7 +290,7 @@ async def show_key_detail(callback: CallbackQuery) -> None:
     }.get(status_val, "❓")
 
     text = (
-        f"📦 <b>{plan_name}</b>\n\n"
+        f"📦 <b>{escape_html(plan_name)}</b>\n\n"
         f"{t('key_detail_status', lang)} {status_label}\n"
         f"{t('key_detail_expires', lang)} <b>{exp}</b>\n"
     )
@@ -296,17 +298,23 @@ async def show_key_detail(callback: CallbackQuery) -> None:
         text += f"{t('key_detail_price', lang)} <b>{price} ₽</b>\n"
 
     if access_url:
-        text += f"\n{t('key_detail_link', lang)}\n<code>{access_url}</code>\n\n{t('key_detail_hint', lang)}"
+        text += (
+            f"\n{t('key_detail_link', lang)}\n"
+            f"{html_code(access_url)}\n\n"
+            f"{t('key_detail_hint', lang)}"
+        )
     else:
         text += f"\n{t('key_detail_no_url', lang)}"
 
     builder = InlineKeyboardBuilder()
     if access_url:
-        builder.row(
-            InlineKeyboardButton(
-                text=t("btn_how_connect", lang), callback_data="connect:menu"
-            )
-        )
+        for row in subscription_link_kb(
+            access_url,
+            lang=lang,
+            include_connect=True,
+            connect_text=t("btn_how_connect", lang),
+        ).inline_keyboard:
+            builder.row(*row)
     if status_val == "active":
         builder.row(
             InlineKeyboardButton(

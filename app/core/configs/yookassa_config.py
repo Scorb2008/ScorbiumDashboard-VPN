@@ -76,7 +76,7 @@ class _YookassaConfig(BaseSettings):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if not self.yookassa_shop_id or not self.yookassa_secret_key:
-            log.warning("⚠️ Yookassa config incomplete (payments disabled)")
+            log.debug("Yookassa env config is empty or incomplete; DB settings may be used")
 
 
 @lru_cache()
@@ -89,5 +89,5 @@ try:
     log.success("✅ Yookassa config initialized successfully")
     log.debug(f"Yookassa: {yookassa}")
 except Exception as e:
-    log.warning(f"⚠️ Yookassa config not loaded (payments disabled): {e}")
+    log.debug(f"Yookassa env config not loaded: {e}")
     yookassa = None
