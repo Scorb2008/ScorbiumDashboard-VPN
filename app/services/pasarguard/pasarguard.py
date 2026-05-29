@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import Iterable
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from httpx import AsyncClient, HTTPStatusError, RequestError
@@ -72,8 +73,16 @@ class MarzbanClient:
         token = await self._get_token()
         return {"Authorization": f"Bearer {token}"}
 
-    async def _request(self, method: str, path: str, **kwargs) -> dict | None:
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        suppress_statuses: Iterable[int] | None = None,
+        **kwargs,
+    ) -> dict | None:
         url = f"{self._base}{path}"
+        suppressed = set(suppress_statuses or ())
         for attempt in range(2):
             try:
                 resp = await self._client.request(
@@ -84,6 +93,8 @@ class MarzbanClient:
                         MarzbanClient._token = None
                         MarzbanClient._token_expires = None
                     continue
+                if resp.status_code in suppressed:
+                    return None
                 resp.raise_for_status()
                 return resp.json() if resp.content else {}
             except HTTPStatusError as e:
@@ -224,7 +235,11 @@ class PasarguardService(VpnPanelInterface):
     async def get_user(self, username: str) -> Optional[dict]:
         """Получить VPN пользователя по username."""
         try:
-            data = await self._client.get(f"/api/user/{username}")
+            data = await self._client._request(
+                "GET",
+                f"/api/user/{username}",
+                suppress_statuses={404},
+            )
             return self._normalize_user_payload(data)
         except PasarguardRequestError:
             return None

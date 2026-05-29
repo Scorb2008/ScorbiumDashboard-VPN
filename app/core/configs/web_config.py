@@ -1,5 +1,12 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, AnyHttpUrl, field_validator, SecretStr, model_validator
+from pydantic import (
+    AliasChoices,
+    AnyHttpUrl,
+    Field,
+    SecretStr,
+    field_validator,
+    model_validator,
+)
 from typing import List
 from functools import lru_cache
 import re
@@ -67,7 +74,7 @@ class _WebConfig(BaseSettings):
     set_path_admin: str = Field(
         default="/panel/",
         description="Admin panel path, e.g. /x7k/panel/",
-        validation_alias="SET_PATH_ADMIN",
+        validation_alias=AliasChoices("ADMIN_PATH", "SET_PATH_ADMIN"),
     )
 
     @field_validator("allowed_origins")

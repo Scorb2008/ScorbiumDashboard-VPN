@@ -137,6 +137,46 @@ class VpnKeyService:
         if raw_status in ("expired", "limited", "disabled", "revoked"):
             key.status = VpnKeyStatus.EXPIRED.value
 
+    @staticmethod
+    def _normalize_expire_datetime(value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+    async def _sync_panel_expire_from_db(
+        self, key: VpnKey, marz_user: dict | None
+    ) -> bool:
+        if not key.pasarguard_key_id or key.expires_at is None or not marz_user:
+            return False
+
+        panel_expire = self._get_panel()._parse_expire_datetime(  # type: ignore[attr-defined]
+            marz_user.get("expire"),
+            datetime.now(timezone.utc),
+        )
+        db_expire = self._normalize_expire_datetime(key.expires_at)
+        if db_expire is None:
+            return False
+
+        if panel_expire is not None:
+            delta = abs((panel_expire - db_expire).total_seconds())
+            if delta <= 60:
+                return False
+
+        modify_user = getattr(self._get_panel(), "modify_user", None)
+        if not callable(modify_user):
+            return False
+
+        await modify_user(
+            key.pasarguard_key_id,
+            expire=self._get_panel()._expire_timestamp(db_expire),  # type: ignore[attr-defined]
+        )
+        log.info(
+            f"[vpn_sync] fixed Pasarguard expire for key {key.id}: {db_expire.isoformat()}"
+        )
+        return True
+
     async def count_active(self) -> int:
         result = await self.session.execute(
             select(func.count()).where(VpnKey.status == VpnKeyStatus.ACTIVE.value)
@@ -341,7 +381,7 @@ class VpnKeyService:
         return len(keys)
 
     async def sync_from_marzban(self) -> dict:
-        synced, errors = 0, 0
+        synced, errors, fixed_expire = 0, 0, 0
         traffic_columns_supported = await self._supports_traffic_columns()
         result = await self.session.execute(
             select(VpnKey).where(
@@ -355,6 +395,8 @@ class VpnKeyService:
                 if not marz_user:
                     key.status = VpnKeyStatus.REVOKED.value
                 else:
+                    if await self._sync_panel_expire_from_db(key, marz_user):
+                        fixed_expire += 1
                     raw_status = (
                         marz_user.get("_normalized_status")
                         or marz_user.get("status", "")
@@ -373,7 +415,7 @@ class VpnKeyService:
                 log.warning(f"Sync error key {key.id}: {e}")
                 errors += 1
         await self.session.flush()
-        return {"synced": synced, "errors": errors}
+        return {"synced": synced, "errors": errors, "fixed_expire": fixed_expire}
 
     async def expire_outdated(self) -> int:
         now = datetime.now(timezone.utc)

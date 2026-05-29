@@ -56,6 +56,10 @@ class GiftKeyState(StatesGroup):
     waiting_plan = State()
 
 
+class ReplaceKeyState(StatesGroup):
+    waiting_access_url = State()
+
+
 def _is_admin(user_id: int) -> bool:
     return user_id in config.telegram.telegram_admin_ids
 
@@ -328,6 +332,14 @@ async def _show_user_keys(callback: CallbackQuery, user_id: int) -> None:
         icon = {"active": "✅", "revoked": "🚫", "expired": "⏰"}.get(st, "❓")
         exp = k.expires_at.strftime("%d.%m.%Y") if k.expires_at else "—"
         lines.append(f"{icon} #{k.id} — {(k.name or '')[:25]} до {exp}")
+        if k.access_url:
+            safe_url = (
+                str(k.access_url)
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+            )
+            lines.append(f"   <code>{safe_url}</code>")
         if st == "active":
             builder.row(
                 InlineKeyboardButton(
@@ -335,6 +347,13 @@ async def _show_user_keys(callback: CallbackQuery, user_id: int) -> None:
                     callback_data=f"adm:revokekey:{k.id}:{user_id}",
                 )
             )
+        builder.row(
+            InlineKeyboardButton(
+                text=f"🔁 Заменить #{k.id}",
+                callback_data=f"adm:replacekey:{k.id}:{user_id}",
+            )
+        )
+        lines.append("")
     builder.row(
         InlineKeyboardButton(text="◀️ Назад", callback_data=f"adm:user:{user_id}")
     )
@@ -1133,6 +1152,66 @@ async def admin_revoke_key(callback: CallbackQuery) -> None:
         f"✅ Ключ #{key_id} отозван" if key else "❌ Ключ не найден", show_alert=True
     )
     await _show_user_keys(callback, user_id)
+
+
+@router.callback_query(F.data.startswith("adm:replacekey:"))
+async def admin_replace_key_start(callback: CallbackQuery, state: FSMContext) -> None:
+    if not _is_admin(callback.from_user.id):
+        return
+    parts = callback.data.split(":")
+    key_id, user_id = int(parts[2]), int(parts[3])
+
+    await state.update_data(replace_key_id=key_id, replace_user_id=user_id)
+    await state.set_state(ReplaceKeyState.waiting_access_url)
+
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="Отмена", callback_data=f"adm:userkeys:{user_id}")
+    )
+
+    await callback.message.edit_text(
+        f"🔁 Заменить ключ #{key_id}\n\n"
+        f"Отправьте новую ссылку ключа одним сообщением.",
+        reply_markup=builder.as_markup(),
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@router.message(ReplaceKeyState.waiting_access_url)
+async def admin_replace_key_confirm(message: Message, state: FSMContext) -> None:
+    if not _is_admin(message.from_user.id):
+        return
+
+    data = await state.get_data()
+    key_id = data.get("replace_key_id")
+    user_id = data.get("replace_user_id")
+    new_access_url = (message.text or "").strip()
+
+    if not key_id or not user_id:
+        await state.clear()
+        await message.answer("Сессия замены ключа устарела. Откройте раздел ключей заново.")
+        return
+
+    if not new_access_url:
+        await message.answer("Отправьте непустую ссылку ключа.")
+        return
+
+    async with AsyncSessionFactory() as session:
+        key = await VpnKeyService(session).get_by_id(key_id)
+        if not key or key.user_id != user_id:
+            await state.clear()
+            await message.answer("Ключ не найден.")
+            return
+
+        key.access_url = new_access_url
+        await session.commit()
+
+    await state.clear()
+    await message.answer(
+        f"✅ Ссылка ключа #{key_id} обновлена.\n\n<code>{new_access_url}</code>",
+        parse_mode="HTML",
+    )
 
 
 @router.callback_query(F.data == "adm:keys")
