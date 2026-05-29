@@ -9,7 +9,7 @@ from collections import defaultdict
 from typing import Any, Awaitable, Callable
 
 from aiogram import BaseMiddleware
-from aiogram.types import Message, CallbackQuery, TelegramObject
+from aiogram.types import Message, CallbackQuery, TelegramObject, Update
 
 # ── Config ────────────────────────────────────────────────────────────────────
 MAX_TOKENS = 10  # max burst
@@ -87,14 +87,36 @@ class ThrottleMiddleware(BaseMiddleware):
             lambda: defaultdict(list)
         )
 
+    def _get_event_object(self, event: TelegramObject) -> TelegramObject | None:
+        if isinstance(event, Update):
+            if event.message:
+                return event.message
+            if event.callback_query:
+                return event.callback_query
+            if event.edited_message:
+                return event.edited_message
+            if event.pre_checkout_query:
+                return event.pre_checkout_query
+            if event.business_message:
+                return event.business_message
+            if event.edited_business_message:
+                return event.edited_business_message
+            return None
+        return event
+
     def _get_user_id(self, event: TelegramObject) -> int | None:
-        if isinstance(event, (Message, CallbackQuery)):
-            return event.from_user.id if event.from_user else None
+        event_obj = self._get_event_object(event)
+        if isinstance(event_obj, (Message, CallbackQuery)):
+            return event_obj.from_user.id if event_obj.from_user else None
+        from_user = getattr(event_obj, "from_user", None)
+        if from_user:
+            return from_user.id
         return None
 
     def _get_command(self, event: TelegramObject) -> str | None:
-        if isinstance(event, Message) and event.text:
-            text = event.text.strip()
+        event_obj = self._get_event_object(event)
+        if isinstance(event_obj, Message) and event_obj.text:
+            text = event_obj.text.strip()
             if text.startswith("/"):
                 parts = text.split()[0].split("@")
                 return parts[0].lower()
@@ -112,7 +134,9 @@ class ThrottleMiddleware(BaseMiddleware):
 
         # Per-command rate limit
         cmd = self._get_command(event)
-        if cmd and isinstance(event, Message):
+        event_obj = self._get_event_object(event)
+
+        if cmd and isinstance(event_obj, Message):
             limit = COMMAND_LIMITS.get(cmd, DEFAULT_COMMAND_LIMIT)
             now = time.monotonic()
             window = self._command_counts[user_id][cmd]
@@ -121,7 +145,7 @@ class ThrottleMiddleware(BaseMiddleware):
             self._command_counts[user_id][cmd] = [t for t in window if t > cutoff]
             if len(self._command_counts[user_id][cmd]) >= limit:
                 try:
-                    await event.answer(
+                    await event_obj.answer(
                         f"⏳ Команда {cmd} используется слишком часто. Попробуйте через минуту.",
                         disable_notification=True,
                     )
@@ -140,34 +164,42 @@ class ThrottleMiddleware(BaseMiddleware):
                 admin_window = [t for t in self._admin_counts[user_id] if t > now - 60]
                 if len(admin_window) >= ADMIN_RATE_PER_MINUTE:
                     try:
-                        await event.answer(
-                            "⏳ Подождите — слишком много админ-команд подряд.",
-                            disable_notification=True,
-                        )
+                        if isinstance(event_obj, Message):
+                            await event_obj.answer(
+                                "⏳ Подождите — слишком много админ-команд подряд.",
+                                disable_notification=True,
+                            )
+                        elif isinstance(event_obj, CallbackQuery):
+                            await event_obj.answer(
+                                "⏳ Подождите — слишком много админ-команд подряд.",
+                                show_alert=True,
+                            )
+                        else:
+                            return
                     except Exception:
                         pass
                     return
                 self._admin_counts[user_id].append(now)
 
         # General token bucket
-        cost = MESSAGE_COST if isinstance(event, Message) else CALLBACK_COST
+        cost = MESSAGE_COST if isinstance(event_obj, Message) else CALLBACK_COST
         bucket = self._buckets[user_id]
 
         if not bucket.consume(cost):
             # Предупреждаем только один раз за период блока
             if not bucket.warned:
                 bucket.warned = True
-                if isinstance(event, Message):
+                if isinstance(event_obj, Message):
                     try:
-                        await event.answer(
+                        await event_obj.answer(
                             "⏳ Слишком много запросов. Подождите 30 секунд.",
                             disable_notification=True,
                         )
                     except Exception:
                         pass
-                elif isinstance(event, CallbackQuery):
+                elif isinstance(event_obj, CallbackQuery):
                     try:
-                        await event.answer(
+                        await event_obj.answer(
                             "⏳ Слишком быстро! Подождите.", show_alert=True
                         )
                     except Exception:
