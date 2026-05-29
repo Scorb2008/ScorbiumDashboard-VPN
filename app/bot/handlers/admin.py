@@ -335,6 +335,13 @@ async def _show_user_keys(callback: CallbackQuery, user_id: int) -> None:
         exp = k.expires_at.strftime("%d.%m.%Y") if k.expires_at else "—"
         lines.append(f"{icon} #{k.id} — {(k.name or '')[:25]} до {exp}")
         if k.access_url:
+            safe_url = (
+                str(k.access_url)
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+            )
+            lines.append(f"   <code>{safe_url}</code>")
             builder.row(
                 InlineKeyboardButton(
                     text=f"🔑 Подписка #{k.id}",
