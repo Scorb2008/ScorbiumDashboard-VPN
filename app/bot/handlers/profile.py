@@ -17,6 +17,7 @@ from app.services.payment import PaymentService
 from app.services.referral import ReferralService
 from app.services.bot_settings import BotSettingsService
 from app.services.i18n import t, get_lang
+from app.utils.html_utils import escape_html, html_code
 
 router = Router()
 
@@ -78,8 +79,8 @@ async def _build_profile_text(user_id: int, lang: str = "ru") -> tuple[str, obje
     lines = [
         t("profile_title", lang) + "\n",
         t("profile_id", lang, id=user_id),
-        t("profile_name", lang, name=user.full_name),
-        t("profile_username", lang, username=uname),
+        t("profile_name", lang, name=escape_html(user.full_name or "—")),
+        t("profile_username", lang, username=escape_html(uname)),
         t("profile_reg", lang, date=reg_date),
         "",
         t("profile_balance", lang, balance=balance),
@@ -105,10 +106,12 @@ async def _build_profile_text(user_id: int, lang: str = "ru") -> tuple[str, obje
     ]
 
     if ref_link:
-        lines.append(t("profile_ref_link", lang, link=ref_link))
+        lines.append(t("profile_ref_link", lang, link=escape_html(ref_link)))
 
     if user.referral_code:
-        lines.append(t("profile_ref_code", lang, code=user.referral_code))
+        lines.append(
+            t("profile_ref_code", lang, code=escape_html(user.referral_code))
+        )
 
     text = "\n".join(lines)
 
@@ -187,9 +190,11 @@ async def cmd_keys(message: Message) -> None:
     lines = ["🔑 <b>Ваши активные подписки:</b>\n"]
     for k in keys:
         exp = k.expires_at.strftime("%d.%m.%Y") if k.expires_at else "—"
-        lines.append(f"• <b>{k.name or f'Подписка #{k.id}'}</b> — до {exp}")
+        lines.append(
+            f"• <b>{escape_html(k.name or f'Подписка #{k.id}')}</b> — до {exp}"
+        )
         if k.access_url:
-            lines.append(f"  <code>{k.access_url}</code>")
+            lines.append(f"  {html_code(k.access_url)}")
 
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="📦 Все подписки", callback_data="my_keys"))

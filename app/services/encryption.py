@@ -14,6 +14,13 @@ _MASTER_KEY: str | None = None
 _FERNET: Fernet | None = None
 
 
+def _ciphertext_summary(value: str) -> str:
+    if not value:
+        return "empty"
+    prefix = value[:12]
+    return f"len={len(value)} prefix={prefix!r}"
+
+
 def _build_fernet_from_env(key_env: str) -> Fernet:
     normalized = key_env.strip()
     if not normalized:
@@ -59,7 +66,7 @@ def _get_fernet() -> Fernet:
         _FERNET = Fernet(Fernet.generate_key())
         _MASTER_KEY = None
         log.error(
-            "Invalid ENCRYPTION_KEY provided, falling back to in-memory key: %s",
+            "Invalid ENCRYPTION_KEY provided, falling back to in-memory key: {}",
             exc,
         )
     return _FERNET
@@ -81,7 +88,14 @@ def decrypt_value(encrypted: str) -> str:
     try:
         return f.decrypt(encrypted.encode()).decode()
     except Exception as e:
-        log.error("Decryption failed: %s", e)
+        key_state = "configured" if _MASTER_KEY else "auto-generated"
+        log.error(
+            "Decryption failed: {}. ENCRYPTION_KEY={} value={}. "
+            "Stored secrets may have been encrypted with a different key.",
+            e,
+            key_state,
+            _ciphertext_summary(encrypted),
+        )
         return ""
 
 

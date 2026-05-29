@@ -241,7 +241,7 @@ def _require_auth(request: Request) -> dict:
         is_json = "application/json" in request.headers.get("accept", "")
 
         log.warning(
-            "Panel auth failed: path=%s hx=%s api=%s json=%s cookie_present=%s",
+            "Panel auth failed: path={} hx={} api={} json={} cookie_present={}",
             request.url.path,
             is_htmx,
             is_api,
@@ -271,7 +271,7 @@ def _require_permission(request: Request, permission: str) -> dict:
 
     if not has_permission(role, permission):
         log.warning(
-            "Panel permission denied: path=%s role=%s required=%s sub=%s",
+            "Panel permission denied: path={} role={} required={} sub={}",
             request.url.path,
             role,
             permission,

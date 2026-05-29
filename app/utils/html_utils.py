@@ -9,6 +9,11 @@ def escape_html(text: Optional[str]) -> str:
     return html.escape(str(text), quote=True)
 
 
+def html_code(text: Optional[str]) -> str:
+    """Оборачивает текст в <code> с HTML-экранированием."""
+    return f"<code>{escape_html(text)}</code>"
+
+
 def truncate(text: Optional[str], length: int = 100, suffix: str = "...") -> str:
     """Обрезает текст до указанной длины."""
     if not text:

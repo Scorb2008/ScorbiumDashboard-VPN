@@ -21,6 +21,7 @@ from app.services.freekassa import FreeKassaService
 from app.services.platega import PlategaService
 from app.services.telegram_notify import TelegramNotifyService
 from app.services.i18n import t, get_lang
+from app.utils.html_utils import escape_html, html_code
 from app.utils.log import log
 
 router = Router()
@@ -144,7 +145,7 @@ async def _provision_and_notify(
         return True
 
     user_info = {
-        "username": f"<code>{user_id}</code>",
+        "username": html_code(user_id),
         "full_name": "—",
         "lang": "ru",
     }
@@ -155,12 +156,14 @@ async def _provision_and_notify(
         user_lang = user.language if user and user.language else None
         user_info["lang"] = get_lang(settings, user_lang)
         user_info["username"] = (
-            f"@{user.username}" if user and user.username else f"<code>{user_id}</code>"
+            escape_html(f"@{user.username}")
+            if user and user.username
+            else html_code(user_id)
         )
-        user_info["full_name"] = user.full_name if user else "—"
+        user_info["full_name"] = escape_html(user.full_name) if user else "—"
 
     lang = user_info["lang"]
-    plan_name = plan_data["name"]
+    plan_name = escape_html(plan_data["name"])
     plan_days = plan_data["duration_days"]
     plan_price = plan_data["price"]
 
@@ -169,7 +172,10 @@ async def _provision_and_notify(
             "payment_success", lang
         )
         text = f"{success_msg}\n\n" + t(
-            "subscription_url", lang, url=key_data["access_url"], days=plan_days
+            "subscription_url",
+            lang,
+            url=escape_html(key_data["access_url"]),
+            days=plan_days,
         )
     else:
         maintenance_enabled = settings.get("maintenance_mode", "0") == "1"

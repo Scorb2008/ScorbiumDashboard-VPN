@@ -145,13 +145,47 @@ class VpnKeyService:
             return value.replace(tzinfo=timezone.utc)
         return value.astimezone(timezone.utc)
 
+    @staticmethod
+    def _expire_timestamp(expire_at: datetime | None) -> int | None:
+        expire_at = VpnKeyService._normalize_expire_datetime(expire_at)
+        if expire_at is None:
+            return None
+        return int(expire_at.timestamp())
+
+    @staticmethod
+    def _parse_expire_datetime(raw_expire: object, now: datetime) -> datetime | None:
+        if raw_expire is None:
+            return None
+
+        try:
+            value = str(raw_expire).strip()
+            if not value or value.lower() == "none":
+                return None
+
+            if value.isdigit():
+                ts = int(value)
+                return datetime.fromtimestamp(ts, tz=timezone.utc) if ts > 0 else now
+
+            try:
+                parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError:
+                ts = float(value)
+                parsed = datetime.fromtimestamp(ts, tz=timezone.utc) if ts > 0 else now
+
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed.astimezone(timezone.utc)
+        except Exception as e:
+            log.warning(f"[vpn_sync] failed to parse expire {raw_expire!r}: {e}")
+            return now
+
     async def _sync_panel_expire_from_db(
         self, key: VpnKey, marz_user: dict | None
     ) -> bool:
         if not key.pasarguard_key_id or key.expires_at is None or not marz_user:
             return False
 
-        panel_expire = self._get_panel()._parse_expire_datetime(  # type: ignore[attr-defined]
+        panel_expire = self._parse_expire_datetime(
             marz_user.get("expire"),
             datetime.now(timezone.utc),
         )
@@ -164,14 +198,16 @@ class VpnKeyService:
             if delta <= 60:
                 return False
 
-        modify_user = getattr(self._get_panel(), "modify_user", None)
+        panel = self._get_panel()
+        modify_user = getattr(panel, "modify_user", None)
         if not callable(modify_user):
             return False
 
-        await modify_user(
-            key.pasarguard_key_id,
-            expire=self._get_panel()._expire_timestamp(db_expire),  # type: ignore[attr-defined]
-        )
+        expire_ts = self._expire_timestamp(db_expire)
+        if expire_ts is None:
+            return False
+
+        await modify_user(key.pasarguard_key_id, expire=expire_ts)
         log.info(
             f"[vpn_sync] fixed Pasarguard expire for key {key.id}: {db_expire.isoformat()}"
         )

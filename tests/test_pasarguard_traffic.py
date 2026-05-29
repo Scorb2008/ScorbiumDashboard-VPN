@@ -136,6 +136,35 @@ async def test_sync_from_marzban_maps_normalized_pasarguard_traffic(
 
     result = await service.sync_from_marzban()
 
-    assert result == {"synced": 1, "errors": 0}
+    assert result == {"synced": 1, "errors": 0, "fixed_expire": 0}
     assert sample_vpn_key.download == 4096
     assert sample_vpn_key.upload == 0
+
+
+@pytest.mark.asyncio
+async def test_sync_from_marzban_repairs_expire_without_panel_private_helpers(
+    session, sample_vpn_key
+):
+    service = VpnKeyService(session)
+    service._traffic_columns_supported = False
+
+    panel = AsyncMock()
+    panel.get_user.return_value = {
+        "username": sample_vpn_key.pasarguard_key_id,
+        "status": "active",
+        "expire": int(
+            (sample_vpn_key.expires_at - timedelta(days=2)).astimezone(
+                timezone.utc
+            ).timestamp()
+        ),
+    }
+    panel.modify_user = AsyncMock(return_value={"username": sample_vpn_key.pasarguard_key_id})
+    service._marzban = panel
+
+    result = await service.sync_from_marzban()
+
+    assert result == {"synced": 1, "errors": 0, "fixed_expire": 1}
+    panel.modify_user.assert_awaited_once_with(
+        sample_vpn_key.pasarguard_key_id,
+        expire=service._expire_timestamp(sample_vpn_key.expires_at),
+    )
