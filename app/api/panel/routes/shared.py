@@ -300,12 +300,27 @@ def _redirect(url: str):
     raise HTTPException(status_code=302, headers={"Location": url})
 
 
-def _to_detail(u) -> UserDetail:
+async def _to_detail(u, db=None) -> UserDetail:
+    vpn_keys_count = 0
+    payments_count = 0
+    
+    if db:
+        from app.services.vpn_key import VpnKeyService
+        from app.services.payment import PaymentService
+        
+        vpn_keys_count = len(await VpnKeyService(db).get_all_for_user(u.id))
+        payments = await PaymentService(db).get_all(user_id=u.id)
+        payments_count = len(payments)
+    else:
+        # Fallback to relationships if DB not available
+        vpn_keys_count = len(u.vpn_keys) if hasattr(u, 'vpn_keys') and u.vpn_keys else 0
+        payments_count = len(u.payments) if hasattr(u, 'payments') and u.payments else 0
+    
     return UserDetail(
         **UserRead.model_validate(u).model_dump(),
-        subscriptions_count=len(u.vpn_keys),
-        payments_count=len(u.payments),
-        vpn_keys_count=len(u.vpn_keys),
+        subscriptions_count=vpn_keys_count,
+        payments_count=payments_count,
+        vpn_keys_count=vpn_keys_count,
     )
 
 

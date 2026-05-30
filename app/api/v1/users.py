@@ -76,11 +76,15 @@ async def get_user(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
+    
+    vpn_keys_count = len(await VpnKeyService(db).get_all_for_user(user_id))
+    payments = await PaymentService(db).get_all(user_id=user_id)
+    
     return UserDetail(
         **UserRead.model_validate(user).model_dump(),
-        subscriptions_count=len(user.vpn_keys),
-        payments_count=len(user.payments),
-        vpn_keys_count=len(user.vpn_keys),
+        subscriptions_count=vpn_keys_count,
+        payments_count=len(payments),
+        vpn_keys_count=vpn_keys_count,
     )
 
 

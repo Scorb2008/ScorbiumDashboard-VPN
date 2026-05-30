@@ -30,7 +30,7 @@ async def users_page(request: Request, db: AsyncSession = Depends(get_db)):
     from app.services.user import UserService
 
     raw = await UserService(db).get_all(limit=200)
-    ctx["users"] = [_to_detail(u) for u in raw]
+    ctx["users"] = [await _to_detail(u, db) for u in raw]
     ctx["plans"] = await PlanService(db).get_all(only_active=True)
     return templates.TemplateResponse(request, "users.html", ctx)
 
@@ -52,7 +52,7 @@ async def users_search(
     return templates.TemplateResponse(
         request,
         "partials/users_rows.html",
-        {"request": request, "users": [_to_detail(u) for u in filtered]},
+        {"request": request, "users": [await _to_detail(u, db) for u in filtered]},
     )
 
 
@@ -168,7 +168,7 @@ async def ban_user_view(
     resp = templates.TemplateResponse(
         request,
         "partials/users_rows.html",
-        {"request": request, "users": [_to_detail(user)]},
+        {"request": request, "users": [await _to_detail(user, db)]},
     )
     _toast(resp, "Пользователь заблокирован")
     return resp
@@ -195,7 +195,7 @@ async def unban_user_view(
     resp = templates.TemplateResponse(
         request,
         "partials/users_rows.html",
-        {"request": request, "users": [_to_detail(user)]},
+        {"request": request, "users": [await _to_detail(user, db)]},
     )
     _toast(resp, "Пользователь разблокирован")
     return resp
