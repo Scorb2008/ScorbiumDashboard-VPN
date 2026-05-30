@@ -621,7 +621,7 @@ async def extend_choose_method(callback: CallbackQuery) -> None:
 
         await edit_with_photo(
             callback,
-            f"💳 <b>Оплата продления</b>\n\n{plan.name} — {plan.price} ₽ ({plan.duration_days} дн.)\n\nВыберите способ оплаты:",
+            f"💳 <b>Оплата продления</b>\n\n{escape_html(plan.name)} — {plan.price} ₽ ({plan.duration_days} дн.)\n\nВыберите способ оплаты:",
             reply_markup=builder.as_markup(),
         )
     except Exception:
@@ -694,7 +694,7 @@ async def extend_yookassa(callback: CallbackQuery, bot) -> None:
 
         await edit_with_photo(
             callback,
-            f"💳 <b>Продление подписки</b>\n\n{plan.name} — {plan.price} ₽\n\nПосле оплаты нажмите «Проверить».",
+            f"💳 <b>Продление подписки</b>\n\n{escape_html(plan.name)} — {plan.price} ₽\n\nПосле оплаты нажмите «Проверить».",
             reply_markup=builder.as_markup(),
         )
     except Exception:
@@ -767,7 +767,7 @@ async def extend_sbp(callback: CallbackQuery, bot) -> None:
 
         await edit_with_photo(
             callback,
-            f"🏦 <b>Продление через СБП</b>\n\n{plan.name} — {plan.price} ₽\n\nПосле оплаты нажмите «Проверить».",
+            f"🏦 <b>Продление через СБП</b>\n\n{escape_html(plan.name)} — {plan.price} ₽\n\nПосле оплаты нажмите «Проверить».",
             reply_markup=builder.as_markup(),
         )
     except Exception:
@@ -900,7 +900,7 @@ async def extend_crypto(callback: CallbackQuery, bot) -> None:
 
         await edit_with_photo(
             callback,
-            f"₿ <b>Продление криптой</b>\n\n{plan.name} — {plan.price} ₽ (~{usdt_amount} USDT)",
+            f"₿ <b>Продление криптой</b>\n\n{escape_html(plan.name)} — {plan.price} ₽ (~{usdt_amount} USDT)",
             reply_markup=builder.as_markup(),
         )
     except Exception:
@@ -971,7 +971,7 @@ async def extend_freekassa(callback: CallbackQuery, bot) -> None:
 
         await edit_with_photo(
             callback,
-            f"🟢 <b>Продление через FreeKassa</b>\n\n{plan.name} — {plan.price} ₽\n\nПосле оплаты нажмите «Проверить».",
+            f"🟢 <b>Продление через FreeKassa</b>\n\n{escape_html(plan.name)} — {plan.price} ₽\n\nПосле оплаты нажмите «Проверить».",
             reply_markup=builder.as_markup(),
         )
     except Exception:
@@ -1051,7 +1051,7 @@ async def extend_platega(callback: CallbackQuery, bot) -> None:
 
         await edit_with_photo(
             callback,
-            f"🟦 <b>Продление через Platega</b>\n\n{plan.name} — {plan.price} ₽\n\nПосле оплаты нажмите «Проверить».",
+            f"🟦 <b>Продление через Platega</b>\n\n{escape_html(plan.name)} — {plan.price} ₽\n\nПосле оплаты нажмите «Проверить».",
             reply_markup=builder.as_markup(),
         )
     except Exception:
@@ -1334,7 +1334,7 @@ async def extend_pay(callback: CallbackQuery) -> None:
                 extended.expires_at.strftime("%d.%m.%Y") if extended.expires_at else "—"
             )
             text = "✅ <b>Подписка продлена!</b>\n\n"
-            text += f"Тариф: {plan.name}\n"
+            text += f"Тариф: {escape_html(plan.name)}\n"
             text += f"Дней: {plan.duration_days}\n"
             text += f"Списано: {price} ₽\n"
             text += f"Новая дата: {exp}"

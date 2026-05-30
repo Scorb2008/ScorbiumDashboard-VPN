@@ -185,6 +185,9 @@ class VpnKeyService:
         if not key.pasarguard_key_id or key.expires_at is None or not marz_user:
             return False
 
+        if "expire" not in marz_user:
+            return False
+
         panel_expire = self._parse_expire_datetime(
             marz_user.get("expire"),
             datetime.now(timezone.utc),
@@ -193,10 +196,12 @@ class VpnKeyService:
         if db_expire is None:
             return False
 
-        if panel_expire is not None:
-            delta = abs((panel_expire - db_expire).total_seconds())
-            if delta <= 60:
-                return False
+        if panel_expire is None:
+            return False
+
+        delta = abs((panel_expire - db_expire).total_seconds())
+        if delta <= 60:
+            return False
 
         panel = self._get_panel()
         modify_user = getattr(panel, "modify_user", None)

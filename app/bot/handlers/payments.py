@@ -19,7 +19,6 @@ from app.services.telegram_stars import TelegramStarsService
 from app.services.cryptobot import CryptoBotService
 from app.services.freekassa import FreeKassaService
 from app.services.platega import PlategaService
-from app.services.telegram_notify import TelegramNotifyService
 from app.services.admin_events import (
     notify_admins_balance_topup,
     notify_admins_new_purchase,
@@ -27,7 +26,7 @@ from app.services.admin_events import (
 from app.services.i18n import t, get_lang
 from app.bot.utils.subscription_links import subscription_link_kb
 from app.bot.utils.media import resolve_photo_input
-from app.utils.html_utils import escape_html, html_code
+from app.utils.html_utils import escape_html
 from app.utils.log import log
 
 router = Router()
@@ -159,7 +158,6 @@ async def _provision_and_notify(
         user_info["lang"] = get_lang(settings, user_lang)
 
     lang = user_info["lang"]
-    plan_name = escape_html(plan_data["name"])
     plan_days = plan_data["duration_days"]
     plan_price = plan_data["price"]
 
@@ -192,12 +190,14 @@ async def _provision_and_notify(
                     key_data["access_url"],
                     lang=lang,
                 )
-            await bot.send_message(
-                user_id,
-                text,
-                parse_mode="HTML",
-                reply_markup=reply_markup,
-            )
+            send_kwargs = {
+                "chat_id": user_id,
+                "text": text,
+                "parse_mode": "HTML",
+            }
+            if reply_markup is not None:
+                send_kwargs["reply_markup"] = reply_markup
+            await bot.send_message(**send_kwargs)
         except Exception as e:
             log.warning(f"Failed to notify user {user_id}: {e}")
 
@@ -369,7 +369,7 @@ async def handle_yookassa_payment(callback: CallbackQuery, bot: Bot) -> None:
                 await edit_with_photo(
                     callback,
                     f"💳 <b>{t('pay_card', lang)}</b>\n\n"
-                    f"{plan.name} — {plan.price} ₽\n\n"
+                    f"{escape_html(plan.name)} — {plan.price} ₽\n\n"
                     f"{'После оплаты нажмите «Проверить оплату».' if lang == 'ru' else 'After payment press Check payment.'}",
                     reply_markup=builder.as_markup(),
                 )
@@ -541,7 +541,7 @@ async def handle_sbp_payment(callback: CallbackQuery, bot: Bot) -> None:
             await edit_with_photo(
                 callback,
                 f"🏦 <b>{sbp_title.get(lang, sbp_title['ru'])}</b>\n\n"
-                f"{plan.name} — {plan.price} ₽\n\n"
+                f"{escape_html(plan.name)} — {plan.price} ₽\n\n"
                 f"{sbp_hint.get(lang, sbp_hint['ru'])}",
                 reply_markup=builder.as_markup(),
             )
@@ -775,7 +775,7 @@ async def handle_crypto_payment(callback: CallbackQuery, bot: Bot) -> None:
             await edit_with_photo(
                 callback,
                 f"₿ <b>{t('pay_crypto', lang)}</b>\n\n"
-                f"{plan.name} — {plan.price} ₽ (~{usdt_amount} USDT)\n\n"
+                f"{escape_html(plan.name)} — {plan.price} ₽ (~{usdt_amount} USDT)\n\n"
                 f"{t('payment_check', lang)}.",
                 reply_markup=builder.as_markup(),
             )
@@ -1293,7 +1293,7 @@ async def handle_platega_payment(callback: CallbackQuery, bot: Bot) -> None:
             await edit_with_photo(
                 callback,
                 f"🟦 <b>Platega</b>\n\n"
-                f"{plan.name} — {plan.price} ₽\n\n"
+                f"{escape_html(plan.name)} — {plan.price} ₽\n\n"
                 f"{'После оплаты нажмите «Проверить оплату».' if lang == 'ru' else 'After payment press Check payment.'}",
                 reply_markup=builder.as_markup(),
             )
@@ -1431,7 +1431,7 @@ async def handle_freekassa_payment(callback: CallbackQuery, bot: Bot) -> None:
             await edit_with_photo(
                 callback,
                 f"🟢 <b>{'Оплата через FreeKassa' if lang == 'ru' else 'FreeKassa Payment'}</b>\n\n"
-                f"{plan.name} — {plan.price} ₽\n\n"
+                f"{escape_html(plan.name)} — {plan.price} ₽\n\n"
                 f"{'После оплаты нажмите «Проверить оплату».' if lang == 'ru' else 'After payment press Check payment.'}",
                 reply_markup=builder.as_markup(),
             )

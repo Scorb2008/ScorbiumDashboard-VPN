@@ -12,6 +12,7 @@ from app.api.dependencies import get_db
 from app.services.plan import PlanService
 from app.services.vpn_key import VpnKeyService
 from app.services.telegram_notify import TelegramNotifyService
+from app.utils.html_utils import escape_html, html_code
 
 from .shared import _require_permission, _toast, _base_ctx, templates
 
@@ -68,9 +69,9 @@ async def create_subscription(
     if key:
         await TelegramNotifyService().send_message(
             user_id,
-            f"🔑 <b>Ваш VPN-ключ готов!</b>\n\nПлан: <b>{plan.name}</b>\n"
+            f"🔑 <b>Ваш VPN-ключ готов!</b>\n\nПлан: <b>{escape_html(plan.name)}</b>\n"
             f"📅 Действует: <b>{plan.duration_days} дней</b>\n\n"
-            f"<code>{key.access_url}</code>",
+            f"{html_code(key.access_url)}",
         )
     resp = Response(status_code=200)
     _toast(resp, f"Подписка «{plan.name}» выдана" if key else "Ошибка создания ключа")
@@ -102,7 +103,7 @@ async def create_subscription_days(
         await TelegramNotifyService().send_message(
             user_id,
             f"🔑 <b>Ваш VPN-ключ готов!</b>\n\nДлительность: <b>{days} дней</b>\n"
-            f"📅 Действует до: <b>{exp_str}</b>\n\n<code>{key.access_url}</code>\n\n"
+            f"📅 Действует до: <b>{exp_str}</b>\n\n{html_code(key.access_url)}\n\n"
             "<i> 🔥 Приятного пользования! </i>",
         )
     resp = Response(status_code=200)

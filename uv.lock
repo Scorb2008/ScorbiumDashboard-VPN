@@ -1592,7 +1592,7 @@ wheels = [
 
 [[package]]
 name = "vpn-dashboard"
-version = "1.4.2"
+version = "2.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },

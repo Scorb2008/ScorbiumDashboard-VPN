@@ -15,6 +15,7 @@ from app.services.payment_fulfillment import (
     TopupFulfillmentResult,
 )
 from app.services.plan import PlanService
+from app.utils.html_utils import html_code
 from app.utils.log import log
 
 router = APIRouter()
@@ -419,7 +420,7 @@ async def freekassa_webhook(
         plan = await PlanService(db).get_by_id(plan_id)
         days = plan.duration_days if plan else "—"
         if key:
-            text = f"{success_msg}\n\n🔑 <b>Ваш ключ:</b>\n<code>{key.access_url}</code>\n\n📅 Действует <b>{days} дней</b>"
+            text = f"{success_msg}\n\n🔑 <b>Ваш ключ:</b>\n{html_code(key.access_url)}\n\n📅 Действует <b>{days} дней</b>"
         else:
             text = f"{success_msg}\n\nНажмите «Мои ключи» для получения ключа."
 
@@ -573,7 +574,7 @@ async def yookassa_webhook(
             elif key:
                 text = (
                     f"✅ {success_msg}\n\n"
-                    f"🔑 <b>Ваш VPN ключ:</b>\n<code>{key.access_url}</code>\n\n"
+                    f"🔑 <b>Ваш VPN ключ:</b>\n{html_code(key.access_url)}\n\n"
                     f"📅 Действует <b>{days} дней</b>"
                 )
             else:
@@ -694,7 +695,7 @@ async def cryptobot_webhook(
                 exp = key.expires_at.strftime("%d.%m.%Y") if key.expires_at else "—"
                 text = f"{success_msg}\n\n🔄 <b>Подписка продлена!</b>\n📅 Новая дата: <b>{exp}</b>"
             else:
-                text = f"{success_msg}\n\n🔑 <b>Ваш VPN ключ:</b>\n<code>{key.access_url}</code>"
+                text = f"{success_msg}\n\n🔑 <b>Ваш VPN ключ:</b>\n{html_code(key.access_url)}"
         else:
             text = f"{success_msg}\n\n⚠️ Ключ не создан, обратитесь в поддержку."
 
@@ -798,7 +799,7 @@ async def platega_webhook(request: Request, db: AsyncSession = Depends(get_db)) 
                 exp = key.expires_at.strftime("%d.%m.%Y") if key.expires_at else "—"
                 text = f"{success_msg}\n\n🔄 <b>Подписка продлена!</b>\n📅 Новая дата: <b>{exp}</b>"
             else:
-                text = f"{success_msg}\n\n🔑 <b>Ваш VPN ключ:</b>\n<code>{key.access_url}</code>"
+                text = f"{success_msg}\n\n🔑 <b>Ваш VPN ключ:</b>\n{html_code(key.access_url)}"
         else:
             text = f"{success_msg}\n\n⚠️ Ключ не создан, обратитесь в поддержку."
 
@@ -909,7 +910,7 @@ async def paypalych_webhook(
                 exp = key.expires_at.strftime("%d.%m.%Y") if key.expires_at else "—"
                 text = f"{success_msg}\n\n🔄 <b>Подписка продлена!</b>\n📅 Новая дата: <b>{exp}</b>"
             else:
-                text = f"{success_msg}\n\n🔑 <b>Ваш VPN ключ:</b>\n<code>{key.access_url}</code>"
+                text = f"{success_msg}\n\n🔑 <b>Ваш VPN ключ:</b>\n{html_code(key.access_url)}"
         else:
             text = f"{success_msg}\n\n⚠️ Ключ не создан, обратитесь в поддержку."
 
@@ -986,7 +987,7 @@ async def aikassa_webhook(request: Request, db: AsyncSession = Depends(get_db)) 
                 exp = key.expires_at.strftime("%d.%m.%Y") if key.expires_at else "—"
                 text = f"{success_msg}\n\n🔄 <b>Подписка продлена!</b>\n📅 Новая дата: <b>{exp}</b>"
             else:
-                text = f"{success_msg}\n\n🔑 <b>Ваш VPN ключ:</b>\n<code>{key.access_url}</code>"
+                text = f"{success_msg}\n\n🔑 <b>Ваш VPN ключ:</b>\n{html_code(key.access_url)}"
         else:
             text = f"{success_msg}\n\n⚠️ Ключ не создан, обратитесь в поддержку."
 

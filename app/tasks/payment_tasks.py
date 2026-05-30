@@ -16,6 +16,7 @@ from app.services.admin_events import (
 )
 from app.services.telegram_notify import TelegramNotifyService
 from app.bot.utils.subscription_links import subscription_link_kb
+from app.utils.html_utils import html_code
 from app.utils.log import log
 
 CHECK_INTERVAL = 60
@@ -181,8 +182,10 @@ async def check_pending_yookassa_payments() -> None:
 
                     payment_amount = str(payment.amount)
                     payment_currency = payment.currency
+                    payment_provider = payment.provider
                     plan_days = plan.duration_days
                     plan_name = plan.name
+                    plan_price = str(plan.price)
 
                     confirmation = await PaymentService(session).confirm_once(
                         pd["id"], str(yk_payment.id)
@@ -241,7 +244,7 @@ async def check_pending_yookassa_payments() -> None:
                 elif key_data:
                     text = (
                         f"{success_msg}\n\n"
-                        f"🔑 <b>Ссылка подписки:</b>\n<code>{key_data['access_url']}</code>\n\n"
+                        f"🔑 <b>Ссылка подписки:</b>\n{html_code(key_data['access_url'])}\n\n"
                         f"📅 Действует <b>{plan_days} дней</b>"
                     )
                 else:

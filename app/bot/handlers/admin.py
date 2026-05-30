@@ -28,7 +28,7 @@ from app.models.payment import PaymentStatus, PaymentType
 from app.bot.utils.media import resolve_photo_input
 from app.bot.utils.subscription_links import subscription_link_kb
 from app.utils.log import log
-from app.utils.html_utils import html_code, sanitize_search_query
+from app.utils.html_utils import escape_html, html_code, sanitize_search_query
 
 router = Router()
 
@@ -253,12 +253,8 @@ async def _show_user_detail(callback: CallbackQuery, user_id: int) -> None:
             == "succeeded"
         )
 
-    uname = f"@{username}" if username else f"<code>{user_id}</code>"
-    safe_name = (
-        full_name.replace("&", "&amp;").replace("<", "<").replace(">", ">")
-        if full_name
-        else "—"
-    )
+    uname = f"@{username}" if username else html_code(user_id)
+    safe_name = escape_html(full_name or "—")
     text = (
         f"👤 <b>{safe_name}</b> ({uname})\n\n"
         f"🆔 ID: <code>{user_id}</code>\n"
@@ -561,9 +557,9 @@ async def cmd_userinfo(message: Message) -> None:
             active = sum(1 for k in keys if str(k.status) == "active")
 
             text = "👤 <b>User Info</b>\n\n"
-            text += f"ID: <code>{user.id}</code>\n"
+            text += f"ID: {html_code(user.id)}\n"
             text += f"Username: @{user.username or '—'}\n"
-            text += f"Name: {user.full_name or '—'}\n"
+            text += f"Name: {escape_html(user.full_name or '—')}\n"
             text += f"Balance: {float(user.balance or 0):.2f} ₽\n"
             text += f"Active keys: {active}\n"
             text += f"Created: {user.created_at.strftime('%d.%m.%Y') if user.created_at else '—'}"
@@ -893,7 +889,7 @@ async def _show_users_page(callback: CallbackQuery, page: int = 0) -> None:
     for u in users:
         status = "🚫" if bool(u.is_banned) else "✅"
         uname = f"@{u.username}" if u.username else f"id:{u.id}"
-        label = f"{status} {u.full_name[:16]} ({uname[:12]})"
+        label = f"{status} {(u.full_name or '—')[:16]} ({uname[:12]})"
         builder.row(InlineKeyboardButton(text=label, callback_data=f"adm:user:{u.id}"))
 
     nav_btns = []
@@ -920,12 +916,7 @@ async def _show_users_page(callback: CallbackQuery, page: int = 0) -> None:
     for u in users:
         status = "🚫" if bool(u.is_banned) else "✅"
         uname = f"@{u.username}" if u.username else f"<code>{u.id}</code>"
-        safe_name = (
-            (u.full_name or "—")
-            .replace("&", "&amp;")
-            .replace("<", "<")
-            .replace(">", ">")
-        )
+        safe_name = escape_html(u.full_name or "—")
         text += (
             f"{status} <b>{safe_name}</b> ({uname}) — {float(u.balance or 0):.0f}₽\n"
         )
@@ -1012,7 +1003,7 @@ async def admin_search_result(message: Message, state: FSMContext) -> None:
         uname = f"@{u.username}" if u.username else f"id:{u.id}"
         builder.row(
             InlineKeyboardButton(
-                text=f"{status} {u.full_name[:20]} ({uname})",
+                text=f"{status} {(u.full_name or '—')[:20]} ({uname})",
                 callback_data=f"adm:user:{u.id}",
             )
         )
@@ -1288,7 +1279,7 @@ async def admin_replace_key_confirm(message: Message, state: FSMContext) -> None
 
     await state.clear()
     await message.answer(
-        f"✅ Ссылка ключа #{key_id} обновлена.\n\n<code>{new_access_url}</code>",
+        f"✅ Ссылка ключа #{key_id} обновлена.\n\n{html_code(new_access_url)}",
         parse_mode="HTML",
     )
 
@@ -1364,8 +1355,8 @@ async def admin_gift_key_confirm(callback: CallbackQuery) -> None:
         await TelegramNotifyService().send_message(
             user_id,
             f"🎁 <b>Вам подарена подписка!</b>\n\n"
-            f"Тариф: <b>{plan.name}</b> ({plan.duration_days} дней)\n\n"
-            f"🔑 <b>Ссылка подписки:</b>\n<code>{key.access_url}</code>",
+            f"Тариф: <b>{escape_html(plan.name)}</b> ({plan.duration_days} дней)\n\n"
+            f"🔑 <b>Ссылка подписки:</b>\n{html_code(key.access_url)}",
             reply_markup=subscription_link_kb(
                 key.access_url,
                 lang="ru",
@@ -1706,7 +1697,7 @@ async def admin_quick_ban_id(message: Message, state: FSMContext) -> None:
     await state.update_data(ban_user_id=user_id)
     await state.set_state(QuickBanState.waiting_reason)
     await message.answer(
-        f"👤 Пользователь: <b>{user.full_name}</b> (@{user.username or '—'})\n\n"
+        f"👤 Пользователь: <b>{escape_html(user.full_name or '—')}</b> (@{escape_html(user.username or '—')})\n\n"
         f"Введите причину бана (или «-» для стандартной):",
         parse_mode="HTML",
     )
@@ -2796,9 +2787,7 @@ async def admin_promos(callback: CallbackQuery) -> None:
     for p in promos[:15]:
         active = "✅" if bool(p.is_active) else "❌"
         uses = f"{p.current_uses}/{p.max_uses}" if p.max_uses else f"{p.current_uses}/∞"
-        lines.append(
-            f"{active} <code>{p.code}</code> — {p.promo_type} {p.value} ({uses})"
-        )
+        lines.append(f"{active} {html_code(p.code)} — {p.promo_type} {p.value} ({uses})")
 
     builder = InlineKeyboardBuilder()
     builder.row(
@@ -2843,7 +2832,7 @@ async def promo_got_code(message: Message, state: FSMContext) -> None:
         InlineKeyboardButton(text="🏷 Скидка %", callback_data="promo_type:discount"),
     )
     await message.answer(
-        f"Код: <code>{code}</code>\n\nВыберите тип бонуса:",
+        f"Код: {html_code(code)}\n\nВыберите тип бонуса:",
         reply_markup=builder.as_markup(),
         parse_mode="HTML",
     )
@@ -2917,7 +2906,7 @@ async def promo_got_max_uses(message: Message, state: FSMContext) -> None:
         )
         await session.commit()
     await message.answer(
-        f"✅ Промокод <code>{promo.code}</code> создан!\nТип: {promo.promo_type}, Значение: {promo.value}, Макс: {max_uses or '∞'}",
+        f"✅ Промокод {html_code(promo.code)} создан!\nТип: {promo.promo_type}, Значение: {promo.value}, Макс: {max_uses or '∞'}",
         parse_mode="HTML",
     )
     text, kb, _ = await _admin_main_text()
@@ -3254,7 +3243,7 @@ async def create_promo_cmd(message: Message) -> None:
             )
             await session.commit()
         await message.answer(
-            f"✅ Промокод <code>{promo.code}</code> создан!", parse_mode="HTML"
+            f"✅ Промокод {html_code(promo.code)} создан!", parse_mode="HTML"
         )
     except Exception as e:
         await message.answer(f"❌ Ошибка: {e}")
@@ -3325,8 +3314,8 @@ async def givekey_cmd(message: Message) -> None:
 
         await TelegramNotifyService().send_message(
             user_id,
-            f"🎁 <b>Вам выдана подписка!</b>\n\nТариф: <b>{plan.name}</b> ({plan.duration_days} дней)\n\n"
-            f"🔑 <b>Ссылка:</b>\n<code>{key.access_url}</code>",
+            f"🎁 <b>Вам выдана подписка!</b>\n\nТариф: <b>{escape_html(plan.name)}</b> ({plan.duration_days} дней)\n\n"
+            f"🔑 <b>Ссылка:</b>\n{html_code(key.access_url)}",
             reply_markup=subscription_link_kb(
                 key.access_url,
                 lang="ru",

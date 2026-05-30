@@ -16,6 +16,7 @@ from app.services.referral import ReferralService
 from app.services.telegram_notify import TelegramNotifyService
 from app.services.user import UserService
 from app.services.vpn_key import VpnKeyService
+from app.utils.html_utils import escape_html, html_code
 
 from .shared import _base_ctx, _require_permission, _toast, _to_detail, templates
 
@@ -219,8 +220,8 @@ async def gift_subscription(
     if key:
         await TelegramNotifyService().send_message(
             user_id,
-            f"🎁 <b>Вам подарена подписка!</b>\n\nПлан: <b>{plan.name}</b> ({plan.duration_days} дней)\n\n"
-            f"🔑 <b>Ссылка:</b>\n<code>{key.access_url}</code>\n\n"
+            f"🎁 <b>Вам подарена подписка!</b>\n\nПлан: <b>{escape_html(plan.name)}</b> ({plan.duration_days} дней)\n\n"
+            f"🔑 <b>Ссылка:</b>\n{html_code(key.access_url)}\n\n"
             "<i> 🔥 Приятного пользования! </i>",
         )
     resp = Response(status_code=200)
@@ -259,7 +260,7 @@ async def gift_days(
             f"🎁 <b>Вам подарена подписка!</b>\n\n"
             f"Длительность: <b>{days} дней</b>\n"
             f"Действует до: <b>{exp_str}</b>\n\n"
-            f"🔑 <b>Ссылка:</b>\n<code>{key.access_url}</code>\n\n"
+            f"🔑 <b>Ссылка:</b>\n{html_code(key.access_url)}\n\n"
             "<i> 🔥 Приятного пользования! </i>",
         )
     resp = Response(status_code=200)
@@ -394,8 +395,8 @@ async def bulk_gift_action(
             done += 1
             await TelegramNotifyService().send_message(
                 uid,
-                f"🎁 <b>Вам подарена подписка!</b>\n\nПлан: <b>{plan.name}</b> ({plan.duration_days} дней)\n\n"
-                f"🔑 <b>Ссылка:</b>\n<code>{key.access_url}</code>\n\n"
+                f"🎁 <b>Вам подарена подписка!</b>\n\nПлан: <b>{escape_html(plan.name)}</b> ({plan.duration_days} дней)\n\n"
+                f"🔑 <b>Ссылка:</b>\n{html_code(key.access_url)}\n\n"
                 "<i> 🔥 Приятного пользования! </i>",
             )
     await db.commit()
