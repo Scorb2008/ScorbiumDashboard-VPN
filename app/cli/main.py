@@ -191,7 +191,7 @@ def _menu_subs():
                 ("1", "Список подписок"),
                 ("2", "Создать подписку"),
                 ("3", "Продлить подписку"),
-                ("4", "Отозвать подписку"),
+                ("4", "Отключить подписку"),
             ],
         )
 
@@ -495,7 +495,7 @@ def extend(key_id, days):
 @subs.command()
 @click.argument("key_id", type=int)
 def revoke(key_id):
-    """Отозвать подписку"""
+    """Отключить подписку"""
     from app.cli.subs import revoke as run_revoke
 
     run_revoke(key_id=key_id)

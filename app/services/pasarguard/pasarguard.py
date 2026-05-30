@@ -342,6 +342,11 @@ class PasarguardService(VpnPanelInterface):
         self,
         name: str,
         address: str,
+        api_key: str,
+        server_ca: str,
+        connection_type: str = "grpc",
+        core_config_id: int = 1,
+        keep_alive: int = 60,
         port: int = 62050,
         api_port: int = 62051,
         usage_coefficient: float = 1.0,
@@ -349,11 +354,16 @@ class PasarguardService(VpnPanelInterface):
         payload = {
             "name": name,
             "address": address,
+            "api_key": api_key,
+            "server_ca": server_ca,
+            "connection_type": connection_type,
+            "core_config_id": core_config_id,
+            "keep_alive": keep_alive,
             "port": port,
             "api_port": api_port,
             "usage_coefficient": usage_coefficient,
-            "status": "connecting",
-        }
+            }
+        
         return await self._client.post("/api/node", payload)
 
     async def remove_node(self, node_id: int) -> None:
@@ -378,7 +388,17 @@ class PasarguardService(VpnPanelInterface):
         base = str(config.pasarguard.pasarguard_admin_panel).rstrip("/")
         return f"{base}/sub/{sub_token}/"
 
+    # ── HWID User ────────────────────────────────────────────────────────────
 
+    async def get_user_hwids(self, user_id: int) -> dict:
+        return await self._client.get(f"/api/user/{user_id}/hwids")
+
+    async def get_hwids_by_username(self, username: str) -> dict:
+        user = await self.get_user(username)
+        if not user or not user.get("id"):
+            return {"hwids": [], "count": 0}
+        return await self.get_user_hwids(int(user["id"]))
+        
 def get_vpn_panel() -> VpnPanelInterface:
     """Factory — returns Marzban/Pasarguard panel backend."""
     return PasarguardService()

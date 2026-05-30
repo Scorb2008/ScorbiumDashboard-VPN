@@ -1,5 +1,6 @@
 import asyncio
 import json as _json
+from datetime import datetime, timedelta, timezone
 
 from aiogram import Router, F
 from aiogram.filters import Command
@@ -23,6 +24,7 @@ from app.services.promo import PromoService
 from app.services.referral import ReferralService
 from app.services.broadcast import BroadcastService
 from app.services.plan import PlanService
+from app.services.pasarguard.pasarguard import get_vpn_panel
 from app.services.bot_settings import BotSettingsService, parse_int_list_setting
 from app.models.payment import PaymentStatus, PaymentType
 from app.bot.utils.media import resolve_photo_input
@@ -61,6 +63,40 @@ class GiftKeyState(StatesGroup):
 
 class ReplaceKeyState(StatesGroup):
     waiting_access_url = State()
+
+
+def _format_hwid_rows(hwids_data: dict | None) -> str:
+    hwids = hwids_data.get("hwids", []) if isinstance(hwids_data, dict) else []
+    if not hwids:
+        return "Устройства не зарегистрированы."
+
+    lines: list[str] = []
+    for idx, item in enumerate(hwids, start=1):
+        model = escape_html(item.get("device_model") or "Неизвестное устройство")
+        os_name = escape_html(item.get("device_os") or "OS?")
+        os_version = escape_html(item.get("os_version") or "—")
+        hwid = escape_html(item.get("hwid") or "—")
+        last_used = escape_html(item.get("last_used_at") or "—")
+        lines.append(
+            f"{idx}. <b>{model}</b>\n"
+            f"   • {os_name} {os_version}\n"
+            f"   • HWID: <code>{hwid}</code>\n"
+            f"   • Last used: {last_used}"
+        )
+    return "\n\n".join(lines)
+
+
+def _users_filter_label(filter_name: str) -> str:
+    return {
+        "all": "Все",
+        "new_today": "Сегодня",
+        "new_7d": "Новые 7 дн.",
+        "new_week": "Неделя",
+        "recent_bot": "Бот 3 дн.",
+        "with_subs": "С подпиской",
+        "without_subs": "Без подписки",
+        "banned": "Забаненные",
+    }.get(filter_name, "Все")
 
 
 def _is_admin(user_id: int) -> bool:
@@ -394,10 +430,16 @@ async def _show_admin_key_detail(
     if access_url:
         for row in subscription_link_kb(access_url, lang="ru").inline_keyboard:
             builder.row(*row)
+    builder.row(
+        InlineKeyboardButton(
+            text=f"📱 HWID #{key.id}",
+            callback_data=f"adm:keyhwid:{key.id}:{user_id}",
+        )
+    )
     if status_val == "active":
         builder.row(
             InlineKeyboardButton(
-                text=f"🚫 Отозвать #{key.id}",
+                text=f"🚫 Отключить #{key.id}",
                 callback_data=f"adm:revokekey:{key.id}:{user_id}",
             )
         )
@@ -414,6 +456,52 @@ async def _show_admin_key_detail(
         )
     )
 
+    try:
+        await callback.message.edit_text(
+            text, reply_markup=builder.as_markup(), parse_mode="HTML"
+        )
+    except Exception:
+        pass
+
+
+async def _show_admin_key_hwids(
+    callback: CallbackQuery, key_id: int, user_id: int
+) -> None:
+    async with AsyncSessionFactory() as session:
+        key = await VpnKeyService(session).get_by_id(key_id)
+
+    if not key or key.user_id != user_id:
+        await callback.answer("❌ Ключ не найден", show_alert=True)
+        await _show_user_keys(callback, user_id)
+        return
+
+    username = (key.pasarguard_key_id or "").strip()
+    hwids_data = {"hwids": [], "count": 0}
+    if username:
+        try:
+            panel = get_vpn_panel()
+            if hasattr(panel, "get_hwids_by_username"):
+                hwids_data = await panel.get_hwids_by_username(username)
+        except Exception as e:
+            log.warning(f"Failed to load HWIDs for key {key_id}: {e}")
+
+    count = hwids_data.get("count", 0) if isinstance(hwids_data, dict) else 0
+    plan_name = key.plan.name if key.plan else key.name or f"Подписка #{key.id}"
+    text = (
+        f"📱 <b>HWID для подписки</b>\n\n"
+        f"Подписка: <b>{escape_html(plan_name)}</b>\n"
+        f"ID ключа: <code>{key.id}</code>\n"
+        f"Устройств: <b>{count}</b>\n\n"
+        f"{_format_hwid_rows(hwids_data)}"
+    )
+
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text="◀️ К подписке",
+            callback_data=f"adm:keydetail:{key.id}:{user_id}",
+        )
+    )
     try:
         await callback.message.edit_text(
             text, reply_markup=builder.as_markup(), parse_mode="HTML"
@@ -863,7 +951,7 @@ async def admin_users(callback: CallbackQuery) -> None:
         await callback.answer("⛔ Нет доступа", show_alert=True)
         return
     await callback.answer()
-    await _show_users_page(callback, page=0)
+    await _show_users_page(callback, page=0, filter_name="all")
 
 
 @router.callback_query(F.data.startswith("adm:users:page:"))
@@ -872,19 +960,87 @@ async def admin_users_page(callback: CallbackQuery) -> None:
         return
     await callback.answer()
     page = int(callback.data.split(":")[3])
-    await _show_users_page(callback, page=page)
+    await _show_users_page(callback, page=page, filter_name="all")
 
 
-async def _show_users_page(callback: CallbackQuery, page: int = 0) -> None:
+@router.callback_query(F.data.startswith("adm:usersf:"))
+async def admin_users_filtered(callback: CallbackQuery) -> None:
+    if not _is_admin(callback.from_user.id):
+        return
+    await callback.answer()
+    parts = callback.data.split(":")
+    filter_name = parts[2]
+    page = 0
+    if len(parts) >= 5 and parts[3] == "page":
+        page = int(parts[4])
+    await _show_users_page(callback, page=page, filter_name=filter_name)
+
+
+async def _show_users_page(
+    callback: CallbackQuery, page: int = 0, filter_name: str = "all"
+) -> None:
+    from sqlalchemy import exists, func, select
+    from app.models.user import User
+    from app.models.vpn_key import VpnKey
+
     PAGE_SIZE = 8
     offset = page * PAGE_SIZE
+    now = datetime.now(timezone.utc)
+    today_threshold = now - timedelta(days=1)
+    new_threshold = now - timedelta(days=7)
+    recent_bot_threshold = now - timedelta(days=3)
+
+    conditions = []
+    if filter_name == "new_today":
+        conditions.append(User.created_at >= today_threshold)
+    elif filter_name == "new_7d":
+        conditions.append(User.created_at >= new_threshold)
+    elif filter_name == "new_week":
+        conditions.append(User.created_at >= new_threshold)
+    elif filter_name == "recent_bot":
+        conditions.append(User.last_seen.is_not(None))
+        conditions.append(User.last_seen >= recent_bot_threshold)
+    elif filter_name == "with_subs":
+        conditions.append(exists(select(1).where(VpnKey.user_id == User.id)))
+    elif filter_name == "without_subs":
+        conditions.append(~exists(select(1).where(VpnKey.user_id == User.id)))
+    elif filter_name == "banned":
+        conditions.append(User.is_banned.is_(True))
 
     async with AsyncSessionFactory() as session:
-        users = await UserService(session).get_all(limit=PAGE_SIZE, offset=offset)
-        total = await UserService(session).count_all()
+        query = select(User)
+        count_query = select(func.count()).select_from(User)
+        for condition in conditions:
+            query = query.where(condition)
+            count_query = count_query.where(condition)
+
+        query = query.order_by(User.created_at.desc(), User.id.desc()).limit(PAGE_SIZE).offset(offset)
+        result = await session.execute(query)
+        users = list(result.scalars().all())
+        total_result = await session.execute(count_query)
+        total = total_result.scalar_one()
 
     total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
     builder = InlineKeyboardBuilder()
+
+    filter_buttons = [
+        ("all", "Все"),
+        ("new_today", "Сегодня"),
+        ("new_7d", "Новые"),
+        ("new_week", "Неделя"),
+        ("recent_bot", "Бот"),
+        ("with_subs", "С подпиской"),
+        ("without_subs", "Без подписки"),
+        ("banned", "Забаненные"),
+    ]
+    for code, label in filter_buttons:
+        prefix = "• " if code == filter_name else ""
+        builder.row(
+            InlineKeyboardButton(
+                text=f"{prefix}{label}",
+                callback_data=f"adm:usersf:{code}",
+            )
+        )
 
     for u in users:
         status = "🚫" if bool(u.is_banned) else "✅"
@@ -895,14 +1051,18 @@ async def _show_users_page(callback: CallbackQuery, page: int = 0) -> None:
     nav_btns = []
     if page > 0:
         nav_btns.append(
-            InlineKeyboardButton(text="◀️", callback_data=f"adm:users:page:{page - 1}")
+            InlineKeyboardButton(
+                text="◀️", callback_data=f"adm:usersf:{filter_name}:page:{page - 1}"
+            )
         )
     nav_btns.append(
         InlineKeyboardButton(text=f"{page + 1}/{total_pages}", callback_data="adm:noop")
     )
     if page < total_pages - 1:
         nav_btns.append(
-            InlineKeyboardButton(text="▶️", callback_data=f"adm:users:page:{page + 1}")
+            InlineKeyboardButton(
+                text="▶️", callback_data=f"adm:usersf:{filter_name}:page:{page + 1}"
+            )
         )
     if nav_btns:
         builder.row(*nav_btns)
@@ -912,14 +1072,21 @@ async def _show_users_page(callback: CallbackQuery, page: int = 0) -> None:
         InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back"),
     )
 
-    text = f"👥 <b>Пользователи</b> (всего: {total})\nСтраница {page + 1}/{total_pages}\n\n"
+    text = (
+        f"👥 <b>Пользователи</b>\n"
+        f"Фильтр: <b>{_users_filter_label(filter_name)}</b>\n"
+        f"Всего: {total}\n"
+        f"Страница {page + 1}/{total_pages}\n\n"
+    )
     for u in users:
         status = "🚫" if bool(u.is_banned) else "✅"
         uname = f"@{u.username}" if u.username else f"<code>{u.id}</code>"
         safe_name = escape_html(u.full_name or "—")
-        text += (
-            f"{status} <b>{safe_name}</b> ({uname}) — {float(u.balance or 0):.0f}₽\n"
-        )
+        recent_mark = " • бот" if u.last_seen and u.last_seen >= recent_bot_threshold else ""
+        text += f"{status} <b>{safe_name}</b> ({uname}) — {float(u.balance or 0):.0f}₽{recent_mark}\n"
+
+    if not users:
+        text += "Пользователи по этому фильтру не найдены.\n"
 
     try:
         await callback.message.edit_text(
@@ -1204,6 +1371,16 @@ async def admin_key_detail(callback: CallbackQuery) -> None:
     await _show_admin_key_detail(callback, key_id, user_id)
 
 
+@router.callback_query(F.data.startswith("adm:keyhwid:"))
+async def admin_key_hwid(callback: CallbackQuery) -> None:
+    if not _is_admin(callback.from_user.id):
+        return
+    await callback.answer()
+    parts = callback.data.split(":")
+    key_id, user_id = int(parts[2]), int(parts[3])
+    await _show_admin_key_hwids(callback, key_id, user_id)
+
+
 @router.callback_query(F.data.startswith("adm:revokekey:"))
 async def admin_revoke_key(callback: CallbackQuery) -> None:
     if not _is_admin(callback.from_user.id):
@@ -1214,7 +1391,7 @@ async def admin_revoke_key(callback: CallbackQuery) -> None:
         key = await VpnKeyService(session).revoke(key_id)
         await session.commit()
     await callback.answer(
-        f"✅ Ключ #{key_id} отозван" if key else "❌ Ключ не найден", show_alert=True
+        f"✅ Ключ #{key_id} отключен" if key else "❌ Ключ не найден", show_alert=True
     )
     if key:
         await _show_admin_key_detail(callback, key_id, user_id)

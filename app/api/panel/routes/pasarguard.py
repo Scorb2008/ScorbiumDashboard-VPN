@@ -14,6 +14,59 @@ from .shared import _require_permission, _base_ctx, templates
 router = APIRouter()
 
 
+def _render_pasarguard_status(marzban_ok: bool, marzban_stats: dict | None) -> str:
+    if marzban_ok:
+        stats_html = ""
+        if marzban_stats:
+            items = [
+                (
+                    "bi-cpu",
+                    "rgba(0,212,170,.12)",
+                    "#00d4aa",
+                    "CPU",
+                    f"{round(marzban_stats.get('cpu_usage', 0), 1)}%",
+                ),
+                (
+                    "bi-memory",
+                    "rgba(16,185,129,.12)",
+                    "#10b981",
+                    "RAM",
+                    f"{round((marzban_stats.get('mem_used', 0) / 1048576), 1)} MB",
+                ),
+                (
+                    "bi-hdd",
+                    "rgba(245,158,11,.12)",
+                    "#f59e0b",
+                    "Disk",
+                    f"{round((marzban_stats.get('disk_used', 0) / 1073741824), 1)} GB",
+                ),
+            ]
+            cards = "".join(
+                f"""
+                <div class="col-6 col-md-4">
+                  <div style="background:var(--surface);border-radius:10px;padding:.75rem;text-align:center">
+                    <div style="font-size:.8rem;color:{color};margin-bottom:.3rem"><i class="bi {icon}"></i></div>
+                    <div style="font-size:1rem;font-weight:800;color:var(--text)">{value}</div>
+                    <div style="font-size:.65rem;color:var(--text-muted)">{label}</div>
+                  </div>
+                </div>
+                """
+                for icon, _bg, color, label, value in items
+            )
+            stats_html = f'<div class="row g-2">{cards}</div>'
+
+        return (
+            '<div class="d-flex align-items-center gap-2 mb-3" style="color:var(--success);font-size:.85rem">'
+            '<i class="bi bi-check-circle-fill"></i><span>Подключено</span></div>'
+            f"{stats_html}"
+        )
+
+    return (
+        '<div class="d-flex align-items-center gap-2" style="color:var(--danger);font-size:.85rem">'
+        '<i class="bi bi-x-circle-fill"></i><span>Нет подключения</span></div>'
+    )
+
+
 @router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def pasarguard_page(request: Request, db: AsyncSession = Depends(get_db)):
@@ -29,6 +82,19 @@ async def pasarguard_page(request: Request, db: AsyncSession = Depends(get_db)):
         ctx["marzban_stats"] = None
         ctx["marzban_ok"] = False
     return templates.TemplateResponse("pasarguard.html", ctx)
+
+
+@router.get("/status", response_class=HTMLResponse)
+async def pasarguard_status(request: Request):
+    _require_permission(request, "system")
+    try:
+        svc = PasarguardService()
+        marzban_stats = await svc.get_system_stats()
+        marzban_ok = True
+    except Exception:
+        marzban_stats = None
+        marzban_ok = False
+    return HTMLResponse(_render_pasarguard_status(marzban_ok, marzban_stats))
 
 
 @router.get("/users", response_class=HTMLResponse)

@@ -1,5 +1,5 @@
 {% for u in users %}
-<tr id="user-row-{{ u.id }}" data-user="{{ u.id }}" data-banned="{{ u.is_banned|lower }}" data-keys="{{ u.subscriptions_count }}" data-balance="{{ u.balance or 0 }}" data-created="{{ u.created_at.isoformat() if u.created_at else '' }}">
+<tr id="user-row-{{ u.id }}" data-user="{{ u.id }}" data-banned="{{ u.is_banned|lower }}" data-keys="{{ u.subscriptions_count }}" data-balance="{{ u.balance or 0 }}" data-created="{{ u.created_at.isoformat() if u.created_at else '' }}" data-last-seen="{{ u.last_seen.isoformat() if u.last_seen else '' }}">
   <td><input type="checkbox" class="user-check" value="{{ u.id }}" onchange="updateBulkBar()"></td>
   <td><code style="color:var(--accent)">{{ u.id }}</code></td>
   <td>

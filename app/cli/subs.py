@@ -187,11 +187,11 @@ async def _revoke_sub(key_id: int):
         click.echo(f"Статус: {STATUS_MAP.get(vpn_key.status, vpn_key.status)}")
 
         if vpn_key.status == "revoked":
-            click.secho("Подписка уже отозвана", fg="yellow")
+            click.secho("Подписка уже отключена", fg="yellow")
             return
 
         if not click.confirm(
-            "Вы уверены, что хотите отозвать эту подписку?", default=False
+            "Вы уверены, что хотите отключить эту подписку?", default=False
         ):
             click.secho("Отменено", fg="yellow")
             return
@@ -199,7 +199,7 @@ async def _revoke_sub(key_id: int):
         await service.revoke(key_id)
         await session.commit()
 
-        click.secho(f"✓ Подписка {key_id} отозвана", fg="green", bold=True)
+        click.secho(f"✓ Подписка {key_id} отключена", fg="green", bold=True)
 
 
 def list_subs(status="active", limit=20):

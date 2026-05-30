@@ -226,7 +226,7 @@
           {% endif %}
         </div>
         <button class="btn btn-sm btn-outline-secondary w-100"
-                hx-post="{{ panel_base }}/telegram/test-marzban" hx-target="#marzban-status" hx-swap="innerHTML">
+                hx-get="{{ panel_base }}/pasarguard/status" hx-target="#marzban-status" hx-swap="innerHTML">
           <i class="bi bi-arrow-repeat me-1"></i>Проверить
         </button>
       </div>

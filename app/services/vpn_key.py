@@ -127,6 +127,7 @@ class VpnKeyService:
                     "panel_status_raw",
                     str(raw_status).lower() if raw_status else None,
                 )
+                await self._sync_db_expire_from_panel(key, marz_user)
                 self._sync_key_status_from_panel(key, marz_user)
                 if not marz_user or not traffic_columns_supported:
                     continue
@@ -150,8 +151,12 @@ class VpnKeyService:
             key.status = VpnKeyStatus.ACTIVE.value
             return
 
-        if raw_status in ("expired", "limited", "disabled", "revoked"):
+        if raw_status in ("expired", "limited"):
             key.status = VpnKeyStatus.EXPIRED.value
+            return
+
+        if raw_status in ("disabled", "revoked"):
+            key.status = VpnKeyStatus.REVOKED.value
 
     @staticmethod
     def _normalize_expire_datetime(value: datetime | None) -> datetime | None:
@@ -195,10 +200,10 @@ class VpnKeyService:
             log.warning(f"[vpn_sync] failed to parse expire {raw_expire!r}: {e}")
             return now
 
-    async def _sync_panel_expire_from_db(
+    async def _sync_db_expire_from_panel(
         self, key: VpnKey, marz_user: dict | None
     ) -> bool:
-        if not key.pasarguard_key_id or key.expires_at is None or not marz_user:
+        if not key.pasarguard_key_id or not marz_user:
             return False
 
         if "expire" not in marz_user:
@@ -209,28 +214,22 @@ class VpnKeyService:
             datetime.now(timezone.utc),
         )
         db_expire = self._normalize_expire_datetime(key.expires_at)
-        if db_expire is None:
+        if panel_expire is None and db_expire is None:
             return False
 
         if panel_expire is None:
-            return False
+            key.expires_at = None
+            log.info(f"[vpn_sync] synced DB expire for key {key.id}: none")
+            return True
 
-        delta = abs((panel_expire - db_expire).total_seconds())
-        if delta <= 60:
-            return False
+        if db_expire is not None:
+            delta = abs((panel_expire - db_expire).total_seconds())
+            if delta <= 60:
+                return False
 
-        panel = self._get_panel()
-        modify_user = getattr(panel, "modify_user", None)
-        if not callable(modify_user):
-            return False
-
-        expire_ts = self._expire_timestamp(db_expire)
-        if expire_ts is None:
-            return False
-
-        await modify_user(key.pasarguard_key_id, expire=expire_ts)
+        key.expires_at = panel_expire
         log.info(
-            f"[vpn_sync] fixed Pasarguard expire for key {key.id}: {db_expire.isoformat()}"
+            f"[vpn_sync] synced DB expire for key {key.id}: {panel_expire.isoformat()}"
         )
         return True
 
@@ -438,10 +437,7 @@ class VpnKeyService:
         synced, errors, fixed_expire = 0, 0, 0
         traffic_columns_supported = await self._supports_traffic_columns()
         result = await self.session.execute(
-            select(VpnKey).where(
-                VpnKey.status == VpnKeyStatus.ACTIVE.value,
-                VpnKey.pasarguard_key_id.isnot(None),
-            )
+            select(VpnKey).where(VpnKey.pasarguard_key_id.isnot(None))
         )
         for key in result.scalars().all():
             try:
@@ -449,14 +445,9 @@ class VpnKeyService:
                 if not marz_user:
                     key.status = VpnKeyStatus.REVOKED.value
                 else:
-                    if await self._sync_panel_expire_from_db(key, marz_user):
+                    if await self._sync_db_expire_from_panel(key, marz_user):
                         fixed_expire += 1
-                    raw_status = (
-                        marz_user.get("_normalized_status")
-                        or marz_user.get("status", "")
-                    ).lower()
-                    if raw_status in ("expired", "limited", "disabled"):
-                        key.status = VpnKeyStatus.EXPIRED.value
+                    self._sync_key_status_from_panel(key, marz_user)
                     if traffic_columns_supported:
                         download = marz_user.get("download", 0) or 0
                         upload = marz_user.get("upload", 0) or 0

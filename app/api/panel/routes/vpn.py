@@ -10,7 +10,6 @@ from app.api.dependencies import get_db
 from app.models.vpn_key import VpnKey
 from app.services.vpn_key import VpnKeyService
 from app.services.telegram_notify import TelegramNotifyService
-from app.services.pasarguard.pasarguard import get_vpn_panel
 
 from .shared import _require_permission, _toast, _base_ctx, templates
 
@@ -37,10 +36,16 @@ async def revoke_key(
 ):
     _require_permission(request, "vpn.write")
     try:
-        await get_vpn_panel().revoke_user_subscription(str(key_id))
+        key = await VpnKeyService(db).revoke(key_id)
+        if not key:
+            resp = Response(status_code=404)
+            _toast(resp, "Ключ не найден", "error")
+            return resp
+        await db.commit()
         resp = Response(status_code=200)
-        _toast(resp, "Подписка отозвана в панели VPN")
+        _toast(resp, "Подписка отключена")
     except Exception as e:
+        await db.rollback()
         resp = Response(status_code=400)
         _toast(resp, f"Ошибка: {str(e)}", "error")
     return resp

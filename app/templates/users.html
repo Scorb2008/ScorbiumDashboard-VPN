@@ -142,6 +142,39 @@
     color: #dbeafe;
   }
 
+  .users-panel-quick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0 1rem 1rem;
+    border-bottom: 1px solid rgba(255,255,255,.05);
+  }
+
+  .users-panel-chip {
+    border: 1px solid rgba(0, 212, 170, .18);
+    background: rgba(255,255,255,.03);
+    color: var(--text-muted);
+    border-radius: 999px;
+    padding: .38rem .72rem;
+    font-size: .74rem;
+    font-weight: 700;
+    line-height: 1;
+    transition: all .16s ease;
+  }
+
+  .users-panel-chip:hover {
+    color: var(--text);
+    border-color: rgba(0, 212, 170, .34);
+    background: rgba(0, 212, 170, .08);
+  }
+
+  .users-panel-chip.is-active {
+    color: var(--accent);
+    border-color: rgba(0, 212, 170, .44);
+    background: rgba(0, 212, 170, .12);
+    box-shadow: inset 0 0 0 1px rgba(0, 212, 170, .08);
+  }
+
   @media (max-width: 767px) {
     .users-panel-bulk {
       flex-direction: column;
@@ -211,6 +244,16 @@
       hx-get="{{ panel_base }}/users/search" hx-trigger="keyup changed delay:400ms"
       hx-target="#users-tbody" hx-include="this" name="q" />
     </div>
+  </div>
+  <div class="users-panel-quick">
+    <button type="button" class="users-panel-chip is-active" data-quick-filter="all" onclick="setQuickFilter('all', this)">Все</button>
+    <button type="button" class="users-panel-chip" data-quick-filter="new_today" onclick="setQuickFilter('new_today', this)">Сегодня</button>
+    <button type="button" class="users-panel-chip" data-quick-filter="new_7d" onclick="setQuickFilter('new_7d', this)">Новые 7 дн.</button>
+    <button type="button" class="users-panel-chip" data-quick-filter="new_week" onclick="setQuickFilter('new_week', this)">Неделя</button>
+    <button type="button" class="users-panel-chip" data-quick-filter="recent_bot" onclick="setQuickFilter('recent_bot', this)">Бот 3 дн.</button>
+    <button type="button" class="users-panel-chip" data-quick-filter="with_subs" onclick="setQuickFilter('with_subs', this)">С подпиской</button>
+    <button type="button" class="users-panel-chip" data-quick-filter="without_subs" onclick="setQuickFilter('without_subs', this)">Без подписки</button>
+    <button type="button" class="users-panel-chip" data-quick-filter="banned" onclick="setQuickFilter('banned', this)">Забаненные</button>
   </div>
   <div class="table-responsive">
     <table class="table mb-0">
@@ -376,6 +419,66 @@
 {% block scripts %}
 <script>
 let _balUserId = null;
+let currentQuickFilter = 'all';
+
+function parseRowDate(value) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function isWithinLastDays(value, days) {
+  const parsed = parseRowDate(value);
+  if (!parsed) return false;
+  const threshold = Date.now() - (days * 24 * 60 * 60 * 1000);
+  return parsed.getTime() >= threshold;
+}
+
+function passesQuickFilter(row) {
+  switch (currentQuickFilter) {
+    case 'new_today':
+      return isWithinLastDays(row.dataset.created, 1);
+    case 'new_7d':
+      return isWithinLastDays(row.dataset.created, 7);
+    case 'new_week':
+      return isWithinLastDays(row.dataset.created, 7);
+    case 'recent_bot':
+      return isWithinLastDays(row.dataset.lastSeen, 3);
+    case 'with_subs':
+      return parseInt(row.dataset.keys || '0', 10) > 0;
+    case 'without_subs':
+      return parseInt(row.dataset.keys || '0', 10) === 0;
+    case 'banned':
+      return row.dataset.banned === 'true';
+    default:
+      return true;
+  }
+}
+
+function setQuickFilter(filter, btn) {
+  currentQuickFilter = filter;
+  document.querySelectorAll('.users-panel-chip').forEach(chip => chip.classList.remove('is-active'));
+  if (btn) btn.classList.add('is-active');
+  applyFilters();
+}
+
+function updateUsersEmptyState() {
+  const tbody = document.getElementById('users-tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr[data-user]'));
+  const visibleRows = rows.filter(row => row.style.display !== 'none');
+  let emptyRow = document.getElementById('users-empty-row');
+
+  if (visibleRows.length === 0 && rows.length > 0) {
+    if (!emptyRow) {
+      emptyRow = document.createElement('tr');
+      emptyRow.id = 'users-empty-row';
+      emptyRow.innerHTML = '<td colspan="8" class="text-center py-4" style="color:var(--text-muted)"><i class="bi bi-funnel d-block mb-2" style="font-size:1.5rem;opacity:.3"></i>По текущим фильтрам пользователей не найдено</td>';
+      tbody.appendChild(emptyRow);
+    }
+  } else if (emptyRow) {
+    emptyRow.remove();
+  }
+}
 
 function toggleAll(cb) {
   document.querySelectorAll('.user-check').forEach(c => { c.checked = cb.checked; });
@@ -546,7 +649,7 @@ function applyFilters() {
 
   const rows = document.querySelectorAll('#users-tbody tr[data-user]');
   rows.forEach(row => {
-    let show = true;
+    let show = passesQuickFilter(row);
     if (status === 'active' && row.dataset.banned === 'true') show = false;
     if (status === 'banned' && row.dataset.banned !== 'true') show = false;
     if (keys && parseInt(row.dataset.keys || '0') < parseInt(keys)) show = false;
@@ -554,6 +657,7 @@ function applyFilters() {
     if (dateFrom && new Date(row.dataset.created || '') < new Date(dateFrom)) show = false;
     row.style.display = show ? '' : 'none';
   });
+  updateUsersEmptyState();
 }
 
 function clearFilters() {
@@ -561,7 +665,19 @@ function clearFilters() {
   document.getElementById('filterKeys').value = '';
   document.getElementById('filterBalance').value = '';
   document.getElementById('filterDateFrom').value = '';
-  document.querySelectorAll('#users-tbody tr').forEach(r => r.style.display = '');
+  currentQuickFilter = 'all';
+  document.querySelectorAll('.users-panel-chip').forEach(chip => {
+    chip.classList.toggle('is-active', chip.dataset.quickFilter === 'all');
+  });
+  document.querySelectorAll('#users-tbody tr[data-user]').forEach(r => r.style.display = '');
+  updateUsersEmptyState();
 }
+
+document.body.addEventListener('htmx:afterSwap', function(e) {
+  if (e.target && e.target.id === 'users-tbody') {
+    applyFilters();
+    clearSelection();
+  }
+});
 </script>
 {% endblock %}

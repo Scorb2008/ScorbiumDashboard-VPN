@@ -274,15 +274,18 @@
                   <button class="btn btn-xs user-detail-green" title="Скопировать URL" onclick="copyKeyUrl('{{ sub.access_url }}')">
                     <i class="bi bi-clipboard"></i>
                   </button>
+                  <button class="btn btn-xs user-detail-green" title="HWID" onclick="openHwidModal({{ sub.id }})">
+                    <i class="bi bi-phone"></i>
+                  </button>
                   {% if st != 'revoked' %}
                   <button class="btn btn-xs user-detail-green" title="Продлить" onclick="openExtendModal({{ sub.id }}, '{{ sub.plan.name if sub.plan else sub.name or '' }}')">
                     <i class="bi bi-clock-history"></i>
                   </button>
                   {% endif %}
                   {% if st == 'active' %}
-                  <button class="btn btn-xs btn-outline-danger" title="Отозвать"
+                  <button class="btn btn-xs btn-outline-danger" title="Отключить"
                     hx-post="{{ panel_base }}/vpn/{{ sub.id }}/revoke" hx-swap="none"
-                    hx-confirm="Отозвать подписку?">
+                    hx-confirm="Отключить подписку?">
                     <i class="bi bi-x-circle"></i>
                   </button>
                   {% endif %}
@@ -326,6 +329,21 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- HWID Modal -->
+<div class="modal fade" id="hwidModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content" style="background:#1a1f2e;border:1px solid rgba(255,255,255,.08)">
+      <div class="modal-header border-0">
+        <h6 class="modal-title" style="color:var(--text)"><i class="bi bi-phone me-2"></i>HWID подписки</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="hwid-modal-body">
+        <div class="text-center py-4" style="color:var(--text-muted)">Загрузка...</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -449,6 +467,17 @@ async function sendMsg() {
 }
 function copyKeyUrl(url) {
   navigator.clipboard.writeText(url).then(() => showToast('URL скопирован', 'success')).catch(() => showToast('Не удалось скопировать', 'error'));
+}
+async function openHwidModal(keyId) {
+  const body = document.getElementById('hwid-modal-body');
+  body.innerHTML = '<div class="text-center py-4" style="color:var(--text-muted)">Загрузка...</div>';
+  new bootstrap.Modal(document.getElementById('hwidModal')).show();
+  try {
+    const r = await fetch(panelUrl('/subscriptions/' + keyId + '/hwids'), { credentials:'same-origin' });
+    body.innerHTML = r.ok ? await r.text() : '<div class="text-center py-4" style="color:var(--text-muted)">Не удалось загрузить HWID.</div>';
+  } catch (e) {
+    body.innerHTML = '<div class="text-center py-4" style="color:var(--text-muted)">Не удалось загрузить HWID.</div>';
+  }
 }
 let extendKeyId = null;
 function openExtendModal(keyId, keyName) {

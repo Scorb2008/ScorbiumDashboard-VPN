@@ -1,0 +1,38 @@
+{% set hwids = hwids_data.get('hwids', []) if hwids_data else [] %}
+{% set count = hwids_data.get('count', hwids|length) if hwids_data else 0 %}
+<div>
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <div style="font-weight:600;color:var(--text)">Подписка #{{ subscription.id }}</div>
+      <div style="font-size:.8rem;color:var(--text-muted)">
+        {% if subscription.plan %}
+          {{ subscription.plan.name }}
+        {% else %}
+          {{ subscription.name or 'Без названия' }}
+        {% endif %}
+      </div>
+    </div>
+    <span class="badge badge-custom badge-active">{{ count }}</span>
+  </div>
+
+  {% if hwids %}
+    <div class="d-grid gap-2">
+      {% for item in hwids %}
+        <div style="border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:.85rem;background:rgba(255,255,255,.02)">
+          <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+            <div style="font-weight:600;color:var(--text)">{{ item.device_model or 'Неизвестное устройство' }}</div>
+            <span class="badge badge-custom badge-open">{{ item.device_os or 'OS?' }}</span>
+          </div>
+          <div style="font-size:.8rem;color:var(--text-muted)">Версия ОС: {{ item.os_version or '—' }}</div>
+          <div style="font-size:.8rem;color:var(--text-muted)">HWID: <code style="color:#00d4aa">{{ item.hwid or '—' }}</code></div>
+          <div style="font-size:.8rem;color:var(--text-muted)">Добавлен: {{ item.created_at|dt('%d.%m.%Y %H:%M', '—') }}</div>
+          <div style="font-size:.8rem;color:var(--text-muted)">Последнее использование: {{ item.last_used_at|dt('%d.%m.%Y %H:%M', '—') }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="text-center py-3" style="color:var(--text-muted)">
+      Для этой подписки HWID пока не зарегистрированы.
+    </div>
+  {% endif %}
+</div>

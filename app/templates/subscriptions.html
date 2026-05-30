@@ -191,6 +191,13 @@
                 onclick="copyKeyUrl({{ (sub.access_url or '')|tojson }})">
                 <i class="bi bi-clipboard me-1"></i>Скопировать
               </button>
+              <button
+                type="button"
+                class="btn btn-xs btn-outline-accent"
+                title="HWID"
+                onclick="openHwidModal({{ sub.id }})">
+                <i class="bi bi-phone me-1"></i>HWID
+              </button>
               {% if sub.access_url %}
               <a
                 href="{{ sub.access_url }}"
@@ -215,11 +222,11 @@
               </button>
               {% endif %}
               {% if st == 'active' %}
-              <button class="btn btn-xs btn-outline-danger" title="Отозвать"
+              <button class="btn btn-xs btn-outline-danger" title="Отключить"
                 hx-post="{{ panel_base }}/subscriptions/{{ sub.id }}/cancel"
                 hx-swap="none"
-                hx-confirm="Отозвать подписку?">
-                <i class="bi bi-x-circle me-1"></i>Отозвать
+                hx-confirm="Отключить подписку?">
+                <i class="bi bi-x-circle me-1"></i>Отключить
               </button>
               {% endif %}
             </div>
@@ -256,6 +263,20 @@
           <button type="submit" class="btn btn-sm btn-accent"><i class="bi bi-check me-1"></i>Продлить</button>
         </div>
       </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="hwidModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content" style="background:#1a1f2e;border:1px solid rgba(255,255,255,.08)">
+      <div class="modal-header border-0">
+        <h6 class="modal-title" style="color:var(--text)"><i class="bi bi-phone me-2"></i>HWID подписки</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="hwid-modal-body">
+        <div class="text-center py-4" style="color:var(--text-muted)">Загрузка...</div>
+      </div>
     </div>
   </div>
 </div>
@@ -303,6 +324,17 @@ async function copyKeyUrl(url) {
   showToast('Не удалось скопировать', 'error');
 }
 let extendSubId = null;
+async function openHwidModal(keyId) {
+  const body = document.getElementById('hwid-modal-body');
+  body.innerHTML = '<div class="text-center py-4" style="color:var(--text-muted)">Загрузка...</div>';
+  new bootstrap.Modal(document.getElementById('hwidModal')).show();
+  try {
+    const r = await fetch(panelUrl('/subscriptions/' + keyId + '/hwids'), { credentials:'same-origin' });
+    body.innerHTML = r.ok ? await r.text() : '<div class="text-center py-4" style="color:var(--text-muted)">Не удалось загрузить HWID.</div>';
+  } catch (err) {
+    body.innerHTML = '<div class="text-center py-4" style="color:var(--text-muted)">Не удалось загрузить HWID.</div>';
+  }
+}
 function openExtendModal(subId, subName) {
   extendSubId = subId;
   document.getElementById('extendSubInfo').textContent = 'Подписка #' + subId + (subName ? ' (' + subName + ')' : '');
