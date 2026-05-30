@@ -18,8 +18,8 @@ class User(Base):
     autorenew = Column(Boolean, default=False, nullable=False)
     last_seen = Column(DateTime(timezone=True), nullable=True)
 
-    payments = relationship("Payment", back_populates="user", lazy="selectin")
-    vpn_keys = relationship("VpnKey", back_populates="user", lazy="selectin")
+    payments = relationship("Payment", back_populates="user", lazy="noload")
+    vpn_keys = relationship("VpnKey", back_populates="user", lazy="noload")
     tickets = relationship("SupportTicket", back_populates="user", lazy="noload")
 
     def __repr__(self) -> str:

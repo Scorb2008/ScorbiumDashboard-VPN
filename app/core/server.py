@@ -323,8 +323,8 @@ async def _lifespan(app: FastAPI):
                 await _bot.set_my_commands(
                     admin_commands, scope=BotCommandScopeChat(chat_id=admin_id)
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                log.warning(f"Failed to set bot commands for admin {admin_id}: {e}")
         log.info("✅ Bot commands set")
     except Exception as e:
         log.warning(f"Failed to set bot commands: {e}")
@@ -368,7 +368,7 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=origins,
         allow_credentials=True,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
         allow_headers=["*"],
     )
     app.add_middleware(RateLimitMiddleware)
@@ -529,7 +529,7 @@ def create_app() -> FastAPI:
             elif is_cabinet:
                 resp.headers["Content-Security-Policy"] = (
                     "default-src 'self'; "
-                    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://telegram.org https://oauth.telegram.org; "
+                    "script-src 'self' https://cdn.jsdelivr.net https://telegram.org https://oauth.telegram.org; "
                     "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
                     "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; "
                     "img-src 'self' data: https://telegram.org https://oauth.telegram.org; "
