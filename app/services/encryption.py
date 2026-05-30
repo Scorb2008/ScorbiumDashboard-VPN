@@ -12,6 +12,7 @@ from app.utils.log import log
 
 _MASTER_KEY: str | None = None
 _FERNET: Fernet | None = None
+_FALLBACK_FERNETS: list[Fernet] | None = None
 
 
 def _ciphertext_summary(value: str) -> str:
@@ -44,6 +45,31 @@ def _build_fernet_from_env(key_env: str) -> Fernet:
     return Fernet(base64.urlsafe_b64encode(raw_bytes))
 
 
+def _load_fallback_fernets() -> list[Fernet]:
+    global _FALLBACK_FERNETS
+    if _FALLBACK_FERNETS is not None:
+        return _FALLBACK_FERNETS
+
+    raw_values: list[str] = []
+    previous = os.environ.get("ENCRYPTION_KEY_PREVIOUS", "").strip()
+    if previous:
+        raw_values.append(previous)
+
+    extra_keys = os.environ.get("ENCRYPTION_KEYS_OLD", "").strip()
+    if extra_keys:
+        raw_values.extend(part.strip() for part in extra_keys.split(",") if part.strip())
+
+    fallback_fernets: list[Fernet] = []
+    for raw_value in raw_values:
+        try:
+            fallback_fernets.append(_build_fernet_from_env(raw_value))
+        except Exception as exc:
+            log.warning("Skipping invalid fallback ENCRYPTION_KEY: {}", exc)
+
+    _FALLBACK_FERNETS = fallback_fernets
+    return _FALLBACK_FERNETS
+
+
 def _get_fernet() -> Fernet:
     global _FERNET, _MASTER_KEY
     if _FERNET is not None:
@@ -61,6 +87,7 @@ def _get_fernet() -> Fernet:
     try:
         _FERNET = _build_fernet_from_env(key_env)
         _MASTER_KEY = key_env
+        _load_fallback_fernets()
         log.info("Encryption engine initialized")
     except Exception as exc:
         _FERNET = Fernet(Fernet.generate_key())
@@ -87,12 +114,17 @@ def decrypt_value(encrypted: str) -> str:
     f = _get_fernet()
     try:
         return f.decrypt(encrypted.encode()).decode()
-    except Exception as e:
+    except Exception:
+        for fallback in _load_fallback_fernets():
+            try:
+                return fallback.decrypt(encrypted.encode()).decode()
+            except Exception:
+                continue
+
         key_state = "configured" if _MASTER_KEY else "auto-generated"
         log.error(
-            "Decryption failed: {}. ENCRYPTION_KEY={} value={}. "
+            "Decryption failed. ENCRYPTION_KEY={} value={}. "
             "Stored secrets may have been encrypted with a different key.",
-            e,
             key_state,
             _ciphertext_summary(encrypted),
         )

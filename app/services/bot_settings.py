@@ -182,6 +182,10 @@ class BotSettingsService:
                 return decrypt_value(value)
         return value
 
+    async def has_value(self, key: str) -> bool:
+        all_settings = await self.get_all()
+        return bool(str(all_settings.get(key) or "").strip())
+
     async def get_all(self) -> dict:
         global _cache, _cache_ts, _cache_lock
         now = time.time()

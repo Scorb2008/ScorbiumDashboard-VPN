@@ -48,19 +48,20 @@ async def telegram_page(request: Request, db: AsyncSession = Depends(get_db)):
     except Exception:
         ctx["layout"] = _DEFAULT_LAYOUT
 
-    yk_shop = (await svc.get("yookassa_shop_id_override") or "").strip()
-    yk_secret = (await svc.get("yookassa_secret_key_override") or "").strip()
-    cb_token = (await svc.get("cryptobot_token") or "").strip()
-    fk_shop = (await svc.get("freekassa_shop_id") or "").strip()
-    fk_api_key = (await svc.get("freekassa_api_key") or "").strip()
-    ak_shop = (await svc.get("aikassa_shop_id") or "").strip()
-    pg_merchant = (await svc.get("platega_merchant_id") or "").strip()
-    pg_secret = (await svc.get("platega_secret") or "").strip()
-    pp_token = (await svc.get("paypalych_api_token") or "").strip()
-    pp_merchant_id = (await svc.get("paypalych_merchant_id") or "").strip()
-    pp_merchant_secret = (await svc.get("paypalych_merchant_secret") or "").strip()
-    fk_secret1 = (await svc.get("freekassa_secret_word_1") or "").strip()
-    fk_secret2 = (await svc.get("freekassa_secret_word_2") or "").strip()
+    yk_shop = str(settings.get("yookassa_shop_id_override") or "").strip()
+    fk_shop = str(settings.get("freekassa_shop_id") or "").strip()
+    ak_shop = str(settings.get("aikassa_shop_id") or "").strip()
+    pg_merchant = str(settings.get("platega_merchant_id") or "").strip()
+    pp_merchant_id = str(settings.get("paypalych_merchant_id") or "").strip()
+    pp_merchant_secret = str(settings.get("paypalych_merchant_secret") or "").strip()
+    yk_secret_set = await svc.has_value("yookassa_secret_key_override")
+    cb_token_set = await svc.has_value("cryptobot_token")
+    fk_api_key_set = await svc.has_value("freekassa_api_key")
+    pg_secret_set = await svc.has_value("platega_secret")
+    pp_token_set = await svc.has_value("paypalych_api_token")
+    fk_secret1_set = await svc.has_value("freekassa_secret_word_1")
+    fk_secret2_set = await svc.has_value("freekassa_secret_word_2")
+    aikassa_token_set = await svc.has_value("aikassa_token")
 
     def _toggle(key):
         return settings.get(key) == "1"
@@ -70,28 +71,28 @@ async def telegram_page(request: Request, db: AsyncSession = Depends(get_db)):
         "platega_configured": bool(pg_merchant),
         "platega_toggle": _toggle("ps_platega_enabled"),
         "platega_merchant_id": pg_merchant,
-        "platega_secret_set": bool(pg_secret),
+        "platega_secret_set": pg_secret_set,
         "yookassa_enabled": _toggle("ps_yookassa_enabled"),
-        "yookassa_configured": bool(yk_shop and yk_secret),
+        "yookassa_configured": bool(yk_shop and yk_secret_set),
         "yookassa_toggle": _toggle("ps_yookassa_enabled"),
         "yookassa_shop_id": yk_shop,
-        "yookassa_secret_set": bool(yk_secret),
+        "yookassa_secret_set": yk_secret_set,
         "freekassa_enabled": _toggle("ps_freekassa_enabled"),
-        "freekassa_configured": bool(fk_shop and fk_api_key),
+        "freekassa_configured": bool(fk_shop and fk_api_key_set),
         "freekassa_shop_id": fk_shop,
-        "freekassa_secret1_set": bool(fk_secret1),
-        "freekassa_secret2_set": bool(fk_secret2),
+        "freekassa_secret1_set": fk_secret1_set,
+        "freekassa_secret2_set": fk_secret2_set,
         "aikassa_enabled": _toggle("ps_aikassa_enabled"),
-        "aikassa_configured": bool(ak_shop),
+        "aikassa_configured": bool(ak_shop and aikassa_token_set),
         "aikassa_shop_id": ak_shop,
         "paypalych_enabled": _toggle("ps_paypalych_enabled"),
-        "paypalych_configured": bool(pp_token),
+        "paypalych_configured": pp_token_set,
         "paypalych_merchant_configured": bool(pp_merchant_id and pp_merchant_secret),
         "paypalych_toggle": _toggle("ps_paypalych_enabled"),
         "paypalych_merchant_id": pp_merchant_id,
         "paypalych_secret_set": bool(pp_merchant_secret),
         "cryptobot_enabled": _toggle("ps_cryptobot_enabled"),
-        "cryptobot_configured": bool(cb_token),
+        "cryptobot_configured": cb_token_set,
         "cryptobot_toggle": _toggle("ps_cryptobot_enabled"),
         "stars_enabled": _toggle("ps_stars_enabled"),
         "stars_configured": True,
