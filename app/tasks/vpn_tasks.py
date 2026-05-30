@@ -3,6 +3,7 @@ import asyncio
 from app.core.database import AsyncSessionFactory
 from app.services.admin_events import notify_admins_autorenew_success
 from app.services.vpn_key import VpnKeyService
+from app.utils.html_utils import escape_html
 from app.utils.log import log
 
 EXPIRE_CHECK_INTERVAL = 300
@@ -144,26 +145,27 @@ async def notify_expiring_soon() -> None:
             lang = get_lang(settings, user_lang)
 
             exp_str = exp.strftime("%d.%m.%Y") if exp else "—"
+            safe_name = escape_html(name)
 
             if lang == "en":
                 msg = (
                     f"⚠️ <b>Subscription expires in {days_before} day(s)!</b>\n\n"
-                    f"📦 {name}\n📅 Expiry date: <b>{exp_str}</b>\n\n"
+                    f"📦 {safe_name}\n📅 Expiry date: <b>{exp_str}</b>\n\n"
                     f"Renew your subscription to keep VPN access."
                 )
             elif lang == "fa":
                 msg = (
                     f"⚠️ <b>اشتراک شما در {days_before} روز منقضی می‌شود!</b>\n\n"
-                    f"📦 {name}\n📅 تاریخ انقضا: <b>{exp_str}</b>\n\n"
+                    f"📦 {safe_name}\n📅 تاریخ انقضا: <b>{exp_str}</b>\n\n"
                     f"اشتراک خود را تمدید کنید."
                 )
             else:
                 try:
                     msg = notify_msg_tpl.format(
-                        days=days_before, name=name, date=exp_str
+                        days=days_before, name=safe_name, date=exp_str
                     )
                 except Exception:
-                    msg = f"⚠️ Подписка «{name}» истекает через {days_before} дн. ({exp_str})"
+                    msg = f"⚠️ Подписка «{safe_name}» истекает через {days_before} дн. ({exp_str})"
 
             if photo:
                 await notify.send_photo(user_id, photo, msg)
@@ -218,6 +220,11 @@ async def auto_renew_keys() -> None:
             ]
             photo = await BotSettingsService(session).get("photo_status") or None
 
+        active_key_ids = {item["key_id"] for item in data}
+        for stale_key_id in list(_AUTO_RENEW_LOW_BALANCE_NOTIFIED):
+            if stale_key_id not in active_key_ids:
+                _AUTO_RENEW_LOW_BALANCE_NOTIFIED.pop(stale_key_id, None)
+
         notify = TelegramNotifyService()
 
         for item in data:
@@ -226,6 +233,7 @@ async def auto_renew_keys() -> None:
             plan_id = item["plan_id"]
             price = item["price"]
             name = item["name"]
+            safe_name = escape_html(name)
 
             if price <= 0:
                 continue
@@ -299,7 +307,7 @@ async def auto_renew_keys() -> None:
                         )
                         renew_msg = (
                             f"✅ <b>Подписка автоматически продлена!</b>\n\n"
-                            f"📦 {name}\n"
+                            f"📦 {safe_name}\n"
                             f"Списано: <b>{price} ₽</b>\n"
                             f"Действует до: <b>{exp_str}</b>"
                         )

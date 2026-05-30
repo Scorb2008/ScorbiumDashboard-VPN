@@ -1042,7 +1042,7 @@ async def cabinet_trial(request: Request, db: AsyncSession = Depends(get_db)):
     settings = await BotSettingsService(db).get_all()
     trial_enabled = settings.get("trial_enabled", "0") == "1"
     trial_days = int(settings.get("trial_days", "3"))
-    has_keys = len(await VpnKeyService(db).get_all_for_user(user.id)) > 0
+    has_keys = await VpnKeyService(db).count_for_user(user.id) > 0
     response = templates.TemplateResponse(
         "cabinet/trial.html",
         {

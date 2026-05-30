@@ -306,11 +306,9 @@ async def _to_detail(u, db=None) -> UserDetail:
     
     if db:
         from app.services.vpn_key import VpnKeyService
-        from app.services.payment import PaymentService
         
-        vpn_keys_count = len(await VpnKeyService(db).get_all_for_user(u.id))
-        payments = await PaymentService(db).get_all(user_id=u.id)
-        payments_count = len(payments)
+        vpn_keys_count = await VpnKeyService(db).count_for_user(u.id)
+        payments_count = await PaymentService(db).count_for_user(u.id)
     else:
         # Fallback to relationships if DB not available
         vpn_keys_count = len(u.vpn_keys) if hasattr(u, 'vpn_keys') and u.vpn_keys else 0
@@ -322,6 +320,27 @@ async def _to_detail(u, db=None) -> UserDetail:
         payments_count=payments_count,
         vpn_keys_count=vpn_keys_count,
     )
+
+
+async def _build_user_details(users, db: AsyncSession) -> list[UserDetail]:
+    from app.services.vpn_key import VpnKeyService
+
+    user_ids = [u.id for u in users]
+    vpn_counts = await VpnKeyService(db).count_for_users(user_ids)
+    payment_counts = await PaymentService(db).count_for_users(user_ids)
+
+    details: list[UserDetail] = []
+    for user in users:
+        vpn_keys_count = vpn_counts.get(user.id, 0)
+        details.append(
+            UserDetail(
+                **UserRead.model_validate(user).model_dump(),
+                subscriptions_count=vpn_keys_count,
+                payments_count=payment_counts.get(user.id, 0),
+                vpn_keys_count=vpn_keys_count,
+            )
+        )
+    return details
 
 
 def _render_messages(ticket) -> str:

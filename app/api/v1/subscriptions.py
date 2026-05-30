@@ -17,7 +17,7 @@ async def list_subscriptions(
     db: AsyncSession = Depends(get_db),
     _: str = Depends(get_current_admin),
 ) -> list[VpnKeyRead]:
-    return await VpnKeyService(db).get_all(limit=limit)
+    return await VpnKeyService(db).get_all(limit=limit, offset=offset)
 
 
 @router.get("/{key_id}", response_model=VpnKeyRead, summary="Get VPN key")

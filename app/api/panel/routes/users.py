@@ -18,7 +18,14 @@ from app.services.user import UserService
 from app.services.vpn_key import VpnKeyService
 from app.utils.html_utils import escape_html, html_code
 
-from .shared import _base_ctx, _require_permission, _toast, _to_detail, templates
+from .shared import (
+    _base_ctx,
+    _build_user_details,
+    _require_permission,
+    _toast,
+    _to_detail,
+    templates,
+)
 
 router = APIRouter()
 
@@ -31,7 +38,7 @@ async def users_page(request: Request, db: AsyncSession = Depends(get_db)):
     from app.services.user import UserService
 
     raw = await UserService(db).get_all(limit=200)
-    ctx["users"] = [await _to_detail(u, db) for u in raw]
+    ctx["users"] = await _build_user_details(raw, db)
     ctx["plans"] = await PlanService(db).get_all(only_active=True)
     return templates.TemplateResponse(request, "users.html", ctx)
 
@@ -53,7 +60,7 @@ async def users_search(
     return templates.TemplateResponse(
         request,
         "partials/users_rows.html",
-        {"request": request, "users": [await _to_detail(u, db) for u in filtered]},
+        {"request": request, "users": await _build_user_details(filtered, db)},
     )
 
 

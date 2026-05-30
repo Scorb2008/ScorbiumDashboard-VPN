@@ -15,9 +15,10 @@ def test_determine_target_version_detects_current_head():
         "has_blacklisted_tokens": True,
         "has_promo_usages": True,
         "has_branding_assets": True,
+        "has_hot_path_indexes": True,
     }
 
-    assert _determine_target_version(schema) == "e8f9a0b1c2d3"
+    assert _determine_target_version(schema) == "f9a0b1c2d3e4"
 
 
 def test_determine_target_version_keeps_old_schema_upgradeable():
@@ -45,6 +46,7 @@ def test_determine_target_version_handles_mid_chain_restore():
         "has_blacklisted_tokens": True,
         "has_promo_usages": False,
         "has_branding_assets": False,
+        "has_hot_path_indexes": False,
     }
 
     assert _determine_target_version(schema) == "c6d7e8f9a0b1"

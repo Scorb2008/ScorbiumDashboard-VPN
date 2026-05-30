@@ -87,6 +87,22 @@ class PaymentService:
         )
         return result.scalar_one()
 
+    async def count_for_user(self, user_id: int) -> int:
+        result = await self.session.execute(
+            select(func.count()).select_from(Payment).where(Payment.user_id == user_id)
+        )
+        return result.scalar_one()
+
+    async def count_for_users(self, user_ids: list[int]) -> dict[int, int]:
+        if not user_ids:
+            return {}
+        result = await self.session.execute(
+            select(Payment.user_id, func.count(Payment.id))
+            .where(Payment.user_id.in_(user_ids))
+            .group_by(Payment.user_id)
+        )
+        return {int(user_id): int(count) for user_id, count in result.all()}
+
     async def create_pending(
         self,
         user_id: int,

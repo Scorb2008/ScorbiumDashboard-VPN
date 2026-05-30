@@ -86,11 +86,27 @@ class VpnKeyService:
         )
         return list(result.scalars().all())
 
-    async def get_all(self, limit: int = 200) -> list[VpnKey]:
+    async def get_all(self, limit: int = 200, offset: int = 0) -> list[VpnKey]:
         result = await self.session.execute(
-            select(VpnKey).order_by(VpnKey.id.desc()).limit(limit)
+            select(VpnKey).order_by(VpnKey.id.desc()).limit(limit).offset(offset)
         )
         return list(result.scalars().all())
+
+    async def count_for_user(self, user_id: int) -> int:
+        result = await self.session.execute(
+            select(func.count()).select_from(VpnKey).where(VpnKey.user_id == user_id)
+        )
+        return result.scalar_one()
+
+    async def count_for_users(self, user_ids: list[int]) -> dict[int, int]:
+        if not user_ids:
+            return {}
+        result = await self.session.execute(
+            select(VpnKey.user_id, func.count(VpnKey.id))
+            .where(VpnKey.user_id.in_(user_ids))
+            .group_by(VpnKey.user_id)
+        )
+        return {int(user_id): int(count) for user_id, count in result.all()}
 
     async def refresh_traffic_for_keys(self, keys: list[VpnKey]) -> None:
         if not keys:

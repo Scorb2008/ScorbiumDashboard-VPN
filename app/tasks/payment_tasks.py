@@ -16,7 +16,7 @@ from app.services.admin_events import (
 )
 from app.services.telegram_notify import TelegramNotifyService
 from app.bot.utils.subscription_links import subscription_link_kb
-from app.utils.html_utils import html_code
+from app.utils.html_utils import escape_html, html_code
 from app.utils.log import log
 
 CHECK_INTERVAL = 60
@@ -258,7 +258,7 @@ async def check_pending_yookassa_payments() -> None:
                             f"🚨 <b>Ошибка выдачи ключа!</b>\n\n"
                             f"Пользователь: {pd['user_id']}\n"
                             f"Платеж: #{pd['id']}\n"
-                            f"План: {plan_name}\n\n"
+                            f"План: {escape_html(plan_name)}\n\n"
                             f"Платеж подтвержден, но ключ не создан. Проверьте Pasarguard.",
                         )
 
