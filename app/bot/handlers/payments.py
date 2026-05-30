@@ -20,6 +20,10 @@ from app.services.cryptobot import CryptoBotService
 from app.services.freekassa import FreeKassaService
 from app.services.platega import PlategaService
 from app.services.telegram_notify import TelegramNotifyService
+from app.services.admin_events import (
+    notify_admins_balance_topup,
+    notify_admins_new_purchase,
+)
 from app.services.i18n import t, get_lang
 from app.bot.utils.subscription_links import subscription_link_kb
 from app.bot.utils.media import resolve_photo_input
@@ -146,23 +150,13 @@ async def _provision_and_notify(
     if not should_notify_user and not should_notify_admins:
         return True
 
-    user_info = {
-        "username": html_code(user_id),
-        "full_name": "—",
-        "lang": "ru",
-    }
+    user_info = {"lang": "ru"}
 
     async with AsyncSessionFactory() as session:
         settings = await BotSettingsService(session).get_all()
         user = await UserService(session).get_by_id(user_id)
         user_lang = user.language if user and user.language else None
         user_info["lang"] = get_lang(settings, user_lang)
-        user_info["username"] = (
-            escape_html(f"@{user.username}")
-            if user and user.username
-            else html_code(user_id)
-        )
-        user_info["full_name"] = escape_html(user.full_name) if user else "—"
 
     lang = user_info["lang"]
     plan_name = escape_html(plan_data["name"])
@@ -207,33 +201,17 @@ async def _provision_and_notify(
         except Exception as e:
             log.warning(f"Failed to notify user {user_id}: {e}")
 
-    from app.core.config import config as _cfg
-
-    notify = TelegramNotifyService()
-    provider_icons = {
-        "yookassa": "💳",
-        "yookassa_sbp": "🏦",
-        "telegram_stars": "⭐",
-        "cryptobot": "₿",
-        "freekassa": "🟢",
-        "platega": "🟦",
-        "balance": "💰",
-    }
-    icon = provider_icons.get(str(payment_provider).lower(), "💰")
-    admin_text = (
-        f"✅ <b>Новая оплата!</b>\n\n"
-        f"👤 {user_info['full_name']} ({user_info['username']})\n"
-        f"📦 {plan_name} — {payment_amount or plan_price} {payment_currency}\n"
-        f"⏱ {plan_days} дн.\n"
-        f"{icon} {payment_provider}\n"
-        f"🔑 Ключ: {'выдан' if key_data else '❌ ошибка'}"
-    )
     if should_notify_admins:
-        for admin_id in _cfg.telegram.telegram_admin_ids:
-            try:
-                await notify.send_message(admin_id, admin_text)
-            except Exception as e:
-                log.warning(f"Failed to notify admin {admin_id}: {e}")
+        await notify_admins_new_purchase(
+            user_id=user_id,
+            payment_id=payment_id,
+            plan_name=plan_data["name"],
+            amount=payment_amount or plan_price,
+            currency=payment_currency,
+            provider=str(payment_provider),
+            plan_days=plan_days,
+            key_issued=bool(key_data),
+        )
 
     if should_notify_admins:
         try:
@@ -932,6 +910,17 @@ async def _topup_confirm_balance(payment_id: int, external_id: str, bot: Bot) ->
             await bot.send_message(user_id, text, parse_mode="HTML")
     except Exception as e:
         log.warning(f"Failed to notify topup user {user_id}: {e}")
+    try:
+        await notify_admins_balance_topup(
+            user_id=user_id,
+            payment_id=payment_id,
+            amount=str(amount),
+            balance=f"{balance:.2f}",
+            currency=str(result.payment.currency or "RUB"),
+            provider=str(result.payment.provider or "topup"),
+        )
+    except Exception as e:
+        log.warning(f"Failed to notify admins about topup {payment_id}: {e}")
     return True
 
 

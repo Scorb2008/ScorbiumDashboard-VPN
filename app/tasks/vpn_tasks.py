@@ -1,6 +1,7 @@
 import asyncio
 
 from app.core.database import AsyncSessionFactory
+from app.services.admin_events import notify_admins_autorenew_success
 from app.services.vpn_key import VpnKeyService
 from app.utils.log import log
 
@@ -306,6 +307,14 @@ async def auto_renew_keys() -> None:
                             await notify.send_photo(user_id, photo, renew_msg)
                         else:
                             await notify.send_message(user_id, renew_msg)
+                        await notify_admins_autorenew_success(
+                            user_id=user_id,
+                            key_id=key.id,
+                            key_name=name,
+                            amount=str(price),
+                            expires_at=exp_str,
+                            plan_days=plan.duration_days,
+                        )
                         log.info(
                             f"[auto_renew] key={key_id} user={user_id} renewed for {plan.duration_days} days"
                         )

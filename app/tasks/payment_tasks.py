@@ -10,6 +10,10 @@ from app.services.payment import PaymentService
 from app.services.plan import PlanService
 from app.services.vpn_key import VpnKeyService
 from app.services.bot_settings import BotSettingsService
+from app.services.admin_events import (
+    notify_admins_balance_topup,
+    notify_admins_new_purchase,
+)
 from app.services.telegram_notify import TelegramNotifyService
 from app.bot.utils.subscription_links import subscription_link_kb
 from app.utils.log import log
@@ -149,6 +153,13 @@ async def check_pending_yookassa_payments() -> None:
                             f"👛 Текущий баланс: <b>{balance} ₽</b>"
                         )
                         await TelegramNotifyService().send_message(pd["user_id"], text)
+                        await notify_admins_balance_topup(
+                            user_id=pd["user_id"],
+                            payment_id=pd["id"],
+                            amount=str(topup_result.payment.amount),
+                            balance=str(balance),
+                            provider=str(topup_result.payment.provider or "yookassa"),
+                        )
                         log.info(
                             f"[polling] Topup {pd['id']} confirmed + balance credited"
                         )
@@ -257,6 +268,17 @@ async def check_pending_yookassa_payments() -> None:
                     pd["user_id"],
                     text,
                     reply_markup=reply_markup,
+                )
+
+                await notify_admins_new_purchase(
+                    user_id=pd["user_id"],
+                    payment_id=pd["id"],
+                    plan_name=plan_name,
+                    amount=payment_amount or plan_price,
+                    currency=payment_currency or "RUB",
+                    provider=str(payment_provider),
+                    plan_days=plan_days,
+                    key_issued=bool(key_data),
                 )
 
                 if key_data:
