@@ -4,8 +4,53 @@
 """
 
 from typing import Optional
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup
+import base64
+
+from aiogram.types import (
+    Message,
+    CallbackQuery,
+    InlineKeyboardMarkup,
+    BufferedInputFile,
+)
 from aiogram.exceptions import TelegramBadRequest
+
+
+def resolve_photo_input(photo: Optional[str]) -> Optional[str | BufferedInputFile]:
+    if not photo:
+        return None
+
+    value = str(photo).strip()
+    if not value:
+        return None
+
+    payload = value
+    if value.startswith("data:image/") and "," in value:
+        payload = value.split(",", 1)[1].strip()
+
+    try:
+        decoded = base64.b64decode(payload, validate=True)
+    except Exception:
+        return value
+
+    image_signatures = (
+        b"\xff\xd8\xff",
+        b"\x89PNG\r\n\x1a\n",
+        b"GIF87a",
+        b"GIF89a",
+        b"RIFF",
+    )
+    if not decoded.startswith(image_signatures):
+        return value
+
+    extension = "jpg"
+    if decoded.startswith(b"\x89PNG\r\n\x1a\n"):
+        extension = "png"
+    elif decoded.startswith((b"GIF87a", b"GIF89a")):
+        extension = "gif"
+    elif decoded.startswith(b"RIFF") and decoded[8:12] == b"WEBP":
+        extension = "webp"
+
+    return BufferedInputFile(decoded, filename=f"bot_photo.{extension}")
 
 
 async def answer_with_photo(
@@ -16,10 +61,11 @@ async def answer_with_photo(
     parse_mode: str = "HTML",
 ) -> Message:
     """Отправляет новое сообщение — с фото если есть file_id, иначе текст."""
-    if photo:
+    photo_input = resolve_photo_input(photo)
+    if photo_input:
         try:
             return await message.answer_photo(
-                photo=photo,
+                photo=photo_input,
                 caption=text,
                 reply_markup=reply_markup,
                 parse_mode=parse_mode,
@@ -48,7 +94,8 @@ async def edit_with_photo(
     """
     msg = callback.message
 
-    if photo:
+    photo_input = resolve_photo_input(photo)
+    if photo_input:
         # Нужно фото — удаляем старое и шлём новое
         try:
             await msg.delete()
@@ -56,7 +103,7 @@ async def edit_with_photo(
             pass
         try:
             await msg.answer_photo(
-                photo=photo,
+                photo=photo_input,
                 caption=text,
                 reply_markup=reply_markup,
                 parse_mode=parse_mode,

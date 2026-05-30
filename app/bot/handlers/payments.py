@@ -22,6 +22,7 @@ from app.services.platega import PlategaService
 from app.services.telegram_notify import TelegramNotifyService
 from app.services.i18n import t, get_lang
 from app.bot.utils.subscription_links import subscription_link_kb
+from app.bot.utils.media import resolve_photo_input
 from app.utils.html_utils import escape_html, html_code
 from app.utils.log import log
 
@@ -921,7 +922,12 @@ async def _topup_confirm_balance(payment_id: int, external_id: str, bot: Bot) ->
     text = t("topup_success", lang, amount=amount, balance=balance)
     try:
         if photo:
-            await bot.send_photo(user_id, photo=photo, caption=text, parse_mode="HTML")
+            await bot.send_photo(
+                user_id,
+                photo=resolve_photo_input(photo),
+                caption=text,
+                parse_mode="HTML",
+            )
         else:
             await bot.send_message(user_id, text, parse_mode="HTML")
     except Exception as e:

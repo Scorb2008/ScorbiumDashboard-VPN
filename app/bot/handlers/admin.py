@@ -25,6 +25,7 @@ from app.services.broadcast import BroadcastService
 from app.services.plan import PlanService
 from app.services.bot_settings import BotSettingsService, parse_int_list_setting
 from app.models.payment import PaymentStatus, PaymentType
+from app.bot.utils.media import resolve_photo_input
 from app.bot.utils.subscription_links import subscription_link_kb
 from app.utils.log import log
 from app.utils.html_utils import html_code, sanitize_search_query
@@ -608,7 +609,10 @@ async def admin_panel(message: Message) -> None:
     text, kb, photo = await _admin_main_text_extended()
     if photo:
         await message.answer_photo(
-            photo=photo, caption=text, reply_markup=kb, parse_mode="HTML"
+            photo=resolve_photo_input(photo),
+            caption=text,
+            reply_markup=kb,
+            parse_mode="HTML",
         )
     else:
         await message.answer(text, reply_markup=kb, parse_mode="HTML")
@@ -716,7 +720,7 @@ async def admin_stats(callback: CallbackQuery) -> None:
         try:
             await callback.message.delete()
             await callback.message.answer_photo(
-                photo=photo,
+                photo=resolve_photo_input(photo),
                 caption=text,
                 reply_markup=_back_admin_kb(),
                 parse_mode="HTML",
@@ -3086,7 +3090,7 @@ async def admin_referrals(callback: CallbackQuery) -> None:
         try:
             await callback.message.delete()
             await callback.message.answer_photo(
-                photo=photo,
+                photo=resolve_photo_input(photo),
                 caption="\n".join(lines),
                 reply_markup=_back_admin_kb(),
                 parse_mode="HTML",

@@ -1,4 +1,5 @@
 from typing import Any, Optional
+import base64
 import httpx
 
 from app.core.config import config
@@ -55,16 +56,42 @@ class TelegramNotifyService:
         parse_mode: str = "HTML",
         disable_notification: bool = False,
     ) -> bool:
-        payload = {
-            "chat_id": chat_id,
-            "photo": photo,
-            "caption": caption,
-            "parse_mode": parse_mode,
-            "disable_notification": disable_notification,
-        }
         try:
             client = await self._get_client()
-            resp = await client.post(f"{self._base}/sendPhoto", json=payload)
+            payload = str(photo).strip()
+            if payload.startswith("data:image/") and "," in payload:
+                payload = payload.split(",", 1)[1].strip()
+
+            try:
+                decoded = base64.b64decode(payload, validate=True)
+            except Exception:
+                decoded = b""
+
+            image_signatures = (
+                b"\xff\xd8\xff",
+                b"\x89PNG\r\n\x1a\n",
+                b"GIF87a",
+                b"GIF89a",
+                b"RIFF",
+            )
+            if decoded.startswith(image_signatures):
+                files = {"photo": ("bot_photo.jpg", decoded)}
+                data = {
+                    "chat_id": str(chat_id),
+                    "caption": caption,
+                    "parse_mode": parse_mode,
+                    "disable_notification": str(disable_notification).lower(),
+                }
+                resp = await client.post(f"{self._base}/sendPhoto", data=data, files=files)
+            else:
+                json_payload = {
+                    "chat_id": chat_id,
+                    "photo": photo,
+                    "caption": caption,
+                    "parse_mode": parse_mode,
+                    "disable_notification": disable_notification,
+                }
+                resp = await client.post(f"{self._base}/sendPhoto", json=json_payload)
             if resp.status_code == 200:
                 return True
             log.warning("Telegram photo send failed for %s: %s", chat_id, resp.text)
