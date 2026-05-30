@@ -734,8 +734,8 @@ CRONEOF
     info "Запускаю app..."
     docker compose -f "$_DC" up -d app
 
-    if ! wait_for_health "vpn_app" "App" 18 5; then
-        warn "App не стал healthy за 90 сек"
+    if ! wait_for_health "vpn_app" "App" 36 5; then
+        warn "App не стал healthy за 180 сек"
         docker compose -f "$_DC" logs app --tail=30
         read -rp "Продолжить? [Y/n]: " CONFIRM; CONFIRM=${CONFIRM:-Y}
         [[ ! "$CONFIRM" =~ ^[Yy]$ ]] && { rm -f setup.lock; exit 1; }
@@ -768,8 +768,8 @@ else
     docker compose down --remove-orphans 2>/dev/null || true
     docker compose up -d db app nginx
 
-    if ! wait_for_health "vpn_app" "App" 12 5; then
-        warn "App не стал healthy за 60 сек:"
+    if ! wait_for_health "vpn_app" "App" 36 5; then
+        warn "App не стал healthy за 180 сек:"
         docker compose logs app --tail=20
         rm -f setup.lock
         exit 1

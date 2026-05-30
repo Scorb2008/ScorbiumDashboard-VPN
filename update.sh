@@ -730,8 +730,8 @@ success "Миграции БД применены"
 info "Перезапускаю контейнеры приложения..."
 docker compose -f "${COMPOSE_FILE}" up -d app
 
-info "Жду готовности app (макс 90 сек)..."
-wait_for_container_health "vpn_app" "App" 18 5
+info "Жду готовности app (макс 180 сек)..."
+wait_for_container_health "vpn_app" "App" 36 5
 
 # ── [4/4] Миграции ────────────────────────────────────────────────────────────
 info "[4/4] Перезапускаю nginx и выполняю smoke-check..."
