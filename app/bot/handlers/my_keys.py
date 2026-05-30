@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass
+from datetime import datetime
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -8,6 +9,7 @@ from app.bot.utils.menu import get_main_menu_kb as _get_menu_kb
 from app.bot.handlers.admin import _is_admin
 from app.core.database import AsyncSessionFactory
 from app.models.payment import PaymentStatus
+from app.services.pasarguard.pasarguard import get_vpn_panel
 from app.services.vpn_key import VpnKeyService
 from app.services.bot_settings import BotSettingsService
 from app.services.i18n import t
@@ -66,6 +68,40 @@ class KeyRow:
     expires_str: str
     access_url: str
     price: str
+
+
+def _format_hwid_dt(value: str | None) -> str:
+    if not value:
+        return "—"
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return parsed.strftime("%d.%m.%Y %H:%M")
+    except Exception:
+        return escape_html(str(value))
+
+
+def _format_user_hwid_rows(hwids_data: dict | None) -> str:
+    hwids = hwids_data.get("hwids", []) if isinstance(hwids_data, dict) else []
+    if not hwids:
+        return "Пока ни одно устройство не зарегистрировано."
+
+    lines: list[str] = []
+    for idx, item in enumerate(hwids, start=1):
+        model = escape_html(item.get("device_model") or "Неизвестное устройство")
+        os_name = escape_html(item.get("device_os") or "OS?")
+        os_version = escape_html(item.get("os_version") or "—")
+        hwid = escape_html(item.get("hwid") or "—")
+        created_at = _format_hwid_dt(item.get("created_at"))
+        last_used = _format_hwid_dt(item.get("last_used_at"))
+        lines.append(
+            f"🔹 <b>Устройство {idx}</b>\n"
+            f"Модель: <b>{model}</b>\n"
+            f"Система: <b>{os_name}</b> • {os_version}\n"
+            f"HWID: <code>{hwid}</code>\n"
+            f"Добавлено: {created_at}\n"
+            f"Последняя активность: {last_used}"
+        )
+    return "\n\n".join(lines)
 
 
 async def _get_lang(user_id: int, session) -> str:
@@ -282,6 +318,7 @@ async def show_key_detail(callback: CallbackQuery) -> None:
         access_url = key.access_url or ""
         price = str(key.price or "")
         plan_name = key.plan.name if key.plan else name
+        has_panel_key = bool((key.pasarguard_key_id or "").strip())
 
     status_label = {
         "active": t("status_active", lang),
@@ -321,8 +358,60 @@ async def show_key_detail(callback: CallbackQuery) -> None:
                 text="🔄 Продлить подписку", callback_data=f"key:extend:{key_id}"
             )
         )
+    if has_panel_key:
+        builder.row(
+            InlineKeyboardButton(
+                text="📱 Мои устройства", callback_data=f"key:devices:{key_id}"
+            )
+        )
     back_cb = "my_keys" if status_val == "active" else "key:archive"
     builder.row(InlineKeyboardButton(text=t("back", lang), callback_data=back_cb))
+
+    try:
+        from app.bot.utils.media import edit_with_photo
+
+        await edit_with_photo(callback, text, reply_markup=builder.as_markup())
+    except Exception:
+        pass
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("key:devices:"))
+async def show_key_devices(callback: CallbackQuery) -> None:
+    key_id = int(callback.data.split(":")[2])
+
+    async with AsyncSessionFactory() as session:
+        lang = await _get_lang(callback.from_user.id, session)
+        key = await VpnKeyService(session).get_by_id(key_id)
+        if not key or key.user_id != callback.from_user.id:
+            await callback.answer(t("sub_not_found", lang), show_alert=True)
+            return
+
+        plan_name = key.plan.name if key.plan else key.name or f"Подписка #{key.id}"
+        username = (key.pasarguard_key_id or "").strip()
+
+    hwids_data = {"hwids": [], "count": 0}
+    if username:
+        try:
+            panel = get_vpn_panel()
+            if hasattr(panel, "get_hwids_by_username"):
+                hwids_data = await panel.get_hwids_by_username(username)
+        except Exception:
+            hwids_data = {"hwids": [], "count": 0}
+
+    count = hwids_data.get("count", 0) if isinstance(hwids_data, dict) else 0
+    text = (
+        f"📱 <b>Мои устройства</b>\n\n"
+        f"Подписка: <b>{escape_html(plan_name)}</b>\n"
+        f"Ключ: <code>#{key_id}</code>\n"
+        f"Всего устройств: <b>{count}</b>\n\n"
+        f"{_format_user_hwid_rows(hwids_data)}"
+    )
+
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="◀️ Назад к подписке", callback_data=f"key:detail:{key_id}")
+    )
 
     try:
         from app.bot.utils.media import edit_with_photo

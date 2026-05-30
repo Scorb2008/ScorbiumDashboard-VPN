@@ -65,10 +65,20 @@ class ReplaceKeyState(StatesGroup):
     waiting_access_url = State()
 
 
+def _format_hwid_dt(value: str | None) -> str:
+    if not value:
+        return "—"
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return parsed.strftime("%d.%m.%Y %H:%M")
+    except Exception:
+        return escape_html(str(value))
+
+
 def _format_hwid_rows(hwids_data: dict | None) -> str:
     hwids = hwids_data.get("hwids", []) if isinstance(hwids_data, dict) else []
     if not hwids:
-        return "Устройства не зарегистрированы."
+        return "Пока ни одно устройство не зарегистрировано."
 
     lines: list[str] = []
     for idx, item in enumerate(hwids, start=1):
@@ -76,12 +86,15 @@ def _format_hwid_rows(hwids_data: dict | None) -> str:
         os_name = escape_html(item.get("device_os") or "OS?")
         os_version = escape_html(item.get("os_version") or "—")
         hwid = escape_html(item.get("hwid") or "—")
-        last_used = escape_html(item.get("last_used_at") or "—")
+        created_at = _format_hwid_dt(item.get("created_at"))
+        last_used = _format_hwid_dt(item.get("last_used_at"))
         lines.append(
-            f"{idx}. <b>{model}</b>\n"
-            f"   • {os_name} {os_version}\n"
-            f"   • HWID: <code>{hwid}</code>\n"
-            f"   • Last used: {last_used}"
+            f"🔹 <b>Устройство {idx}</b>\n"
+            f"Модель: <b>{model}</b>\n"
+            f"Система: <b>{os_name}</b> • {os_version}\n"
+            f"HWID: <code>{hwid}</code>\n"
+            f"Добавлено: {created_at}\n"
+            f"Последняя активность: {last_used}"
         )
     return "\n\n".join(lines)
 
@@ -488,10 +501,11 @@ async def _show_admin_key_hwids(
     count = hwids_data.get("count", 0) if isinstance(hwids_data, dict) else 0
     plan_name = key.plan.name if key.plan else key.name or f"Подписка #{key.id}"
     text = (
-        f"📱 <b>HWID для подписки</b>\n\n"
-        f"Подписка: <b>{escape_html(plan_name)}</b>\n"
-        f"ID ключа: <code>{key.id}</code>\n"
-        f"Устройств: <b>{count}</b>\n\n"
+        f"📱 <b>Устройства подписки</b>\n\n"
+        f"Тариф: <b>{escape_html(plan_name)}</b>\n"
+        f"Ключ: <code>#{key.id}</code>\n"
+        f"Пользователь: <code>{user_id}</code>\n"
+        f"Всего устройств: <b>{count}</b>\n\n"
         f"{_format_hwid_rows(hwids_data)}"
     )
 
@@ -1026,21 +1040,26 @@ async def _show_users_page(
     filter_buttons = [
         ("all", "Все"),
         ("new_today", "Сегодня"),
-        ("new_7d", "Новые"),
-        ("new_week", "Неделя"),
-        ("recent_bot", "Бот"),
+        ("new_7d", "Новые 7 дн."),
+        ("recent_bot", "Бот 3 дн."),
         ("with_subs", "С подпиской"),
         ("without_subs", "Без подписки"),
         ("banned", "Забаненные"),
     ]
+    filter_row: list[InlineKeyboardButton] = []
     for code, label in filter_buttons:
-        prefix = "• " if code == filter_name else ""
-        builder.row(
+        icon = "🟢 " if code == filter_name else "⚪ "
+        filter_row.append(
             InlineKeyboardButton(
-                text=f"{prefix}{label}",
+                text=f"{icon}{label}",
                 callback_data=f"adm:usersf:{code}",
             )
         )
+        if len(filter_row) == 2:
+            builder.row(*filter_row)
+            filter_row = []
+    if filter_row:
+        builder.row(*filter_row)
 
     for u in users:
         status = "🚫" if bool(u.is_banned) else "✅"

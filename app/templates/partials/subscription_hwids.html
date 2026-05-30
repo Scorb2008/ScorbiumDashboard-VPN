@@ -1,38 +1,243 @@
 {% set hwids = hwids_data.get('hwids', []) if hwids_data else [] %}
 {% set count = hwids_data.get('count', hwids|length) if hwids_data else 0 %}
-<div>
-  <div class="d-flex align-items-center justify-content-between mb-3">
+<style>
+  .hwid-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .hwid-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 1rem 1.05rem;
+    border-radius: 18px;
+    border: 1px solid rgba(0, 212, 170, .16);
+    background:
+      radial-gradient(circle at top right, rgba(0, 212, 170, .12), transparent 42%),
+      linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,.01));
+  }
+
+  .hwid-eyebrow {
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: .3rem;
+  }
+
+  .hwid-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1.2;
+  }
+
+  .hwid-subtitle {
+    margin-top: .38rem;
+    font-size: .82rem;
+    color: var(--text-muted);
+  }
+
+  .hwid-count {
+    min-width: 84px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: .75rem .85rem;
+    border-radius: 16px;
+    background: rgba(0, 212, 170, .08);
+    border: 1px solid rgba(0, 212, 170, .18);
+    color: var(--accent);
+  }
+
+  .hwid-count strong {
+    font-size: 1.3rem;
+    line-height: 1;
+    font-weight: 800;
+  }
+
+  .hwid-count span {
+    font-size: .68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+
+  .hwid-list {
+    display: grid;
+    gap: 12px;
+  }
+
+  .hwid-card {
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 16px;
+    padding: 1rem 1.05rem;
+    background: linear-gradient(180deg, rgba(255,255,255,.028), rgba(255,255,255,.01));
+  }
+
+  .hwid-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: .85rem;
+  }
+
+  .hwid-device {
+    display: flex;
+    flex-direction: column;
+    gap: .18rem;
+    min-width: 0;
+  }
+
+  .hwid-device-index {
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .hwid-device-name {
+    color: var(--text);
+    font-weight: 700;
+    font-size: .95rem;
+    line-height: 1.25;
+    word-break: break-word;
+  }
+
+  .hwid-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: .38rem .7rem;
+    border-radius: 999px;
+    border: 1px solid rgba(96, 165, 250, .18);
+    background: rgba(96, 165, 250, .08);
+    color: #bfdbfe;
+    font-size: .7rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .hwid-meta {
+    display: grid;
+    gap: 8px;
+  }
+
+  .hwid-meta-row {
+    display: grid;
+    grid-template-columns: 110px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    font-size: .8rem;
+  }
+
+  .hwid-meta-label {
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
+  .hwid-meta-value {
+    color: var(--text);
+    min-width: 0;
+    word-break: break-word;
+  }
+
+  .hwid-code {
+    display: inline-block;
+    padding: .28rem .48rem;
+    border-radius: 10px;
+    background: rgba(0, 212, 170, .08);
+    border: 1px solid rgba(0, 212, 170, .14);
+    color: #7fffe5;
+    font-size: .77rem;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .hwid-empty {
+    text-align: center;
+    padding: 1rem .5rem;
+    color: var(--text-muted);
+    border: 1px dashed rgba(255,255,255,.1);
+    border-radius: 16px;
+    background: rgba(255,255,255,.015);
+  }
+
+  @media (max-width: 640px) {
+    .hwid-hero {
+      flex-direction: column;
+    }
+
+    .hwid-count {
+      width: 100%;
+      flex-direction: row;
+      justify-content: space-between;
+    }
+
+    .hwid-meta-row {
+      grid-template-columns: 1fr;
+      gap: 4px;
+    }
+  }
+</style>
+
+<div class="hwid-sheet">
+  <div class="hwid-hero">
     <div>
-      <div style="font-weight:600;color:var(--text)">Подписка #{{ subscription.id }}</div>
-      <div style="font-size:.8rem;color:var(--text-muted)">
+      <div class="hwid-eyebrow">HWID подписки</div>
+      <div class="hwid-title">
         {% if subscription.plan %}
           {{ subscription.plan.name }}
         {% else %}
           {{ subscription.name or 'Без названия' }}
         {% endif %}
       </div>
+      <div class="hwid-subtitle">Ключ #{{ subscription.id }}{% if subscription.user_id %} • Пользователь #{{ subscription.user_id }}{% endif %}</div>
     </div>
-    <span class="badge badge-custom badge-active">{{ count }}</span>
+    <div class="hwid-count">
+      <strong>{{ count }}</strong>
+      <span>{% if count == 1 %}Устройство{% else %}Устройств{% endif %}</span>
+    </div>
   </div>
 
   {% if hwids %}
-    <div class="d-grid gap-2">
+    <div class="hwid-list">
       {% for item in hwids %}
-        <div style="border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:.85rem;background:rgba(255,255,255,.02)">
-          <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
-            <div style="font-weight:600;color:var(--text)">{{ item.device_model or 'Неизвестное устройство' }}</div>
-            <span class="badge badge-custom badge-open">{{ item.device_os or 'OS?' }}</span>
+        <div class="hwid-card">
+          <div class="hwid-card-head">
+            <div class="hwid-device">
+              <div class="hwid-device-index">Устройство {{ loop.index }}</div>
+              <div class="hwid-device-name">{{ item.device_model or 'Неизвестное устройство' }}</div>
+            </div>
+            <span class="hwid-pill">
+              {{ item.device_os or 'OS' }}{% if item.os_version %} {{ item.os_version }}{% endif %}
+            </span>
           </div>
-          <div style="font-size:.8rem;color:var(--text-muted)">Версия ОС: {{ item.os_version or '—' }}</div>
-          <div style="font-size:.8rem;color:var(--text-muted)">HWID: <code style="color:#00d4aa">{{ item.hwid or '—' }}</code></div>
-          <div style="font-size:.8rem;color:var(--text-muted)">Добавлен: {{ item.created_at|dt('%d.%m.%Y %H:%M', '—') }}</div>
-          <div style="font-size:.8rem;color:var(--text-muted)">Последнее использование: {{ item.last_used_at|dt('%d.%m.%Y %H:%M', '—') }}</div>
+          <div class="hwid-meta">
+            <div class="hwid-meta-row">
+              <div class="hwid-meta-label">HWID</div>
+              <div class="hwid-meta-value"><span class="hwid-code">{{ item.hwid or '—' }}</span></div>
+            </div>
+            <div class="hwid-meta-row">
+              <div class="hwid-meta-label">Добавлен</div>
+              <div class="hwid-meta-value">{{ item.created_at|dt('%d.%m.%Y %H:%M', '—') }}</div>
+            </div>
+            <div class="hwid-meta-row">
+              <div class="hwid-meta-label">Последняя активность</div>
+              <div class="hwid-meta-value">{{ item.last_used_at|dt('%d.%m.%Y %H:%M', '—') }}</div>
+            </div>
+          </div>
         </div>
       {% endfor %}
     </div>
   {% else %}
-    <div class="text-center py-3" style="color:var(--text-muted)">
-      Для этой подписки HWID пока не зарегистрированы.
-    </div>
+    <div class="hwid-empty">Для этой подписки пока не зарегистрированы устройства.</div>
   {% endif %}
 </div>

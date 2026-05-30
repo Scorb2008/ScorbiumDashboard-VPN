@@ -95,11 +95,11 @@
   <div class="card-header d-flex align-items-center justify-content-between px-3 py-2 flex-wrap gap-2">
     <span>Все подписки</span>
     <div class="d-flex gap-2 align-items-center flex-wrap">
-      <div class="btn-group btn-group-sm" role="group">
-        <button type="button" class="btn btn-outline-secondary active" onclick="filterSubs('all',this)">Все</button>
-        <button type="button" class="btn btn-outline-secondary" onclick="filterSubs('active',this)">Активные</button>
-        <button type="button" class="btn btn-outline-secondary" onclick="filterSubs('expired',this)">Истёкшие</button>
-        <button type="button" class="btn btn-outline-secondary" onclick="filterSubs('revoked',this)">Отозванные</button>
+      <div class="sub-filter-group" role="group" aria-label="Фильтр подписок">
+        <button type="button" class="sub-filter-chip is-active" onclick="filterSubs('all',this)">Все</button>
+        <button type="button" class="sub-filter-chip" onclick="filterSubs('active',this)">Активные</button>
+        <button type="button" class="sub-filter-chip" onclick="filterSubs('expired',this)">Истёкшие</button>
+        <button type="button" class="sub-filter-chip" onclick="filterSubs('revoked',this)">Отключённые</button>
       </div>
       <div class="dropdown">
         <button class="btn btn-sm btn-outline dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -271,7 +271,7 @@
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content" style="background:#1a1f2e;border:1px solid rgba(255,255,255,.08)">
       <div class="modal-header border-0">
-        <h6 class="modal-title" style="color:var(--text)"><i class="bi bi-phone me-2"></i>HWID подписки</h6>
+        <h6 class="modal-title" style="color:var(--text)"><i class="bi bi-phone me-2"></i>Устройства подписки</h6>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body" id="hwid-modal-body">
@@ -285,6 +285,42 @@
 .btn-xs { padding: .2rem .45rem; font-size: .75rem; }
 .nav-tabs .nav-link.active { color: #00d4aa !important; border-bottom: 2px solid #00d4aa !important; }
 .sub-row.hidden { display: none !important; }
+.sub-filter-group {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.sub-filter-chip {
+  min-height: 38px;
+  padding: .55rem .8rem;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 212, 170, .16);
+  background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+  color: var(--text-secondary);
+  font-size: .76rem;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  transition: all .16s ease;
+}
+.sub-filter-chip:hover {
+  color: var(--text);
+  border-color: rgba(0, 212, 170, .3);
+  background: linear-gradient(180deg, rgba(0, 212, 170, .08), rgba(0, 212, 170, .04));
+  transform: translateY(-1px);
+}
+.sub-filter-chip.is-active {
+  color: var(--accent);
+  border-color: rgba(0, 212, 170, .4);
+  background: linear-gradient(135deg, rgba(0, 212, 170, .16), rgba(14, 165, 233, .08));
+  box-shadow: inset 0 0 0 1px rgba(0, 212, 170, .08), 0 8px 24px rgba(0, 212, 170, .06);
+}
+@media (max-width: 767px) {
+  .sub-filter-group {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 </style>
 
 <script>
@@ -350,8 +386,8 @@ document.getElementById('extendForm').addEventListener('htmx:afterRequest', func
 });
 
 function filterSubs(status, btn) {
-  document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+  document.querySelectorAll('.sub-filter-chip').forEach(b => b.classList.remove('is-active'));
+  btn.classList.add('is-active');
   document.querySelectorAll('.sub-row').forEach(row => {
     if (status === 'all') {
       row.classList.remove('hidden');
