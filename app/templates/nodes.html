@@ -3,12 +3,94 @@
 {% block page_title %}Серверы / Ноды{% endblock %}
 
 {% block content %}
-<div class="mb-4 fade-in">
-  <h4 class="mb-1" style="color:var(--text)">VPN ноды</h4>
-  <p class="mb-0" style="color:var(--text-muted);font-size:.85rem">Управление серверами</p>
+<div class="mb-4 fade-in d-flex align-items-start justify-content-between gap-3 flex-wrap">
+  <div>
+    <h4 class="mb-1" style="color:var(--text)">VPN ноды</h4>
+    <p class="mb-0" style="color:var(--text-muted);font-size:.85rem">Добавление, переподключение и удаление серверов Pasarguard</p>
+  </div>
+  <button
+    class="btn btn-accent btn-sm"
+    type="button"
+    data-bs-toggle="collapse"
+    data-bs-target="#nodeCreateCard"
+    aria-expanded="false"
+    aria-controls="nodeCreateCard">
+    <i class="bi bi-plus-circle me-1"></i>Добавить ноду
+  </button>
 </div>
 
-<div hx-get="{{ panel_base }}/nodes/data" hx-trigger="load, every 30s" hx-swap="outerHTML">
+<div class="collapse mb-4" id="nodeCreateCard">
+  <div class="card p-3">
+    <div class="d-flex align-items-center justify-content-between gap-2 mb-3 flex-wrap">
+      <div>
+        <div style="font-size:.95rem;font-weight:700;color:var(--text)">Новая нода</div>
+        <div style="font-size:.78rem;color:var(--text-muted)">Заполни обязательные поля Pasarguard и добавь сервер в панель.</div>
+      </div>
+    </div>
+    <form
+      hx-post="{{ panel_base }}/nodes/add"
+      hx-target="#nodes-grid-shell"
+      hx-swap="outerHTML"
+      class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label">Название</label>
+        <input class="form-control" type="text" name="name" placeholder="DE-1 Frankfurt" required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">IP / Host</label>
+        <input class="form-control" type="text" name="address" placeholder="192.168.1.10" required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">API Key</label>
+        <input class="form-control" type="text" name="api_key" placeholder="UUID ключ ноды" required>
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Тип подключения</label>
+        <select class="form-select" name="connection_type">
+          <option value="grpc" selected>grpc</option>
+          <option value="rest">rest</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Core config ID</label>
+        <input class="form-control" type="number" name="core_config_id" value="1" min="1" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Node port</label>
+        <input class="form-control" type="number" name="port" value="62050" min="1" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">API port</label>
+        <input class="form-control" type="number" name="api_port" value="62051" min="1" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Keep alive</label>
+        <input class="form-control" type="number" name="keep_alive" value="60" min="0" required>
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Usage coefficient</label>
+        <input class="form-control" type="number" name="usage_coefficient" value="1.0" min="0" step="0.1" required>
+      </div>
+      <div class="col-md-9">
+        <label class="form-label">Server CA</label>
+        <textarea class="form-control" name="server_ca" rows="4" placeholder="-----BEGIN CERTIFICATE-----" required></textarea>
+      </div>
+
+      <div class="col-12 d-flex justify-content-end gap-2">
+        <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#nodeCreateCard">
+          Отмена
+        </button>
+        <button class="btn btn-accent" type="submit">
+          <i class="bi bi-check2-circle me-1"></i>Добавить ноду
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="nodes-grid-shell" hx-get="{{ panel_base }}/nodes/data" hx-trigger="load" hx-swap="outerHTML">
   <div class="text-center py-5 fade-in">
     <div class="spinner-border" style="color:var(--accent);width:1.5rem;height:1.5rem;border-width:.15rem" role="status"></div>
     <p class="mt-2" style="color:var(--text-muted);font-size:.8rem">Загрузка нод...</p>

@@ -166,6 +166,28 @@
       position: sticky; top: 0; z-index: 100; gap: .75rem;
     }
     .topbar-left { display: flex; align-items: center; gap: .75rem; }
+    .topbar-back {
+      display: inline-flex;
+      align-items: center;
+      gap: .42rem;
+      min-height: 36px;
+      padding: .42rem .78rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-secondary);
+      font-size: .78rem;
+      font-weight: 700;
+      line-height: 1;
+      transition: all .18s ease;
+    }
+    .topbar-back:hover {
+      color: var(--text);
+      border-color: var(--border-glow);
+      background: rgba(0, 212, 170, 0.08);
+      transform: translateY(-1px);
+    }
+    .topbar-back i { font-size: .86rem; }
     .topbar-title { font-size: 1.1rem; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
     .hamburger {
       display: none; background: none; border: none;
@@ -555,6 +577,9 @@
   <header class="topbar">
     <div class="topbar-left">
       <button class="hamburger" onclick="openSidebar()"><i class="bi bi-list"></i></button>
+      <button class="topbar-back" type="button" onclick="goPanelBack()" title="Назад">
+        <i class="bi bi-arrow-left"></i><span>Назад</span>
+      </button>
       <span class="topbar-title">{% block page_title %}{% endblock %}</span>
     </div>
     <div class="d-flex align-items-center gap-3">
@@ -592,6 +617,20 @@
   window.PANEL_BASE = {{ panel_base|tojson }};
   window.PANEL_ROOT = {{ panel_root|tojson }};
   window.LEGACY_PANEL_BASE = {{ legacy_panel_base|tojson }};
+
+  function goPanelBack() {
+    try {
+      const sameOriginReferrer =
+        document.referrer && new URL(document.referrer).origin === window.location.origin;
+      if (window.history.length > 1 && sameOriginReferrer) {
+        window.history.back();
+        return;
+      }
+    } catch (e) {
+      console.warn('goPanelBack fallback', e);
+    }
+    window.location.href = window.PANEL_ROOT || window.PANEL_BASE || '/panel/';
+  }
 
   (function() {
     var trackedAttrs = new Set([

@@ -89,9 +89,17 @@ def _zoneinfo(name: str) -> ZoneInfo:
     return ZoneInfo(name)
 
 
-def _normalize_datetime(value: datetime | None) -> datetime | None:
+def _normalize_datetime(value: datetime | str | None) -> datetime | None:
     if value is None:
         return None
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return None
+        try:
+            value = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        except ValueError:
+            return None
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc)
@@ -109,7 +117,7 @@ def _get_request_timezone_name(request: Request | None) -> str:
 
 
 def _format_datetime_for_timezone(
-    value: datetime | None,
+    value: datetime | str | None,
     tz_name: str,
     fmt: str = "%d.%m.%Y %H:%M",
     fallback: str = "—",
@@ -123,7 +131,7 @@ def _format_datetime_for_timezone(
 @pass_context
 def _jinja_datetime_filter(
     context,
-    value: datetime | None,
+    value: datetime | str | None,
     fmt: str = "%d.%m.%Y %H:%M",
     fallback: str = "—",
 ) -> str:

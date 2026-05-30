@@ -1,6 +1,8 @@
 """VPN Nodes management routes."""
 
 import html
+from typing import Any
+
 from fastapi import APIRouter, Depends, Form, Request, Response
 from fastapi.responses import HTMLResponse
 
@@ -15,15 +17,122 @@ from .shared import _require_permission, _base_ctx, _toast, templates
 router = APIRouter()
 
 
+def _node_status_meta(status: str) -> tuple[str, str, str]:
+    status_norm = str(status or "").lower()
+    return {
+        "connected": ("var(--success)", "", "Подключена"),
+        "connecting": ("var(--warning)", "animation: pulse-glow 2s infinite", "Подключение"),
+        "error": ("var(--danger)", "", "Ошибка"),
+    }.get(status_norm, ("var(--text-muted)", "", status_norm or "Неизвестно"))
+
+
+def _render_nodes_grid(nodes: list[dict[str, Any]]) -> str:
+    if not nodes:
+        return """
+        <div id="nodes-grid-shell">
+          <div class="empty-state py-5">
+            <i class="bi bi-server"></i>
+            <div>Ноды пока не добавлены</div>
+          </div>
+        </div>
+        """
+
+    cards = ""
+    for n in nodes:
+        node_id = html.escape(str(n.get("id", "")))
+        node_name = html.escape(str(n.get("name", "—")))
+        node_addr = html.escape(str(n.get("address", "—")))
+        node_port = html.escape(str(n.get("port", "—")))
+        node_api_port = html.escape(str(n.get("api_port", "—")))
+        node_conn = html.escape(str(n.get("connection_type", "—")))
+        node_users = html.escape(str(n.get("total_users", 0)))
+        node_message = html.escape(str(n.get("message", "")))
+        color, pulse, status_label = _node_status_meta(str(n.get("status", "")))
+
+        cards += f"""
+        <div class="col-md-6 col-xl-4">
+          <div class="card h-100 p-3">
+            <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
+              <div>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <span style="width:10px;height:10px;border-radius:50%;background:{color};box-shadow:0 0 8px {color};{pulse}"></span>
+                  <span class="fw-semibold" style="color:var(--text)">{node_name}</span>
+                </div>
+                <div style="font-size:.8rem;color:var(--text-muted)">{node_addr}</div>
+              </div>
+              <span class="badge badge-custom badge-open">#{node_id}</span>
+            </div>
+
+            <div class="d-grid gap-2 mb-3" style="font-size:.78rem">
+              <div class="d-flex justify-content-between gap-3">
+                <span style="color:var(--text-muted)">Статус</span>
+                <span style="color:{color};font-weight:700">{status_label}</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3">
+                <span style="color:var(--text-muted)">Тип подключения</span>
+                <span style="color:var(--text)">{node_conn}</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3">
+                <span style="color:var(--text-muted)">Node port</span>
+                <span style="color:var(--text)">{node_port}</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3">
+                <span style="color:var(--text-muted)">API port</span>
+                <span style="color:var(--text)">{node_api_port}</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3">
+                <span style="color:var(--text-muted)">Пользователи</span>
+                <span style="color:var(--text)">{node_users}</span>
+              </div>
+            </div>
+
+            {f'<div style="font-size:.75rem;color:var(--warning);margin-bottom:.85rem">{node_message}</div>' if node_message else ''}
+
+            <div class="d-flex flex-wrap gap-2 mt-auto">
+              <button
+                class="btn btn-sm btn-outline"
+                hx-post="{config.web.panel_path(f'nodes/{node_id}/reconnect')}"
+                hx-target="#nodes-grid-shell"
+                hx-swap="outerHTML">
+                <i class="bi bi-arrow-clockwise me-1"></i>Переподключить
+              </button>
+              <button
+                class="btn btn-sm btn-outline-danger"
+                hx-post="{config.web.panel_path(f'nodes/{node_id}/delete')}"
+                hx-confirm="Удалить ноду {node_name}?"
+                hx-target="#nodes-grid-shell"
+                hx-swap="outerHTML">
+                <i class="bi bi-trash me-1"></i>Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+        """
+
+    return f"""
+    <div id="nodes-grid-shell">
+      <div class="row g-3" hx-get="{config.web.panel_path('nodes/data')}" hx-trigger="every 30s" hx-swap="outerHTML">
+        {cards}
+      </div>
+    </div>
+    """
+
+
+async def _load_nodes() -> list[dict[str, Any]]:
+    svc = PasarguardService()
+    data = await svc.get_nodes()
+    if isinstance(data, dict):
+        return list(data.get("nodes", []) or data.get("items", []) or [])
+    return list(data or [])
+
+
 @router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def nodes_page(request: Request, db: AsyncSession = Depends(get_db)):
     admin_info = _require_permission(request, "vpn.read")
     ctx = await _base_ctx(request, db, "nodes", admin_info)
     try:
-        svc = PasarguardService()
-        data = await svc.get_nodes()
-        ctx["nodes"] = data.get("nodes", []) if isinstance(data, dict) else data
+        ctx["nodes"] = await _load_nodes()
     except Exception:
         ctx["nodes"] = []
     return templates.TemplateResponse("nodes.html", ctx)
@@ -32,69 +141,25 @@ async def nodes_page(request: Request, db: AsyncSession = Depends(get_db)):
 @router.get("/data", response_class=HTMLResponse)
 async def nodes_data(request: Request):
     _require_permission(request, "vpn.read")
-    from app.services.pasarguard.pasarguard import PasarguardService
 
     try:
-        svc = PasarguardService()
-        data = await svc.get_nodes()
-        nodes = data.get("nodes", []) if isinstance(data, dict) else data
+        nodes = await _load_nodes()
     except Exception as e:
         return HTMLResponse(
             f"""<div class="p-3" style="color:var(--danger)">Ошибка: {html.escape(str(e))}</div>"""
         )
 
-    if not nodes:
-        return HTMLResponse("""<div class="p-3 text-muted">Нод нет</div>""")
-
-    cards = ""
-    for n in nodes:
-        status = n.get("status", "")
-        color = {
-            "connected": "var(--success)",
-            "connecting": "var(--warning)",
-            "error": "var(--danger)",
-        }.get(status, "var(--muted)")
-        pulse = "animation: pulse-glow 2s infinite" if status == "connecting" else ""
-        node_name = html.escape(str(n.get("name", "")))
-        node_addr = html.escape(str(n.get("address", "")))
-        node_id = html.escape(str(n.get("id", "")))
-        cards += f"""
-        <div class="col-md-6 col-xl-4">
-          <div class="card glass p-3 h-100">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-              <div class="d-flex align-items-center gap-2">
-                <span style="width:10px;height:10px;border-radius:50%;background:{color};box-shadow:0 0 8px {color};{pulse}"></span>
-                <span class="fw-semibold" style="color:var(--text)">{node_name}</span>
-              </div>
-              <span style="font-size:.7rem;color:var(--muted)">#{node_id}</span>
-            </div>
-            <div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">{node_addr}</div>
-            <div class="d-flex gap-3 mb-2" style="font-size:.75rem;color:var(--muted)">
-              <span><i class="bi bi-hdd-network me-1"></i>{html.escape(str(n.get("port", "—")))}</span>
-              <span><i class="bi bi-people me-1"></i>{html.escape(str(n.get("total_users", 0)))}</span>
-            </div>
-            <div class="d-flex gap-2 mt-auto">
-              <button class="btn btn-sm btn-outline" hx-post="{config.web.panel_path(f'nodes/{node_id}/reconnect')}" hx-target="#nodes-grid" hx-swap="innerHTML">
-                <i class="bi bi-arrow-clockwise me-1"></i>Переподключить
-              </button>
-            </div>
-          </div>
-        </div>"""
-
-    return HTMLResponse(
-        f"""<div class="row g-3" id="nodes-grid" hx-get="{config.web.panel_path('nodes/data')}" hx-trigger="every 30s" hx-swap="outerHTML">{cards}</div>"""
-    )
+    return HTMLResponse(_render_nodes_grid(nodes))
 
 
 @router.post("/{node_id}/reconnect", response_class=HTMLResponse)
 async def reconnect_node(node_id: int, request: Request):
     _require_permission(request, "system")
-    from app.services.pasarguard.pasarguard import PasarguardService
 
     try:
-        svc = PasarguardService()
-        await svc.reconnect_node(node_id)
-        resp = Response(status_code=200)
+        await PasarguardService().reconnect_node(node_id)
+        nodes = await _load_nodes()
+        resp = HTMLResponse(_render_nodes_grid(nodes))
         _toast(resp, f"Нода {node_id} переподключена")
     except Exception as e:
         resp = Response(status_code=400)
@@ -108,9 +173,9 @@ async def delete_node(
 ):
     _require_permission(request, "system")
     try:
-        svc = PasarguardService()
-        await svc.remove_node(node_id)
-        resp = HTMLResponse("")
+        await PasarguardService().remove_node(node_id)
+        nodes = await _load_nodes()
+        resp = HTMLResponse(_render_nodes_grid(nodes))
         _toast(resp, f"Нода {node_id} удалена")
     except Exception as e:
         resp = Response(status_code=400)
@@ -123,15 +188,32 @@ async def add_node(
     request: Request,
     name: str = Form(...),
     address: str = Form(...),
+    api_key: str = Form(...),
+    server_ca: str = Form(...),
+    connection_type: str = Form("grpc"),
+    core_config_id: int = Form(1),
+    keep_alive: int = Form(60),
     port: int = Form(62050),
     api_port: int = Form(62051),
+    usage_coefficient: float = Form(1.0),
     db: AsyncSession = Depends(get_db),
 ):
     _require_permission(request, "system")
     try:
-        svc = PasarguardService()
-        await svc.add_node(name=name, address=address, port=port, api_port=api_port)
-        resp = Response(status_code=200)
+        await PasarguardService().add_node(
+            name=name.strip(),
+            address=address.strip(),
+            api_key=api_key.strip(),
+            server_ca=server_ca.strip(),
+            connection_type=connection_type.strip() or "grpc",
+            core_config_id=core_config_id,
+            keep_alive=keep_alive,
+            port=port,
+            api_port=api_port,
+            usage_coefficient=usage_coefficient,
+        )
+        nodes = await _load_nodes()
+        resp = HTMLResponse(_render_nodes_grid(nodes))
         _toast(resp, f"Нода {name} добавлена")
     except Exception as e:
         resp = Response(status_code=400)
