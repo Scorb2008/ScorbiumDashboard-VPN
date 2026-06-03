@@ -153,6 +153,9 @@ def admin_kb(panel_url: str = "", maintenance: bool = False) -> InlineKeyboardMa
     )
     builder.row(
         InlineKeyboardButton(text="🌐 Группы VPN", callback_data="adm:groups"),
+        InlineKeyboardButton(text="🖥 Ноды", callback_data="adm:nodes"),
+    )
+    builder.row(
         InlineKeyboardButton(text="🔍 Поиск юзера", callback_data="adm:search"),
     )
     maint_icon = "🔴" if maintenance else "🟢"
@@ -570,6 +573,99 @@ async def _show_groups(callback: CallbackQuery, saved_ids: list[int]) -> None:
     try:
         await callback.message.edit_text(
             "\n".join(lines), reply_markup=builder.as_markup(), parse_mode="HTML"
+        )
+    except Exception:
+        pass
+
+
+def _node_status_badge(status: str) -> tuple[str, str]:
+    normalized = str(status or "").strip().lower()
+    return {
+        "connected": ("🟢", "Подключена"),
+        "healthy": ("🟢", "Подключена"),
+        "online": ("🟢", "Подключена"),
+        "connecting": ("🟡", "Подключение"),
+        "syncing": ("🟡", "Синхронизация"),
+        "error": ("🔴", "Ошибка"),
+        "failed": ("🔴", "Ошибка"),
+        "offline": ("🔴", "Офлайн"),
+        "disconnected": ("🔴", "Офлайн"),
+        "disabled": ("⚪", "Отключена"),
+    }.get(normalized, ("⚪", normalized or "Неизвестно"))
+
+
+async def _show_nodes(callback: CallbackQuery) -> None:
+    from app.services.pasarguard.pasarguard import PasarguardService
+
+    try:
+        result = await PasarguardService().get_nodes()
+        if isinstance(result, list):
+            nodes = result
+        elif isinstance(result, dict):
+            nodes = result.get("nodes", []) or result.get("items", []) or []
+        else:
+            nodes = []
+    except Exception as e:
+        try:
+            await callback.message.edit_text(
+                "🖥 <b>Ноды VPN</b>\n\n"
+                f"❌ Не удалось загрузить ноды.\n<code>{escape_html(str(e))[:300]}</code>",
+                reply_markup=_back_admin_kb(),
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
+        return
+
+    builder = InlineKeyboardBuilder()
+    lines = ["🖥 <b>Ноды VPN</b>\n"]
+
+    if not nodes:
+        lines.append("Ноды пока не найдены.")
+    else:
+        connected = 0
+        degraded = 0
+        for node in nodes:
+            icon, status_label = _node_status_badge(node.get("status", ""))
+            if icon == "🟢":
+                connected += 1
+            elif icon in {"🟡", "🔴"}:
+                degraded += 1
+
+            node_id = int(node.get("id", 0) or 0)
+            name = escape_html(str(node.get("name", "—")))
+            address = escape_html(str(node.get("address", "—")))
+            users = int(node.get("total_users", 0) or 0)
+            port = escape_html(str(node.get("port", "—")))
+            api_port = escape_html(str(node.get("api_port", "—")))
+
+            lines.append(
+                f"{icon} <b>{name}</b> <code>#{node_id}</code>\n"
+                f"Статус: <b>{status_label}</b>\n"
+                f"Адрес: <code>{address}</code>\n"
+                f"Порты: node {port} • api {api_port}\n"
+                f"Пользователей: <b>{users}</b>\n"
+            )
+            if node_id > 0:
+                builder.row(
+                    InlineKeyboardButton(
+                        text=f"🔄 Переподключить #{node_id}",
+                        callback_data=f"adm:node:reconnect:{node_id}",
+                    )
+                )
+
+        lines.insert(
+            1,
+            f"Всего: <b>{len(nodes)}</b> • Подключены: <b>{connected}</b> • Проблемные: <b>{degraded}</b>\n",
+        )
+
+    builder.row(InlineKeyboardButton(text="🔄 Обновить", callback_data="adm:nodes"))
+    builder.row(InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back"))
+    try:
+        await callback.message.edit_text(
+            "\n".join(lines),
+            reply_markup=builder.as_markup(),
+            parse_mode="HTML",
         )
     except Exception:
         pass
@@ -2556,6 +2652,9 @@ def admin_kb_extended(
     )
     builder.row(
         InlineKeyboardButton(text="🌐 Группы VPN", callback_data="adm:groups"),
+        InlineKeyboardButton(text="🖥 Ноды", callback_data="adm:nodes"),
+    )
+    builder.row(
         InlineKeyboardButton(text="🔍 Поиск", callback_data="adm:search"),
     )
     builder.row(
@@ -3314,6 +3413,33 @@ async def admin_groups(callback: CallbackQuery) -> None:
         pass
 
     await _show_groups(callback, saved_ids)
+
+
+@router.callback_query(F.data == "adm:nodes")
+async def admin_nodes(callback: CallbackQuery) -> None:
+    if not _is_admin(callback.from_user.id):
+        await callback.answer("⛔ Нет доступа", show_alert=True)
+        return
+    await callback.answer()
+    await _show_nodes(callback)
+
+
+@router.callback_query(F.data.startswith("adm:node:reconnect:"))
+async def admin_node_reconnect(callback: CallbackQuery) -> None:
+    if not _is_admin(callback.from_user.id):
+        await callback.answer("⛔ Нет доступа", show_alert=True)
+        return
+
+    node_id = int(callback.data.split(":")[3])
+    try:
+        await get_vpn_panel().reconnect_node(node_id)
+        await callback.answer(f"Нода #{node_id} переподключается")
+    except Exception as e:
+        await callback.answer(
+            f"Ошибка переподключения: {str(e)[:120]}",
+            show_alert=True,
+        )
+    await _show_nodes(callback)
 
 
 @router.callback_query(F.data.startswith("adm:group:toggle:"))

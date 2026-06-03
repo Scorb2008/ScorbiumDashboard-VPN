@@ -147,15 +147,15 @@ async def test_sync_from_marzban_repairs_expire_without_panel_private_helpers(
 ):
     service = VpnKeyService(session)
     service._traffic_columns_supported = False
+    original_expire = sample_vpn_key.expires_at
+    panel_expire = sample_vpn_key.expires_at - timedelta(days=2)
 
     panel = AsyncMock()
     panel.get_user.return_value = {
         "username": sample_vpn_key.pasarguard_key_id,
         "status": "active",
         "expire": int(
-            (sample_vpn_key.expires_at - timedelta(days=2)).astimezone(
-                timezone.utc
-            ).timestamp()
+            panel_expire.astimezone(timezone.utc).timestamp()
         ),
     }
     panel.modify_user = AsyncMock(return_value={"username": sample_vpn_key.pasarguard_key_id})
@@ -164,7 +164,8 @@ async def test_sync_from_marzban_repairs_expire_without_panel_private_helpers(
     result = await service.sync_from_marzban()
 
     assert result == {"synced": 1, "errors": 0, "fixed_expire": 1}
-    panel.modify_user.assert_awaited_once_with(
-        sample_vpn_key.pasarguard_key_id,
-        expire=service._expire_timestamp(sample_vpn_key.expires_at),
+    assert service._expire_timestamp(sample_vpn_key.expires_at) == service._expire_timestamp(
+        panel_expire
     )
+    assert sample_vpn_key.expires_at != original_expire
+    panel.modify_user.assert_not_awaited()

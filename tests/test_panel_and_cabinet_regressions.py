@@ -571,10 +571,10 @@ async def test_cancel_subscription_notifies_user(session, sample_vpn_key, monkey
     await session.refresh(sample_vpn_key)
 
     assert response.status_code == 200
-    assert sample_vpn_key.status == VpnKeyStatus.EXPIRED.value
+    assert sample_vpn_key.status == VpnKeyStatus.REVOKED.value
     assert sent == [
         (
             sample_vpn_key.user_id,
-            "⚠️ <b>Подписка остановлена администратором.</b>\n\nЕсли это произошло по ошибке, напишите в поддержку.",
+            "⚠️ <b>Подписка отключена администратором.</b>\n\nЕсли это произошло по ошибке, напишите в поддержку.",
         )
     ]
