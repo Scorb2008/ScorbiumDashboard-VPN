@@ -266,7 +266,7 @@
           <li><a class="dropdown-item" href="{{ panel_base }}/export/users?format=xlsx" style="color:var(--text)">Excel</a></li>
         </ul>
       </div>
-      <input type="search" placeholder="Поиск по имени / username..."
+      <input id="usersSearchInput" type="search" placeholder="Поиск по ID / имени / username..."
       class="form-control form-control-sm" style="width:240px"
       hx-get="{{ panel_base }}/users/search" hx-trigger="keyup changed delay:400ms"
       hx-target="#users-tbody" hx-include="this" name="q" />
@@ -291,7 +291,13 @@
           <th>Подписки</th><th>Платежи</th><th>Статус и баланс</th><th>Действия</th>
         </tr>
       </thead>
-      <tbody id="users-tbody">
+      <tbody
+        id="users-tbody"
+        hx-get="{{ panel_base }}/users/search"
+        hx-trigger="refresh"
+        hx-target="this"
+        hx-swap="innerHTML"
+        hx-include="#usersSearchInput">
         {% include "partials/users_rows.html" %}
       </tbody>
     </table>

@@ -28,9 +28,11 @@
       </div>
     </div>
     <form
+      id="nodeCreateForm"
       hx-post="{{ panel_base }}/nodes/add"
       hx-target="#nodes-grid-shell"
       hx-swap="outerHTML"
+      hx-on::after-request="if (event.detail.successful) { this.reset(); bootstrap.Collapse.getOrCreateInstance(document.getElementById('nodeCreateCard')).hide(); }"
       class="row g-3">
       <div class="col-md-4">
         <label class="form-label">Название</label>

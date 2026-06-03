@@ -50,13 +50,7 @@ async def users_search(
     _require_permission(request, "users.read")
     from app.services.user import UserService
 
-    raw = await UserService(db).get_all(limit=200)
-    q = q.lower()
-    filtered = [
-        u
-        for u in raw
-        if q in (u.full_name or "").lower() or q in (u.username or "").lower()
-    ]
+    filtered = await UserService(db).search(q, limit=200)
     return templates.TemplateResponse(
         request,
         "partials/users_rows.html",
@@ -293,7 +287,12 @@ async def add_balance(
         resp = Response(status_code=400)
         _toast(resp, "Сумма должна быть больше нуля", "error")
         return resp
-    await UserService(db).add_balance(user_id, amount)
+    user = await UserService(db).add_balance(user_id, amount)
+    if not user:
+        resp = Response(status_code=404)
+        _toast(resp, "Пользователь не найден", "error")
+        return resp
+    await db.commit()
     notify = TelegramNotifyService()
     await notify.send_message(user_id, f"💰 На ваш баланс зачислено <b>{amount} ₽</b>")
     resp = Response(status_code=200)

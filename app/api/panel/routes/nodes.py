@@ -17,13 +17,61 @@ from .shared import _require_permission, _base_ctx, _toast, templates
 router = APIRouter()
 
 
-def _node_status_meta(status: str) -> tuple[str, str, str]:
-    status_norm = str(status or "").lower()
+def _node_status_meta(status: str) -> tuple[str, str, str, str]:
+    status_norm = str(status or "").strip().lower()
     return {
-        "connected": ("var(--success)", "", "Подключена"),
-        "connecting": ("var(--warning)", "animation: pulse-glow 2s infinite", "Подключение"),
-        "error": ("var(--danger)", "", "Ошибка"),
-    }.get(status_norm, ("var(--text-muted)", "", status_norm or "Неизвестно"))
+        "connected": ("var(--success)", "", "Подключена", "connected"),
+        "healthy": ("var(--success)", "", "Подключена", "connected"),
+        "online": ("var(--success)", "", "Подключена", "connected"),
+        "connecting": (
+            "var(--warning)",
+            "animation: pulse-glow 2s infinite",
+            "Подключение",
+            "connecting",
+        ),
+        "syncing": (
+            "var(--warning)",
+            "animation: pulse-glow 2s infinite",
+            "Синхронизация",
+            "connecting",
+        ),
+        "error": ("var(--danger)", "", "Ошибка", "error"),
+        "failed": ("var(--danger)", "", "Ошибка", "error"),
+        "offline": ("var(--danger)", "", "Офлайн", "offline"),
+        "disconnected": ("var(--danger)", "", "Офлайн", "offline"),
+        "disabled": ("var(--text-muted)", "", "Отключена", "disabled"),
+    }.get(
+        status_norm,
+        ("var(--text-muted)", "", status_norm or "Неизвестно", "unknown"),
+    )
+
+
+def _node_summary_badges(nodes: list[dict[str, Any]]) -> str:
+    counts = {
+        "connected": 0,
+        "connecting": 0,
+        "error": 0,
+        "offline": 0,
+        "disabled": 0,
+        "unknown": 0,
+    }
+    for node in nodes:
+        _, _, _, bucket = _node_status_meta(str(node.get("status", "")))
+        counts[bucket] = counts.get(bucket, 0) + 1
+
+    badges = [
+        ("Всего", len(nodes), "badge-open"),
+        ("Подключены", counts["connected"], "badge-active"),
+        ("Подключение", counts["connecting"], "badge-pending"),
+        ("Ошибки", counts["error"] + counts["offline"], "badge-expired"),
+    ]
+    if counts["disabled"] or counts["unknown"]:
+        badges.append(("Прочее", counts["disabled"] + counts["unknown"], "badge-closed"))
+
+    return "".join(
+        f'<span class="badge badge-custom {klass}" style="padding:.45rem .8rem">{label}: {value}</span>'
+        for label, value, klass in badges
+    )
 
 
 def _render_nodes_grid(nodes: list[dict[str, Any]]) -> str:
@@ -47,7 +95,7 @@ def _render_nodes_grid(nodes: list[dict[str, Any]]) -> str:
         node_conn = html.escape(str(n.get("connection_type", "—")))
         node_users = html.escape(str(n.get("total_users", 0)))
         node_message = html.escape(str(n.get("message", "")))
-        color, pulse, status_label = _node_status_meta(str(n.get("status", "")))
+        color, pulse, status_label, _ = _node_status_meta(str(n.get("status", "")))
 
         cards += f"""
         <div class="col-md-6 col-xl-4">
@@ -111,6 +159,9 @@ def _render_nodes_grid(nodes: list[dict[str, Any]]) -> str:
 
     return f"""
     <div id="nodes-grid-shell">
+      <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+        {_node_summary_badges(nodes)}
+      </div>
       <div class="row g-3" hx-get="{config.web.panel_path('nodes/data')}" hx-trigger="every 30s" hx-swap="outerHTML">
         {cards}
       </div>

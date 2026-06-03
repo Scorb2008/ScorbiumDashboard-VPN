@@ -1,7 +1,7 @@
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import func, select, update
+from sqlalchemy import String, cast, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +19,25 @@ class UserService:
 
     async def get_all(self, limit: int = 100, offset: int = 0) -> list[User]:
         result = await self.session.execute(select(User).limit(limit).offset(offset))
+        return list(result.scalars().all())
+
+    async def search(self, query: str, limit: int = 200) -> list[User]:
+        term = (query or "").strip()
+        if not term:
+            return await self.get_all(limit=limit)
+
+        like = f"%{term}%"
+        result = await self.session.execute(
+            select(User)
+            .where(
+                or_(
+                    User.full_name.ilike(like),
+                    User.username.ilike(like),
+                    cast(User.id, String).ilike(like),
+                )
+            )
+            .limit(limit)
+        )
         return list(result.scalars().all())
 
     async def count_all(self) -> int:
