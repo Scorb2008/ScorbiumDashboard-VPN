@@ -13,6 +13,7 @@ from aiogram.types import (
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.exceptions import TelegramBadRequest
 
 from app.core.config import config
 from app.core.database import AsyncSessionFactory
@@ -73,6 +74,16 @@ def _format_hwid_dt(value: str | None) -> str:
         return parsed.strftime("%d.%m.%Y %H:%M")
     except Exception:
         return escape_html(str(value))
+
+
+async def _safe_edit_text(message: Message, text: str, **kwargs) -> bool:
+    try:
+        await message.edit_text(text, **kwargs)
+        return True
+    except TelegramBadRequest as e:
+        if "message is not modified" in str(e).lower():
+            return False
+        raise
 
 
 def _format_hwid_rows(hwids_data: dict | None) -> str:
@@ -1016,7 +1027,8 @@ async def admin_traffic(callback: CallbackQuery) -> None:
     builder.row(InlineKeyboardButton(text="🔄 Обновить", callback_data="adm:traffic"))
     builder.row(InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back"))
 
-    await callback.message.edit_text(
+    await _safe_edit_text(
+        callback.message,
         "\n".join(lines),
         reply_markup=builder.as_markup(),
         parse_mode="HTML",
