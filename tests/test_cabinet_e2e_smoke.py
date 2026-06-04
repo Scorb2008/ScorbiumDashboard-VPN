@@ -72,6 +72,13 @@ async def test_cabinet_widget_login_purchase_issue_and_view_keys_smoke(
     monkeypatch.setattr(cabinet_auth, "_verify_telegram_login", fake_verify_telegram_login)
     monkeypatch.setattr(cabinet_views.VpnKeyService, "provision", fake_provision)
 
+    login_response = await cabinet_e2e_client.get("/cabinet/")
+
+    assert login_response.status_code == 200
+    assert "Вход в кабинет" in login_response.text
+    assert "Войти через Telegram" in login_response.text
+    assert "/cabinet/auth" in login_response.text
+
     auth_response = await cabinet_e2e_client.post(
         "/cabinet/auth",
         json={
@@ -86,6 +93,7 @@ async def test_cabinet_widget_login_purchase_issue_and_view_keys_smoke(
 
     assert auth_response.status_code == 200
     assert auth_response.json()["ok"] is True
+    assert auth_response.json()["redirect"] == "/cabinet/"
     assert "cabinet_session=" in auth_response.headers["set-cookie"]
 
     plans_response = await cabinet_e2e_client.get("/cabinet/plans")
