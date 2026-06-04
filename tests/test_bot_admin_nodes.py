@@ -98,3 +98,52 @@ async def test_admin_delete_key_hwid_uses_indexed_hwid_lookup(monkeypatch):
     assert deleted == [("vpn_123_1", "device-b")]
     assert refreshed == [(7, 123)]
     assert callback.answers[-1] == ("✅ HWID удалён", True)
+
+
+@pytest.mark.asyncio
+async def test_admin_reset_key_hwids_resets_and_refreshes(monkeypatch):
+    reset_calls: list[str] = []
+    refreshed: list[tuple[int, int]] = []
+
+    class FakePanel:
+        async def reset_hwid_from_username(self, username):
+            reset_calls.append(username)
+
+    class FakeVpnKeyService:
+        def __init__(self, session):
+            self.session = session
+
+        async def get_by_id(self, key_id):
+            return SimpleNamespace(id=key_id, user_id=123, pasarguard_key_id="vpn_123_1")
+
+    class FakeSessionContext:
+        async def __aenter__(self):
+            return object()
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    class DummyCallback:
+        def __init__(self):
+            self.from_user = SimpleNamespace(id=1)
+            self.data = "adm:resethwid:7:123"
+            self.answers = []
+
+        async def answer(self, text=None, show_alert=False):
+            self.answers.append((text, show_alert))
+
+    async def fake_show_admin_key_hwids(callback, key_id, user_id):
+        refreshed.append((key_id, user_id))
+
+    monkeypatch.setattr(admin_handlers, "_is_admin", lambda user_id: True)
+    monkeypatch.setattr(admin_handlers, "AsyncSessionFactory", lambda: FakeSessionContext())
+    monkeypatch.setattr(admin_handlers, "VpnKeyService", FakeVpnKeyService)
+    monkeypatch.setattr(admin_handlers, "get_vpn_panel", lambda: FakePanel())
+    monkeypatch.setattr(admin_handlers, "_show_admin_key_hwids", fake_show_admin_key_hwids)
+
+    callback = DummyCallback()
+    await admin_handlers.admin_reset_key_hwids(callback)
+
+    assert reset_calls == ["vpn_123_1"]
+    assert refreshed == [(7, 123)]
+    assert callback.answers[-1] == ("✅ Все HWID сброшены", True)

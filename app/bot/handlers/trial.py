@@ -32,7 +32,6 @@ async def handle_trial(callback: CallbackQuery) -> None:
         lang = await _get_lang(callback.from_user.id, session)
         settings = await BotSettingsService(session).get_all()
 
-        # Проверяем включён ли пробный период
         if settings.get("trial_enabled", "0") != "1":
             await callback.answer(
                 {
@@ -46,11 +45,9 @@ async def handle_trial(callback: CallbackQuery) -> None:
 
         trial_days = int(settings.get("trial_days", "3"))
 
-        # Проверяем что юзер ещё не использовал пробный период
         all_keys = await VpnKeyService(session).get_all_for_user(callback.from_user.id)
 
         if all_keys:
-            # Уже есть подписки — пробный период недоступен
             msgs = {
                 "ru": "❌ Пробный период доступен только новым пользователям без подписок.",
                 "en": "❌ Trial is only available for new users without subscriptions.",
@@ -59,7 +56,6 @@ async def handle_trial(callback: CallbackQuery) -> None:
             await callback.answer(msgs.get(lang, msgs["ru"]), show_alert=True)
             return
 
-        # Создаём пробную подписку напрямую через VpnKeyService
         from datetime import datetime, timezone, timedelta
         from app.models.vpn_key import VpnKey, VpnKeyStatus
         from app.services.pasarguard.pasarguard import PasarguardService
@@ -70,7 +66,7 @@ async def handle_trial(callback: CallbackQuery) -> None:
 
         key = VpnKey(
             user_id=callback.from_user.id,
-            plan_id=None,  # пробный — без плана
+            plan_id=None,
             price=0,
             expires_at=expires_at,
             name={

@@ -542,6 +542,13 @@ async def _show_admin_key_hwids(
                 callback_data=f"adm:delhwid:{key.id}:{user_id}:{idx-1}",
             )
         )
+    if count:
+        builder.row(
+            InlineKeyboardButton(
+                text="♻️ Сбросить все HWID",
+                callback_data=f"adm:resethwid:{key.id}:{user_id}",
+            )
+        )
     builder.row(
         InlineKeyboardButton(
             text="◀️ К подписке",
@@ -1571,6 +1578,41 @@ async def admin_delete_key_hwid(callback: CallbackQuery) -> None:
     except Exception as e:
         log.warning(f"Failed to delete HWID for key {key_id}: {e}")
         await callback.answer("❌ Не удалось удалить HWID", show_alert=True)
+
+    await _show_admin_key_hwids(callback, key_id, user_id)
+
+
+@router.callback_query(F.data.startswith("adm:resethwid:"))
+async def admin_reset_key_hwids(callback: CallbackQuery) -> None:
+    if not _is_admin(callback.from_user.id):
+        return
+
+    parts = callback.data.split(":")
+    key_id, user_id = int(parts[2]), int(parts[3])
+
+    async with AsyncSessionFactory() as session:
+        key = await VpnKeyService(session).get_by_id(key_id)
+
+    if not key or key.user_id != user_id:
+        await callback.answer("❌ Ключ не найден", show_alert=True)
+        return
+
+    username = (key.pasarguard_key_id or "").strip()
+    if not username:
+        await callback.answer("❌ У ключа нет username панели", show_alert=True)
+        return
+
+    try:
+        panel = get_vpn_panel()
+        if not hasattr(panel, "reset_hwid_from_username"):
+            await callback.answer("❌ Сброс HWID недоступен", show_alert=True)
+            return
+
+        await panel.reset_hwid_from_username(username)
+        await callback.answer("✅ Все HWID сброшены", show_alert=True)
+    except Exception as e:
+        log.warning(f"Failed to reset HWIDs for key {key_id}: {e}")
+        await callback.answer("❌ Не удалось сбросить HWID", show_alert=True)
 
     await _show_admin_key_hwids(callback, key_id, user_id)
 

@@ -136,3 +136,45 @@ async def test_delete_subscription_hwid_rerenders_modal(
     assert response.status_code == 200
     assert deleted == [(sample_vpn_key.pasarguard_key_id, "device-a")]
     assert "Для этой подписки пока не зарегистрированы устройства." in body
+
+
+@pytest.mark.asyncio
+async def test_reset_subscription_hwids_rerenders_modal(
+    session, sample_vpn_key, monkeypatch
+):
+    reset_calls: list[str] = []
+
+    class FakePanel:
+        async def get_hwids_by_username(self, username):
+            assert username == sample_vpn_key.pasarguard_key_id
+            return {
+                "hwids": [
+                    {
+                        "hwid": "device-a",
+                        "device_model": "Pixel 9",
+                    }
+                ],
+                "count": 1,
+            }
+
+        async def reset_hwid_from_username(self, username):
+            reset_calls.append(username)
+            return {"hwids": [], "count": 0}
+
+    monkeypatch.setattr(
+        subscriptions_routes,
+        "_require_permission",
+        lambda request, permission: {"sub": "admin", "role": "superadmin"},
+    )
+    monkeypatch.setattr(subscriptions_routes, "get_vpn_panel", lambda: FakePanel())
+
+    response = await subscriptions_routes.reset_subscription_hwids(
+        key_id=sample_vpn_key.id,
+        request=_make_request(f"/panel/subscriptions/{sample_vpn_key.id}/hwids/reset"),
+        db=session,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert reset_calls == [sample_vpn_key.pasarguard_key_id]
+    assert "Для этой подписки пока не зарегистрированы устройства." in body

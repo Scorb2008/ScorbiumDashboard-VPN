@@ -390,11 +390,17 @@ class PasarguardService(VpnPanelInterface):
 
     # ── HWID User ────────────────────────────────────────────────────────────
 
+    # Endpoint: Get hwids
     async def get_user_hwids(self, user_id: int) -> dict:
         return await self._client.get(f"/api/user/{user_id}/hwids")
 
+    # Endpoint: Delete hwids
     async def delete_user_hwids(self, user_id: int, hwid: str) -> None:
         await self._client.delete(f"/api/user/{user_id}/hwids/{hwid}")
+
+    # Endpoint: Reset hwids
+    async def reset_user_hwids(self, user_id: int) -> None:
+        await self._client.post(f"/api/user/{user_id}/hwids/reset")
 
     async def get_hwids_by_username(self, username: str) -> dict:
         user = await self.get_user(username)
@@ -409,6 +415,15 @@ class PasarguardService(VpnPanelInterface):
         user_id = int(user["id"])
         await self.delete_user_hwids(user_id, hwid)
         return await self.get_user_hwids(user_id)
+
+    async def reset_hwid_from_username(self, username: str) -> dict:
+        user = await self.get_user(username)
+        if not user or not user.get("id"):
+            return {"hwids": [], "count": 0}
+        user_id = int(user["id"])
+        await self.reset_user_hwids(user_id)
+        return await self.get_user_hwids(user_id)
+
 
 
 def get_vpn_panel() -> VpnPanelInterface:

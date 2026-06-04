@@ -24,6 +24,7 @@ _DEFAULT_LAYOUT = [
     [{"id": "top_referrers", "label": "🏆 Топ рефереров", "callback": "top_referrers"}],
     [{"id": "support", "label": "💬 Поддержка", "callback": "support"}],
     [{"id": "cabinet", "label": "📱 Кабинет", "web_app": ""}],
+    [{"id": "admin_menu", "label": "ℹ️ Админ меню", "callback": "admin:panel"}],
     [{"id": "admin_panel", "label": "⚙️ Админ панель", "url": ""}],
 ]
 

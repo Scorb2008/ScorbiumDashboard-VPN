@@ -135,6 +135,39 @@ async def delete_subscription_hwid(
     )
 
 
+@router.post("/{key_id}/hwids/reset", response_class=HTMLResponse)
+async def reset_subscription_hwids(
+    key_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    _require_permission(request, "subscriptions.write")
+    key, hwids_data = await _get_subscription_with_hwids(db, key_id)
+    if not key:
+        resp = Response(status_code=404)
+        _toast(resp, "Подписка не найдена", "error")
+        return resp
+
+    username = (key.pasarguard_key_id or "").strip()
+    if username:
+        try:
+            panel = get_vpn_panel()
+            if hasattr(panel, "reset_hwid_from_username"):
+                hwids_data = await panel.reset_hwid_from_username(username)
+        except Exception:
+            key, hwids_data = await _get_subscription_with_hwids(db, key_id)
+
+    return templates.TemplateResponse(
+        request,
+        "partials/subscription_hwids.html",
+        {
+            "request": request,
+            "subscription": key,
+            "hwids_data": hwids_data,
+        },
+    )
+
+
 @router.post("/create", response_class=HTMLResponse)
 async def create_subscription(
     request: Request,

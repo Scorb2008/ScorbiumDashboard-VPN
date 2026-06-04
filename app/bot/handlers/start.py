@@ -253,9 +253,9 @@ async def toggle_autorenew(callback: CallbackQuery) -> None:
     await show_balance(callback)
 
 
-# ── Пополнение баланса ────────────────────────────────────────────────────────
+# ── TOPUP_BALANCE_AMOUNT ────────────────────────────────────────────────────────
 
-_TOPUP_AMOUNTS = [100, 200, 500, 1000, 2000, 5000]
+_TOPUP_AMOUNTS = [100, 150, 200, 250, 500, 1000, 2000, 5000]
 
 
 @router.callback_query(F.data == "topup:menu")
@@ -264,7 +264,6 @@ async def topup_menu(callback: CallbackQuery) -> None:
         lang = await _get_lang_from_session(callback.from_user.id, session)
 
     builder = InlineKeyboardBuilder()
-    # Быстрые суммы
     for amount in _TOPUP_AMOUNTS:
         builder.button(text=f"{amount} ₽", callback_data=f"topup:amount:{amount}")
     builder.adjust(3)
@@ -435,7 +434,6 @@ async def _show_topup_payment(
             )
         )
 
-    # Telegram Stars — всегда доступны
     stars_labels = {
         "ru": f"⭐ Telegram Stars ({stars_amount} ⭐)",
         "en": f"⭐ Telegram Stars ({stars_amount} ⭐)",

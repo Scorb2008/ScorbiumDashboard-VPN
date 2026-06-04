@@ -406,6 +406,33 @@ async function deleteSubscriptionHwid(button) {
   }
   return false;
 }
+async function resetSubscriptionHwids(button) {
+  const keyId = button?.dataset?.keyId;
+  if (!keyId) {
+    showToast('Подписка не найдена', 'error');
+    return false;
+  }
+  if (!confirm('Сбросить все устройства у этой подписки?')) return false;
+
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  const csrf = meta ? meta.getAttribute('content') : '';
+  button.disabled = true;
+  try {
+    const r = await fetch(panelUrl('/subscriptions/' + keyId + '/hwids/reset'), {
+      method: 'POST',
+      headers: { 'X-CSRF-Token': csrf },
+      credentials: 'same-origin',
+    });
+    const body = document.getElementById('hwid-modal-body');
+    body.innerHTML = r.ok ? await r.text() : '<div class="text-center py-4" style="color:var(--text-muted)">Не удалось обновить HWID.</div>';
+    showToast(r.ok ? 'Все HWID сброшены' : 'Не удалось сбросить HWID', r.ok ? 'success' : 'error');
+  } catch (err) {
+    showToast('Не удалось сбросить HWID', 'error');
+  } finally {
+    button.disabled = false;
+  }
+  return false;
+}
 function openExtendModal(subId, subName) {
   extendSubId = subId;
   document.getElementById('extendSubInfo').textContent = 'Подписка #' + subId + (subName ? ' (' + subName + ')' : '');

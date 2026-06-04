@@ -106,6 +106,8 @@ DEFAULTS = {
     "btn_style_top_referrers": "",
     "btn_style_status": "",
     "btn_style_language": "",
+    "btn_style_admin_menu": "",
+    "btn_style_admin_panel": "",
     # ── Maintenance Mode ───────────────────────────────────────────────────────
     "maintenance_mode": "0",
     "maintenance_message": "⛔️ Ведутся технические работы. Напишите через час.",
@@ -125,6 +127,8 @@ DEFAULTS = {
     "btn_emoji_top_referrers": "",
     "btn_emoji_status": "",
     "btn_emoji_language": "",
+    "btn_emoji_admin_menu": "",
+    "btn_emoji_admin_panel": "",
     # ── Уведомления о мониторинге ─────────────────────────────────────────────
     "notify_monitoring_enabled": "1",
     "notify_svc_database": "1",

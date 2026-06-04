@@ -22,10 +22,11 @@ _BUTTON_IDS = [
     "language",
     "trial",
     "cabinet",
+    "admin_menu",
     "admin_panel",
 ]
 
-# Переводы лейблов кнопок по умолчанию
+# Default labels buttons
 _BTN_LABELS: dict[str, dict[str, str]] = {
     "ru": {
         "my_keys": "🔑 Мои подписки",
@@ -43,6 +44,7 @@ _BTN_LABELS: dict[str, dict[str, str]] = {
         "trial": "🎁 Пробный период",
         "cabinet": "📱 Кабинет",
         "admin_panel": "⚙️ Админ панель",
+        "admin_menu": "ℹ️ Админ меню"
     },
     "en": {
         "my_keys": "🔑 My subscriptions",
@@ -60,6 +62,7 @@ _BTN_LABELS: dict[str, dict[str, str]] = {
         "trial": "🎁 Trial period",
         "cabinet": "📱 Cabinet",
         "admin_panel": "⚙️ Admin panel",
+        "admin_menu": "ℹ️ Admin menu"
     },
     "fa": {
         "my_keys": "🔑 اشتراک‌های من",
@@ -77,6 +80,7 @@ _BTN_LABELS: dict[str, dict[str, str]] = {
         "trial": "🎁 دوره آزمایشی",
         "cabinet": "📱 کابینت",
         "admin_panel": "⚙️ پنل مدیریت",
+        "admin_menu": "ℹ️ منوی مدیریت"
     },
 }
 
@@ -119,7 +123,7 @@ def _translate_layout(layout: list, lang: str, settings: dict) -> list:
 
 
 def _resolve_layout_urls(layout: list, settings: dict, is_admin: bool) -> list:
-    """Resolve cabinet and admin_panel URLs, remove if no URL, hide admin_panel for non-admins."""
+    """Resolve cabinet and admin_panel URLs, remove if no URL, hide admin-only buttons."""
     result = []
     for row in layout:
         new_row = []
@@ -145,6 +149,26 @@ def _resolve_layout_urls(layout: list, settings: dict, is_admin: bool) -> list:
     return result
 
 
+def _resolve_layout_menu(layout: list, is_admin: bool) -> list:
+    """Normalize admin menu button callback and hide it for non-admins."""
+    result = []
+    for row in layout:
+        new_row = []
+        for b in row:
+            bid = b.get("id", "")
+            if bid == "admin_menu":
+                if not is_admin:
+                    continue
+                new_row.append(
+                    {**b, "callback": "admin:panel", "url": "", "web_app": ""}
+                )
+            else:
+                new_row.append(b)
+        if new_row:
+            result.append(new_row)
+    return result
+
+
 async def get_main_menu_kb(
     session, lang: str = "ru", user_id: int = None, is_admin: bool = False
 ) -> InlineKeyboardMarkup:
@@ -157,7 +181,6 @@ async def get_main_menu_kb(
     except Exception:
         layout = _DEFAULT_LAYOUT
 
-    # Если пробный период уже использован — убираем кнопку из раскладки
     if user_id and s.get("trial_enabled", "0") == "1":
         from sqlalchemy import select
         from app.models.vpn_key import VpnKey
@@ -172,7 +195,7 @@ async def get_main_menu_kb(
 
     # Resolve cabinet and admin_panel URLs from settings
     layout = _resolve_layout_urls(layout, s, is_admin)
-
+    layout = _resolve_layout_menu(layout, is_admin)
     # Translate labels
     layout = _translate_layout(layout, lang, s)
 

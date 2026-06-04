@@ -69,6 +69,13 @@
     letter-spacing: .06em;
   }
 
+  .hwid-hero-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
   .hwid-list {
     display: grid;
     gap: 12px;
@@ -212,6 +219,18 @@
       <span>{% if count == 1 %}Устройство{% else %}Устройств{% endif %}</span>
     </div>
   </div>
+
+  {% if hwids %}
+    <div class="hwid-hero-actions">
+      <button
+        type="button"
+        class="btn btn-sm btn-outline-warning"
+        data-key-id="{{ subscription.id }}"
+        onclick="return resetSubscriptionHwids(this)">
+        <i class="bi bi-arrow-counterclockwise me-1"></i>Сбросить все HWID
+      </button>
+    </div>
+  {% endif %}
 
   {% if hwids %}
     <div class="hwid-list">
