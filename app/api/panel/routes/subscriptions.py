@@ -20,6 +20,29 @@ from .shared import _require_permission, _toast, _base_ctx, templates
 router = APIRouter()
 
 
+async def _get_subscription_with_hwids(
+    db: AsyncSession, key_id: int
+) -> tuple[object | None, dict]:
+    from app.models.vpn_key import VpnKey
+
+    result = await db.execute(select(VpnKey).where(VpnKey.id == key_id))
+    key = result.scalar_one_or_none()
+    if not key:
+        return None, {"hwids": [], "count": 0}
+
+    hwids_data = {"hwids": [], "count": 0}
+    username = (key.pasarguard_key_id or "").strip()
+    if username:
+        try:
+            panel = get_vpn_panel()
+            if hasattr(panel, "get_hwids_by_username"):
+                hwids_data = await panel.get_hwids_by_username(username)
+        except Exception:
+            hwids_data = {"hwids": [], "count": 0}
+
+    return key, hwids_data
+
+
 @router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def subscriptions_page(request: Request, db: AsyncSession = Depends(get_db)):
@@ -59,24 +82,47 @@ async def subscription_hwids(
     db: AsyncSession = Depends(get_db),
 ):
     _require_permission(request, "subscriptions")
-    from app.models.vpn_key import VpnKey
-
-    result = await db.execute(select(VpnKey).where(VpnKey.id == key_id))
-    key = result.scalar_one_or_none()
+    key, hwids_data = await _get_subscription_with_hwids(db, key_id)
     if not key:
         resp = Response(status_code=404)
         _toast(resp, "Подписка не найдена", "error")
         return resp
 
-    hwids_data = {"hwids": [], "count": 0}
+    return templates.TemplateResponse(
+        request,
+        "partials/subscription_hwids.html",
+        {
+            "request": request,
+            "subscription": key,
+            "hwids_data": hwids_data,
+        },
+    )
+
+
+@router.post("/{key_id}/hwids/delete", response_class=HTMLResponse)
+async def delete_subscription_hwid(
+    key_id: int,
+    request: Request,
+    hwid: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+):
+    _require_permission(request, "subscriptions.write")
+    key, hwids_data = await _get_subscription_with_hwids(db, key_id)
+    if not key:
+        resp = Response(status_code=404)
+        _toast(resp, "Подписка не найдена", "error")
+        return resp
+
     username = (key.pasarguard_key_id or "").strip()
-    if username:
+    hwid = hwid.strip()
+
+    if username and hwid:
         try:
             panel = get_vpn_panel()
-            if hasattr(panel, "get_hwids_by_username"):
-                hwids_data = await panel.get_hwids_by_username(username)
+            if hasattr(panel, "delete_hwid_from_username"):
+                hwids_data = await panel.delete_hwid_from_username(username, hwid)
         except Exception:
-            hwids_data = {"hwids": [], "count": 0}
+            key, hwids_data = await _get_subscription_with_hwids(db, key_id)
 
     return templates.TemplateResponse(
         request,

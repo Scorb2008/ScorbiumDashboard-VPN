@@ -110,6 +110,13 @@ def _format_hwid_rows(hwids_data: dict | None) -> str:
     return "\n\n".join(lines)
 
 
+def _hwid_entries(hwids_data: dict | None) -> list[dict]:
+    if not isinstance(hwids_data, dict):
+        return []
+    hwids = hwids_data.get("hwids", [])
+    return hwids if isinstance(hwids, list) else []
+
+
 def _users_filter_label(filter_name: str) -> str:
     return {
         "all": "Все",
@@ -524,6 +531,17 @@ async def _show_admin_key_hwids(
     )
 
     builder = InlineKeyboardBuilder()
+    for idx, item in enumerate(_hwid_entries(hwids_data), start=1):
+        hwid = str(item.get("hwid") or "").strip()
+        if not hwid:
+            continue
+        model = escape_html(item.get("device_model") or f"Устройство {idx}")
+        builder.row(
+            InlineKeyboardButton(
+                text=f"🗑 Удалить {model[:20]}",
+                callback_data=f"adm:delhwid:{key.id}:{user_id}:{idx-1}",
+            )
+        )
     builder.row(
         InlineKeyboardButton(
             text="◀️ К подписке",
@@ -1505,6 +1523,55 @@ async def admin_key_hwid(callback: CallbackQuery) -> None:
     await callback.answer()
     parts = callback.data.split(":")
     key_id, user_id = int(parts[2]), int(parts[3])
+    await _show_admin_key_hwids(callback, key_id, user_id)
+
+
+@router.callback_query(F.data.startswith("adm:delhwid:"))
+async def admin_delete_key_hwid(callback: CallbackQuery) -> None:
+    if not _is_admin(callback.from_user.id):
+        return
+
+    parts = callback.data.split(":")
+    key_id, user_id, hwid_index = int(parts[2]), int(parts[3]), int(parts[4])
+
+    async with AsyncSessionFactory() as session:
+        key = await VpnKeyService(session).get_by_id(key_id)
+
+    if not key or key.user_id != user_id:
+        await callback.answer("❌ Ключ не найден", show_alert=True)
+        return
+
+    username = (key.pasarguard_key_id or "").strip()
+    if not username:
+        await callback.answer("❌ У ключа нет username панели", show_alert=True)
+        return
+
+    try:
+        panel = get_vpn_panel()
+        if not hasattr(panel, "get_hwids_by_username") or not hasattr(
+            panel, "delete_hwid_from_username"
+        ):
+            await callback.answer("❌ Удаление HWID недоступно", show_alert=True)
+            return
+
+        hwids_data = await panel.get_hwids_by_username(username)
+        hwids = _hwid_entries(hwids_data)
+        if hwid_index < 0 or hwid_index >= len(hwids):
+            await callback.answer("❌ Устройство не найдено", show_alert=True)
+            await _show_admin_key_hwids(callback, key_id, user_id)
+            return
+
+        hwid = str(hwids[hwid_index].get("hwid") or "").strip()
+        if not hwid:
+            await callback.answer("❌ У HWID пустое значение", show_alert=True)
+            return
+
+        await panel.delete_hwid_from_username(username, hwid)
+        await callback.answer("✅ HWID удалён", show_alert=True)
+    except Exception as e:
+        log.warning(f"Failed to delete HWID for key {key_id}: {e}")
+        await callback.answer("❌ Не удалось удалить HWID", show_alert=True)
+
     await _show_admin_key_hwids(callback, key_id, user_id)
 
 

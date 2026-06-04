@@ -131,6 +131,12 @@
     gap: 8px;
   }
 
+  .hwid-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: .95rem;
+  }
+
   .hwid-meta-row {
     display: grid;
     grid-template-columns: 110px minmax(0, 1fr);
@@ -234,6 +240,18 @@
               <div class="hwid-meta-value">{{ item.last_used_at|dt('%d.%m.%Y %H:%M', '—') }}</div>
             </div>
           </div>
+          {% if item.hwid %}
+            <div class="hwid-actions">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-danger"
+                data-key-id="{{ subscription.id }}"
+                data-hwid="{{ item.hwid }}"
+                onclick="return deleteSubscriptionHwid(this)">
+                <i class="bi bi-trash3 me-1"></i>Удалить HWID
+              </button>
+            </div>
+          {% endif %}
         </div>
       {% endfor %}
     </div>
