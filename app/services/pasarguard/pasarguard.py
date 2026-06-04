@@ -393,12 +393,24 @@ class PasarguardService(VpnPanelInterface):
     async def get_user_hwids(self, user_id: int) -> dict:
         return await self._client.get(f"/api/user/{user_id}/hwids")
 
+    async def delete_user_hwids(self, user_id: int, hwid: str) -> None:
+        await self._client.delete(f"/api/user/{user_id}/hwids/{hwid}")
+
     async def get_hwids_by_username(self, username: str) -> dict:
         user = await self.get_user(username)
         if not user or not user.get("id"):
             return {"hwids": [], "count": 0}
         return await self.get_user_hwids(int(user["id"]))
-        
+
+    async def delete_hwid_from_username(self, username: str, hwid: str) -> dict:
+        user = await self.get_user(username)
+        if not user or not user.get("id") or not hwid:
+            return {"hwids": [], "count": 0}
+        user_id = int(user["id"])
+        await self.delete_user_hwids(user_id, hwid)
+        return await self.get_user_hwids(user_id)
+
+
 def get_vpn_panel() -> VpnPanelInterface:
     """Factory — returns Marzban/Pasarguard panel backend."""
     return PasarguardService()
