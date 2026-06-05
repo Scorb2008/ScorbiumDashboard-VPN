@@ -131,7 +131,7 @@
       <div class="stat-icon" style="background:rgba(34,197,94,.12);color:var(--success)">
         <i class="bi bi-wifi"></i>
       </div>
-      <div class="stat-value">{{ marzban_stats.get('users_active', 0) }}</div>
+      <div class="stat-value">{{ marzban_stats.get('online_users', marzban_stats.get('users_active', 0)) }}</div>
       <div class="stat-label">Онлайн</div>
     </div>
   </div>

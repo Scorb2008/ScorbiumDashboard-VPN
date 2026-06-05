@@ -206,11 +206,35 @@ class PasarguardService(VpnPanelInterface):
             normalized["users"] = [self._normalize_user_payload(user) for user in users]
         return normalized
 
+    @staticmethod
+    def _normalize_system_stats(payload: dict | None) -> dict | None:
+        if not isinstance(payload, dict):
+            return payload
+
+        normalized = dict(payload)
+
+        online_users = PasarguardService._coerce_int(
+            normalized.get("online_users", normalized.get("users_active"))
+        )
+        active_users = PasarguardService._coerce_int(
+            normalized.get("active_users", normalized.get("users_active"))
+        )
+
+        if "online_users" not in normalized:
+            normalized["online_users"] = online_users
+        if "users_active" not in normalized:
+            normalized["users_active"] = online_users
+        if "active_users" not in normalized:
+            normalized["active_users"] = active_users
+
+        return normalized
+
     # ── System ──────────────────────────────────────────────────────────────
 
     async def get_system_stats(self) -> dict:
         """Статистика системы: онлайн, трафик, пользователи."""
-        return await self._client.get("/api/system")
+        data = await self._client.get("/api/system")
+        return self._normalize_system_stats(data) or {}
 
     async def validate_connection(self) -> bool:
         try:

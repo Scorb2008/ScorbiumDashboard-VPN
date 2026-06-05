@@ -1056,7 +1056,7 @@
           {% elif marzban_stats %}
           <div class="status-card">
             <i class="bi bi-wifi" style="color:var(--success)"></i>
-            <strong>{{ marzban_stats.get('users_active', 0) }}</strong>
+            <strong>{{ marzban_stats.get('online_users', marzban_stats.get('users_active', 0)) }}</strong>
             <span>Пользователей онлайн</span>
           </div>
           <div class="status-card">
