@@ -95,8 +95,7 @@ async def _provision_and_notify(
     force_notify: bool = False,
     force_admin_notify: bool = False,
 ) -> bool:
-    """Создаём VPN-подписку и уведомляем пользователя.
-
+    """
     CRITICAL: Extract ALL ORM scalars before closing session to avoid DetachedInstanceError.
     """
     key_data = None

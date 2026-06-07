@@ -21,7 +21,7 @@ router = Router()
 CONNECT_GUIDES = {
     "ios": (
         "📱 <b>Подключение на iOS</b>\n\n"
-        "1. Установи <b>Streisand</b> или <b>V2Box</b> из App Store\n"
+        "1. Установи один из этиз программ: <b>Streisand</b> или <b>V2Box</b> <b>Happ</b> из App Store\n"
         "2. Открой приложение → «+» → «Импорт из буфера обмена»\n"
         "3. Вставь свою ссылку подписки\n"
         "4. Нажми «Подключить» ✅\n\n"
@@ -44,10 +44,9 @@ CONNECT_GUIDES = {
     ),
     "macos": (
         "🍎 <b>Подключение на macOS</b>\n\n"
-        "1. Установи <b>FoXray</b> или <b>Hiddify</b> из Mac App Store\n"
+        "1. Установи <b>V2Box</b> или <b>Happ</b>из Mac App Store\n"
         "2. Добавь подписку → вставь ссылку\n"
         "3. Выбери сервер → «Подключить» ✅\n\n"
-        "💡 Альтернатива: <b>V2RayXS</b>"
     ),
     "linux": (
         "🐧 <b>Подключение на Linux</b>\n\n"
