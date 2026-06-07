@@ -70,19 +70,23 @@ class _PasarGuardConfig(BaseSettings):
 
     @model_validator(mode="after")
     def validate_authentication_method(self) -> "_PasarGuardConfig":
+        has_password_auth = self._has_password_auth_credentials(
+            self.pasarguard_admin_login, self.pasarguard_admin_password
+        )
+        has_api_key = self._has_api_key_value(self.pasarguard_api_key)
 
-        if not (self.has_password_auth or self.has_api_key):
+        if not (has_password_auth or has_api_key):
             raise PasarguardAuthError(
                 "At least one authentication method must be specified:\n"
                 "- Login and password (PASARGUARD_ADMIN_LOGIN + PASARGUARD_ADMIN_PASSWORD)\n"
                 "- API key (PASARGUARD_API_KEY)"
             )
 
-        if self.has_password_auth and self.has_api_key:
+        if has_password_auth and has_api_key:
             log.info("🔐 Using both: login/password and API Key")
-        elif self.has_password_auth:
+        elif has_password_auth:
             log.info("🔐 Using: login/password")
-        elif self.has_api_key:
+        elif has_api_key:
             log.info("🔐 Using: API Key")
 
         return self
@@ -119,25 +123,31 @@ class _PasarGuardConfig(BaseSettings):
 
         return auth_data
 
+    @staticmethod
+    def _has_non_empty_secret(value: Optional[SecretStr]) -> bool:
+        return bool(value and value.get_secret_value().strip())
+
+    @classmethod
+    def _has_password_auth_credentials(
+        cls, login: Optional[str], password: Optional[SecretStr]
+    ) -> bool:
+        return bool(login and login.strip() and cls._has_non_empty_secret(password))
+
+    @classmethod
+    def _has_api_key_value(cls, api_key: Optional[SecretStr]) -> bool:
+        return cls._has_non_empty_secret(api_key)
+
     @property
     def has_password_auth(self) -> bool:
         """Check if password authentication is available"""
-        return bool(
-            self.pasarguard_admin_login
-            and self.pasarguard_admin_password
-            and self.pasarguard_admin_password.get_secret_value().strip()
+        return self._has_password_auth_credentials(
+            self.pasarguard_admin_login, self.pasarguard_admin_password
         )
 
     @property
     def has_api_key(self) -> bool:
         """Check if API key authentication is available"""
-        try:
-            return bool(
-                self.pasarguard_api_key
-                and self.pasarguard_api_key.get_secret_value().strip()
-            )
-        except Exception:
-            return False
+        return self._has_api_key_value(self.pasarguard_api_key)
 
     def assert_login_credentials(self) -> Tuple[str, SecretStr]:
         if (
